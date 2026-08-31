@@ -2,5 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "ignoreCommand": "if [ -z \"$VERCEL_GIT_PREVIOUS_SHA\" ]; then exit 1; fi; if git diff --name-only \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD | grep -v '^src/lib/supabase/database.types.ts$' | grep -Eq '^(src/|public/|index\\.html$|package(-lock)?\\.json$|vite\\.config\\.(ts|js)$|tsconfig.*\\.json$|vercel\\.json$)'; then exit 1; else exit 0; fi"
+  "ignoreCommand": "sh scripts/vercel-ignore-build.sh"
 }
