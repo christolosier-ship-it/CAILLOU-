@@ -1,21 +1,19 @@
 import { Bounds, ContactShadows, OrbitControls } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useState } from 'react'
-import { getRockCatalogEntry } from '../content/rockCatalog'
+import { getRelativeRockIndex, getRockCatalogEntry } from '../content/rockCatalog'
 import { RockModel } from './RockModel'
-
-const VERTICAL_SLICE = [getRockCatalogEntry(1), getRockCatalogEntry(2)] as const
 
 export function FoundationScene() {
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const selectedRock = VERTICAL_SLICE[selectedIndex] ?? VERTICAL_SLICE[0]
+  const selectedRock = getRockCatalogEntry(selectedIndex + 1)
 
   function selectRelative(delta: number) {
-    setSelectedIndex((current) => (current + delta + VERTICAL_SLICE.length) % VERTICAL_SLICE.length)
+    setSelectedIndex((current) => getRelativeRockIndex(current, delta))
   }
 
   return (
-    <div className="scene-frame scene-frame-production" aria-label="Validation 3D des deux premiers spécimens de production">
+    <div className="scene-frame scene-frame-production" aria-label="Sélection 3D des 20 spécimens">
       <Canvas
         aria-hidden="true"
         camera={{ position: [3.1, 2.15, 4.4], fov: 32, near: 0.05, far: 100 }}
@@ -58,7 +56,7 @@ export function FoundationScene() {
         <button type="button" onClick={() => selectRelative(-1)} aria-label="Spécimen précédent">‹</button>
         <p aria-live="polite">
           <strong>{selectedRock.label}</strong>
-          <span>{selectedRock.catalogIndex} / 20 · validation production</span>
+          <span>{selectedRock.catalogIndex} / 20</span>
         </p>
         <button type="button" onClick={() => selectRelative(1)} aria-label="Spécimen suivant">›</button>
       </div>
