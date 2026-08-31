@@ -8,9 +8,9 @@
 
 ## 1. Objet du document
 
-Ce document décrit l’architecture technique recommandée pour **CAILLOU™ V1**, la stack, l’organisation du dépôt, les responsabilités des modules, la stratégie 3D, la persistance locale, la PWA, les performances, les tests et les règles de qualité.
+Ce document décrit l’architecture technique recommandée pour **CAILLOU™ V1**, la stack, l’organisation du dépôt, les responsabilités des modules, la stratégie 3D, la sélection des vingt spécimens, la persistance locale, la PWA, les performances, les tests et les règles de qualité.
 
-Le périmètre fonctionnel est défini dans `CAHIER-DES-CHARGES-V1.md`. Les règles visuelles et artistiques sont définies dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`.
+Le périmètre fonctionnel est défini dans `CAHIER-DES-CHARGES-V1.md`. Les règles visuelles et artistiques sont définies dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`. Le pipeline d’assets est décrit dans `WORKFLOW-3D-BLENDER-GITHUB.md`.
 
 ---
 
@@ -41,11 +41,14 @@ React Three Fiber
 Three.js / WebGL
       │
       ▼
-GLB + textures + lumières + ambiances
+1 GLB actif + textures + lumières + ambiances
 ```
 
-Aucun serveur n’est requis pour :
+Le catalogue contient **20 spécimens**, mais la scène n’en instancie **qu’un seul à la fois**.
 
+Aucun serveur applicatif n’est requis pour :
+
+- parcourir le catalogue ;
 - adopter un caillou ;
 - le nommer ;
 - afficher et manipuler la scène ;
@@ -72,46 +75,33 @@ Le déploiement ne sert qu’à distribuer les fichiers statiques et les mises �
 | 3D | Three.js | moteur de rendu WebGL |
 | Binding 3D | `@react-three/fiber` 9 | scène Three.js déclarative dans React |
 | Helpers 3D | `@react-three/drei` | chargement GLTF et helpers ciblés |
-| PWA | `vite-plugin-pwa` | manifest, service worker, précache et mises à jour |
+| PWA | `vite-plugin-pwa` | manifest, service worker, cache et mises à jour |
 | Persistance | IndexedDB native derrière un adapter typé | données locales |
 | Tests unitaires | Vitest | domaine, persistance et règles produit |
 | Tests composants | Testing Library | interactions UI importantes |
 | Tests navigateur | Playwright | parcours critiques et PWA |
 | Icônes UI | Lucide React ou SVG locaux | pictogrammes sobres |
 
-### 3.2 Versions de référence au démarrage du projet
+### 3.2 Versions de référence
 
 Au 31 août 2026 :
 
-- React stable : branche 19, documentation courante 19.2 ;
-- TypeScript 6.0 est publié ;
-- Vite 8 est stable ;
-- React Three Fiber 9 correspond à React 19.
+- React stable : branche 19 ;
+- TypeScript 6.0 publié ;
+- Vite 8 stable ;
+- React Three Fiber 9 adapté à React 19.
 
-Les versions patch exactes doivent être verrouillées par le lockfile au bootstrap du projet, sans maintenir manuellement des versions dans cette documentation.
+Les versions patch exactes sont verrouillées par le lockfile au bootstrap du projet.
 
-### 3.3 Prérequis Node
+### 3.3 Node
 
-Vite 8 requiert Node.js `20.19+` ou `22.12+`.
-
-Pour CAILLOU™, recommandation : **Node 22 LTS ou version LTS compatible plus récente**, fixée dans le projet afin d’obtenir des builds reproductibles.
-
-### 3.4 Références techniques officielles
-
-- React : https://react.dev/versions
-- TypeScript : https://www.typescriptlang.org/docs/handbook/release-notes/typescript-6-0.html
-- Vite : https://vite.dev/
-- React Three Fiber : https://r3f.docs.pmnd.rs/
-- Three.js : https://threejs.org/docs/
-- Vite PWA : https://vite-pwa-org.netlify.app/
+Recommandation : **Node 22 LTS ou version LTS compatible plus récente**.
 
 ---
 
 ## 4. Pourquoi React Three Fiber
 
-Le produit est dominé par une scène 3D interactive, mais son interface, ses écrans, sa persistance et son contenu restent une application React classique.
-
-React Three Fiber permet de conserver une seule architecture mentale :
+Le produit est dominé par une scène 3D interactive, mais son interface, sa persistance et son contenu restent une application React classique.
 
 ```text
 React
@@ -121,13 +111,7 @@ React
    └─ Three.js
 ```
 
-La V1 évite ainsi :
-
-- une couche impérative Three.js géante ;
-- deux systèmes d’état concurrents ;
-- un pont complexe entre DOM et moteur 3D.
-
-React Three Fiber 9 est conçu pour React 19 et reste directement compatible avec les capacités de Three.js.
+Cette approche évite une couche impérative Three.js géante et permet de conserver un état applicatif unique.
 
 ---
 
@@ -135,68 +119,51 @@ React Three Fiber 9 est conçu pour React 19 et reste directement compatible ave
 
 Unity, Godot ou un moteur Web exporté ne sont pas recommandés pour la V1.
 
-CAILLOU™ n’a pas besoin de :
+CAILLOU™ n’a pas besoin de physique avancée, monde ouvert, animation squelettique, moteur réseau ou gameplay temps réel lourd.
 
-- physique avancée ;
-- monde ouvert ;
-- animation squelettique complexe ;
-- système de scènes de jeu ;
-- moteur réseau ;
-- gameplay temps réel lourd.
-
-Le coût en poids, intégration PWA, pipeline et maintenance serait disproportionné.
-
-Three.js offre le niveau de contrôle nécessaire pour obtenir un rendu produit premium tout en restant une application web légère.
+Three.js offre le contrôle nécessaire pour obtenir un rendu produit premium avec un poids compatible PWA.
 
 ---
 
 ## 6. Arborescence cible du dépôt
 
-L’arborescence recommandée lorsque l’implémentation commencera est la suivante :
-
 ```text
 CAILLOU-/
+├── Ressource/
+│   ├── source .blend
+│   └── textures sources
+│
 ├── public/
 │   ├── assets/
 │   │   ├── rocks/
-│   │   │   ├── river-pebble/
-│   │   │   ├── volcanic-stone/
-│   │   │   ├── pale-quartz/
-│   │   │   ├── granite-stone/
-│   │   │   ├── ochre-stone/
-│   │   │   └── black-pebble/
+│   │   │   ├── rock-001/
+│   │   │   │   └── model.glb
+│   │   │   ├── rock-002/
+│   │   │   │   └── model.glb
+│   │   │   ├── ...
+│   │   │   └── rock-020/
+│   │   │       └── model.glb
+│   │   ├── rock-previews/
 │   │   ├── ambiences/
 │   │   ├── audio/
 │   │   └── branding/
 │   └── icons/
 │
+├── scripts/
+│   └── blender/
+│       ├── audit_rocks.py
+│       └── futurs scripts d’export
+│
 ├── src/
 │   ├── app/
-│   │   ├── App.tsx
-│   │   ├── router.tsx
-│   │   ├── AppProvider.tsx
-│   │   └── app-state.ts
-│   │
 │   ├── domain/
-│   │   ├── rock.ts
-│   │   ├── adoption.ts
-│   │   ├── progression.ts
-│   │   ├── stats.ts
-│   │   ├── events.ts
-│   │   └── backup.ts
-│   │
 │   ├── content/
-│   │   ├── rocks.ts
-│   │   ├── ambiences.ts
-│   │   ├── statuses.ts
-│   │   ├── reactions.ts
-│   │   ├── titles.ts
-│   │   └── rare-events.ts
-│   │
+│   │   └── rocks.ts
 │   ├── scene/
 │   │   ├── RockCanvas.tsx
 │   │   ├── RockScene.tsx
 │   │   ├── RockModel.tsx
+│   │   ├── RockLoader.tsx
 │   │   ├── camera/
 │   │   ├── lighting/
 │   │   ├── controls/
@@ -204,9 +171,9 @@ CAILLOU-/
 │   │   ├── effects/
 │   │   ├── quality/
 │   │   └── capture/
-│   │
 │   ├── features/
 │   │   ├── onboarding/
+│   │   ├── showroom/
 │   │   ├── pedestal/
 │   │   ├── profile/
 │   │   ├── collection/
@@ -214,91 +181,36 @@ CAILLOU-/
 │   │   ├── snapshot/
 │   │   ├── observation/
 │   │   └── settings/
-│   │
-│   ├── components/
-│   │   ├── Button/
-│   │   ├── Sheet/
-│   │   ├── Dialog/
-│   │   ├── IconButton/
-│   │   └── Typography/
-│   │
 │   ├── persistence/
-│   │   ├── db.ts
-│   │   ├── schema.ts
-│   │   ├── migrations.ts
-│   │   ├── repository.ts
-│   │   └── backup.ts
-│   │
 │   ├── pwa/
-│   │   ├── update.ts
-│   │   └── install.ts
-│   │
 │   ├── styles/
-│   │   ├── tokens.css
-│   │   ├── reset.css
-│   │   ├── globals.css
-│   │   └── utilities.css
-│   │
-│   ├── utils/
-│   │   ├── dates.ts
-│   │   ├── random.ts
-│   │   ├── format.ts
-│   │   └── capabilities.ts
-│   │
-│   ├── main.tsx
-│   └── vite-env.d.ts
+│   └── utils/
 │
 ├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-│
-├── index.html
-├── package.json
-├── package-lock.json
-├── tsconfig.json
-├── vite.config.ts
-└── les 3 documents de référence Markdown
+├── .github/workflows/
+└── documents Markdown existants
 ```
 
-Les noms exacts pourront évoluer pendant l’implémentation, mais la séparation des responsabilités doit rester.
+Les noms exacts pourront évoluer, mais la séparation **source 3D / assets web / scène / domaine / UI** doit rester claire.
 
 ---
 
-## 7. Règles de dépendances entre couches
+## 7. Règles de dépendances
 
-### 7.1 Sens autorisé
+### 7.1 Domaine pur
 
-```text
-features / components
-        │
-        ▼
-       app
-        │
-        ▼
-      domain
-        ▲
-        │
-persistence / scene adapters
-```
+`src/domain` contient les règles métier :
 
-Le domaine ne dépend jamais de React, Three.js, IndexedDB ou du navigateur.
+- adoption ;
+- progression ;
+- titres ;
+- statistiques ;
+- micro-événements ;
+- validation de sauvegarde.
 
-### 7.2 Domaine pur
+Il ne dépend jamais de React, Three.js, IndexedDB ou du navigateur.
 
-`src/domain` doit contenir les règles comme :
-
-- calcul du titre actuel ;
-- progression douce ;
-- sélection d’un statut ;
-- éligibilité d’un micro-événement ;
-- calcul des statistiques absurdes ;
-- validation d’une sauvegarde ;
-- migrations de données au niveau métier.
-
-Ces fonctions doivent pouvoir être testées sans DOM.
-
-### 7.3 La scène 3D n’est pas le domaine
+### 7.2 Scène 3D
 
 La scène reçoit un état :
 
@@ -321,15 +233,72 @@ onInteractionEnd()
 onSnapshotReady()
 ```
 
-Elle ne décide pas elle-même du titre, de la progression ou des règles produit.
+Le showroom ajoute des événements applicatifs :
+
+```ts
+onPreviousRock()
+onNextRock()
+onRockReady()
+onRockLoadError()
+onAdoptRock()
+```
+
+La scène ne décide pas des règles de progression ou d’adoption.
 
 ---
 
-## 8. Modèle de données V1
+## 8. Catalogue des vingt spécimens
 
-### 8.1 État principal
+### 8.1 Identifiants
 
-Structure conceptuelle :
+Le catalogue versionné utilise des IDs stables :
+
+```text
+rock-001
+rock-002
+...
+rock-020
+```
+
+### 8.2 Structure de catalogue
+
+Exemple conceptuel :
+
+```ts
+type RockSpecimen = {
+  id: RockSpecimenId
+  index: number
+  label: string
+  modelUrl: string
+  previewUrl?: string
+  sourceMesh: string
+  triangleCount: number
+  textureSize: number
+  attribution: {
+    author: string
+    source: string
+    license: string
+  }
+}
+```
+
+Le catalogue n’embarque pas les meshes. Il ne contient que les métadonnées et URLs.
+
+### 8.3 État de sélection
+
+```ts
+type ShowroomState = {
+  selectedIndex: number
+  selectedRockId: RockSpecimenId
+  loadState: 'idle' | 'loading' | 'ready' | 'error'
+}
+```
+
+Aucune instance Three.js n’est stockée dans l’état React persistant.
+
+---
+
+## 9. Modèle de données utilisateur
 
 ```ts
 type AppState = {
@@ -345,8 +314,6 @@ type AppState = {
 }
 ```
 
-### 8.2 Caillou adopté
-
 ```ts
 type AdoptedRock = {
   id: string
@@ -357,259 +324,292 @@ type AdoptedRock = {
 }
 ```
 
-La géométrie, les matériaux et les textes du spécimen ne sont pas dupliqués dans la sauvegarde : ils appartiennent au catalogue versionné de l’application.
-
-### 8.3 Statistiques
-
-Les statistiques persistées doivent rester minimales et déterministes :
-
-```ts
-type UsageStats = {
-  appOpenCount: number
-  rockTapCount: number
-  observationMs: number
-  ambienceUseCount: Record<string, number>
-}
-```
-
-Les métriques humoristiques sont dérivées de ces données et non stockées séparément lorsque cela n’est pas nécessaire.
-
-### 8.4 Réglages
-
-```ts
-type Settings = {
-  soundEnabled: boolean
-  hapticsEnabled: boolean
-  graphicsMode: 'auto' | 'high' | 'economy'
-  reduceEffects: boolean
-  themeMode: 'system' | 'light' | 'dark'
-}
-```
+La géométrie, les matériaux, la licence et les textes du spécimen appartiennent au catalogue applicatif et ne sont pas dupliqués dans la sauvegarde.
 
 ---
 
-## 9. Persistance IndexedDB
+## 10. Persistance IndexedDB
 
-### 9.1 Choix
+Utiliser IndexedDB derrière un adapter typé.
 
-Utiliser **IndexedDB native derrière un adapter typé** plutôt qu’un accès direct dispersé dans l’application.
-
-La V1 ne nécessite pas une bibliothèque de base de données supplémentaire.
-
-### 9.2 Base recommandée
-
-```text
-caillou_db
-```
-
-Stores :
+Stores recommandés :
 
 ```text
 state
 meta
 ```
 
-Un modèle volontairement simple suffit : le volume des données métier est très faible et les assets 3D ne doivent pas être recopiés dans IndexedDB.
+Les assets 3D ne sont pas recopiés dans IndexedDB. Leur cache appartient au service worker / navigateur.
 
-### 9.3 Écriture
+Sauvegarde immédiate après :
 
-Stratégie :
-
-- état chargé une fois au bootstrap ;
-- mutations via actions applicatives ;
-- sauvegarde locale debouncée ;
-- sauvegarde immédiate après événements critiques : adoption, changement de nom, import, reset.
-
-### 9.4 Migration
-
-Chaque état possède `schemaVersion`.
-
-Règles :
-
-1. migrations séquentielles ;
-2. jamais de destruction silencieuse ;
-3. sauvegarde de secours avant import/migration risquée ;
-4. tests unitaires pour chaque migration ;
-5. catalogue de contenu séparé des données utilisateur.
+- adoption ;
+- changement de nom ;
+- changement de compagnon principal ;
+- import ;
+- reset.
 
 ---
 
-## 10. Export et import
+## 11. Pipeline 3D V1
 
-### 10.1 Export
+### 11.1 Source maître
 
-Format JSON versionné :
+Le fichier Blender placé dans `Ressource/` constitue la source de production des vingt spécimens.
 
-```json
-{
-  "app": "CAILLOU",
-  "schemaVersion": 1,
-  "appVersion": "1.0.0",
-  "exportedAt": "...",
-  "state": {}
-}
-```
+L’audit automatisé a confirmé :
 
-### 10.2 Import
+- 20 meshes distincts ;
+- environ 10 000 triangles par mesh LOD2 ;
+- UV disponibles ;
+- matériau individuel ;
+- texture couleur ;
+- normal map ;
+- rendu individuel automatisable.
 
-L’import doit :
+### 11.2 Format web
 
-1. lire le fichier ;
-2. vérifier signature logique et version ;
-3. valider les types et limites ;
-4. migrer si nécessaire ;
-5. créer une pré-sauvegarde de l’état courant ;
-6. remplacer l’état uniquement après validation complète ;
-7. recharger proprement l’application.
+Format de livraison : **glTF 2.0 binaire `.glb`**.
 
-Aucun code arbitraire ni chemin de fichier externe ne doit pouvoir être injecté via une sauvegarde.
+Chaque spécimen final doit pouvoir être distribué comme asset autonome.
 
----
-
-## 11. Pipeline 3D
-
-### 11.1 Format maître
-
-Les fichiers de travail peuvent être conservés hors bundle dans l’outil de création 3D choisi, typiquement Blender.
-
-Le format de livraison web recommandé est **glTF 2.0 binaire `.glb`**.
-
-### 11.2 Pourquoi GLB
-
-Three.js prend nativement en charge glTF via `GLTFLoader`, y compris les extensions de compression de géométrie et textures adaptées au web.
-
-### 11.3 Contenu d’un spécimen
-
-Chaque caillou peut contenir :
+### 11.3 Traitement cible
 
 ```text
-model.glb
-textures/
-  albedo.ktx2
-  normal.ktx2
-  roughness.ktx2
-  ao.ktx2        (si utile)
+.blend source
+   ↓
+isoler rock_XXX_LOD2
+   ↓
+reconnecter / vérifier textures
+   ↓
+centrer / orienter / normaliser
+   ↓
+matériau PBR CAILLOU™
+   ↓
+export GLB individuel
+   ↓
+validation poids / rendu / licence
 ```
 
-Selon le pipeline retenu, les textures peuvent aussi être intégrées au GLB.
+### 11.4 LOD2
 
-### 11.4 Matériau
+Le LOD2 à environ 10k triangles est accepté comme base V1.
 
-Base recommandée : matériau PBR de type `MeshStandardMaterial` ou `MeshPhysicalMaterial` uniquement lorsque les propriétés supplémentaires sont réellement visibles.
+Aucune décimation supplémentaire n’est imposée par défaut. On optimise seulement si les mesures réelles le justifient.
 
-Textures utiles :
+### 11.5 Textures
 
-- albedo/base color ;
-- normal ;
-- roughness ;
-- ambient occlusion si nécessaire ;
-- éventuellement height/bump selon stratégie retenue.
+Base source : environ 1024 × 1024 couleur + normal.
 
-Pas de texture 8K par principe. La qualité perçue doit venir du scan/sculpt, des normales, de la rugosité et de la lumière, pas d’une course au poids de fichier.
-
-### 11.5 Compression
-
-Pipeline recommandé :
-
-- géométrie optimisée ;
-- compression `EXT_meshopt_compression` ou Draco après comparaison réelle ;
-- textures KTX2/Basis lorsque le gain est significatif ;
-- dimensions de texture adaptées aux tiers de qualité.
-
-Three.js `GLTFLoader` prend en charge notamment Meshopt, Draco et KTX2/Basis via les loaders/décodeurs associés.
-
-### 11.6 Budget cible par caillou
-
-Valeur initiale à valider visuellement :
-
-- modèle livré : idéalement **< 3 Mo** ;
-- ensemble modèle + textures haute qualité : idéalement **< 8 Mo** ;
-- éviter de charger les six modèles au démarrage ;
-- charger immédiatement uniquement le spécimen actif ;
-- précharger les autres lorsque le navigateur est inactif et que le contexte le permet.
-
-Le budget final doit être déterminé par mesure sur appareils physiques, pas par dogme.
+Une roughness peut être calibrée ou générée si nécessaire. L’objectif n’est pas d’inventer du détail mais de restituer correctement la matière sous l’éclairage CAILLOU™.
 
 ---
 
-## 12. Stratégie de rendu 3D
+## 12. Budget cible par spécimen
 
-### 12.1 Renderer V1
+Valeurs initiales à mesurer :
 
-WebGL via Three.js.
+- géométrie : ~10k triangles ;
+- texture : 1K source, 1K ou 2K uniquement si une amélioration réelle est démontrée ;
+- GLB final : viser **< 5 Mo** si possible ;
+- tolérance supérieure ponctuelle si la qualité le justifie et si le chargement reste acceptable.
 
-WebGPU n’est pas une exigence V1. Il pourra être évalué plus tard sans devenir une dépendance produit.
+La présence de 20 assets ne signifie pas qu’ils doivent tous être transférés au démarrage.
 
-### 12.2 Canvas
+---
 
-La scène utilise un Canvas React Three Fiber dimensionné par son conteneur.
+## 13. Showroom 3D : règle fondamentale
+
+### 13.1 Une seule roche active
+
+Le showroom ne maintient **qu’un seul spécimen 3D instancié à la fois**.
+
+Interdit :
+
+```text
+20 GLB chargés
+20 scènes cachées
+20 textures en GPU
+```
+
+Attendu :
+
+```text
+catalogue metadata
+       ↓
+rock-007 demandé
+       ↓
+1 GLB chargé
+       ↓
+1 scène active
+```
+
+### 13.2 Cycle de changement
+
+```text
+Rock A affiché
+   ↓
+transition de sortie
+   ↓
+dispose Rock A
+   ↓
+chargement Rock B
+   ↓
+transition d’entrée
+   ↓
+Rock B affiché
+```
+
+Le Canvas est réutilisé. Le modèle change, pas toute l’application.
+
+### 13.3 Disposal obligatoire
+
+Au changement de spécimen, libérer explicitement :
+
+- géométries ;
+- matériaux ;
+- textures non partagées ;
+- render targets éventuels ;
+- références applicatives au modèle précédent.
+
+La navigation répétée `01 → 20 → 01` ne doit pas produire une croissance continue de la mémoire GPU.
+
+### 13.4 Loader annulable
+
+Si l’utilisateur change rapidement de direction pendant un chargement :
+
+- ignorer le résultat obsolète ;
+- éviter d’insérer tardivement le mauvais modèle ;
+- utiliser un token/version de requête ou un mécanisme d’annulation lorsque possible.
+
+---
+
+## 14. Cache réseau versus mémoire GPU
+
+La règle « un seul caillou chargé » concerne la scène 3D et la mémoire GPU.
+
+Le navigateur peut conserver les fichiers déjà visités dans son cache HTTP/PWA.
+
+Ainsi :
+
+```text
+rock-003 déjà visité
+→ GLB possiblement présent sur disque/cache
+→ aucune instance Three.js active
+→ retour ultérieur plus rapide
+```
+
+Cette distinction permet d’avoir une navigation efficace sans garder vingt modèles actifs.
+
+---
+
+## 15. Previews et placeholder
+
+Les métadonnées des vingt spécimens sont légères et peuvent être chargées immédiatement.
+
+Des previews 2D peuvent être utilisées :
+
+- comme placeholder pendant le changement ;
+- comme fallback si WebGL échoue ;
+- éventuellement pour une vue secondaire de collection.
+
+Le showroom principal reste **3D**.
+
+Aucune preview 2D ne doit remplacer l’inspection du modèle lors de l’adoption normale.
+
+---
+
+## 16. Contrôles du showroom
+
+### 16.1 Navigation
+
+Les boutons précédent/suivant constituent la méthode de navigation de référence.
+
+Ils doivent être :
+
+- accessibles au tactile ;
+- accessibles au clavier ;
+- libellés ARIA ;
+- utilisables indépendamment du Canvas.
+
+### 16.2 Rotation
+
+Un PointerDown démarré sur la zone interactive du modèle active la rotation.
+
+La couche de contrôles doit distinguer :
+
+```text
+rotation du caillou
+≠
+navigation précédent/suivant
+```
+
+### 16.3 Swipe facultatif
+
+Un swipe horizontal de navigation peut être accepté dans des zones hors objet si les essais mobiles prouvent qu’il n’entre pas en conflit avec la rotation.
+
+Les flèches restent disponibles dans tous les cas.
+
+### 16.4 Zoom
+
+Pinch / molette autorisé avec bornes de distance. Il n’est jamais requis pour valider une adoption.
+
+---
+
+## 17. Stratégie de rendu 3D
+
+Renderer V1 : WebGL via Three.js.
+
+WebGPU n’est pas une exigence V1.
 
 Principes :
 
 - caméra perspective contrôlée ;
 - limites de zoom ;
 - pas de clipping visible ;
+- DPR adaptatif ;
 - fond et décor séparés du modèle ;
-- DPR adaptatif.
-
-### 12.3 Rendu à la demande
-
-CAILLOU™ est majoritairement statique. Il est donc recommandé d’utiliser autant que possible un rendu de type :
-
-```text
-frameloop = demand
-```
-
-Le Canvas ne doit pas rendre 60 images par seconde lorsque le caillou reste immobile.
+- `frameloop="demand"` autant que possible.
 
 Un nouveau rendu est demandé lors :
 
-- d’une rotation ;
-- d’un zoom ;
-- d’une transition ;
-- d’un micro-événement animé ;
-- d’une variation lumineuse ;
-- d’une capture.
-
-Bénéfices :
-
-- autonomie ;
-- température ;
-- consommation GPU ;
-- fluidité globale de la PWA.
-
-### 12.4 Qualité adaptative
-
-Trois tiers :
-
-#### Economy
-
-- DPR borné bas ;
-- ombres simplifiées ;
-- textures intermédiaires ;
-- effets secondaires réduits.
-
-#### Auto
-
-- valeur par défaut ;
-- adaptation au DPR, mémoire et comportement observé ;
-- réduction si frame time mauvais.
-
-#### High
-
-- DPR supérieur borné ;
-- ombres et textures maximales raisonnables ;
-- effets complets.
-
-Aucun tier ne doit dégrader la silhouette ou l’identité fondamentale du caillou.
+- rotation ;
+- zoom ;
+- transition ;
+- micro-événement ;
+- variation lumineuse ;
+- capture.
 
 ---
 
-## 13. Lumière et ombres
+## 18. Qualité adaptative
+
+### Economy
+
+- DPR borné bas ;
+- ombres simplifiées ;
+- effets réduits.
+
+### Auto
+
+- tier par défaut ;
+- adaptation au DPR, mémoire et frame time.
+
+### High
+
+- DPR supérieur borné ;
+- ombres maximales raisonnables ;
+- effets complets.
+
+Le mesh LOD2 reste identique tant que le profilage ne démontre pas le besoin d’une géométrie alternative.
+
+---
+
+## 19. Lumière et ombres
 
 Le rendu premium dépend davantage de la lumière que du nombre de polygones.
 
-Architecture conseillée par ambiance :
+Architecture d’ambiance :
 
 ```text
 Ambience
@@ -622,109 +622,39 @@ Ambience
 └─ contact shadow
 ```
 
-Chaque ambiance possède son preset typé.
-
-Les presets sont données, pas logique codée en dur dans les composants.
-
-Exemple conceptuel :
-
-```ts
-type LightingPreset = {
-  key: LightSpec
-  fill: LightSpec
-  rim: LightSpec
-  environmentIntensity: number
-  shadowSoftness: number
-  exposure: number
-}
-```
+Le showroom utilise un preset **Studio de sélection** unique pour les vingt pierres afin de ne pas favoriser un candidat par son décor.
 
 ---
 
-## 14. Contrôles 3D
+## 20. Socle et Mode Observation
 
-### 14.1 Ne pas déléguer toute l’expérience à OrbitControls
+Le Socle et le showroom peuvent réutiliser le même moteur de rendu et les mêmes composants de modèle, mais pas nécessairement la même composition UI.
 
-Les helpers standards peuvent être utiles au prototype, mais la V1 finale doit fournir des contrôles adaptés au produit afin de distinguer proprement :
-
-- rotation ;
-- tap ;
-- appui long ;
-- pinch ;
-- navigation UI.
-
-### 14.2 Contraintes
-
-- inertie légère ;
-- rotation verticale limitée ;
-- impossible de retourner le monde dans une position absurde ;
-- zoom borné ;
-- annulation correcte du long press en cas de drag ;
-- événements Pointer unifiés souris/tactile quand possible.
-
-### 14.3 Haptique
-
-L’haptique est une amélioration optionnelle et non une dépendance fonctionnelle.
-
-Si l’API n’est pas disponible, aucune erreur ni fonction manquante visible ne doit apparaître.
+Le Mode Observation ne crée pas une nouvelle scène. Il modifie visibilité de l’UI, cadrage, audio et effets.
 
 ---
 
-## 15. Mode Observation
+## 21. Micro-événements
 
-Techniquement, ce mode ne crée pas une nouvelle scène.
-
-Il modifie :
-
-- visibilité de l’UI ;
-- cadrage caméra léger ;
-- intensité éventuelle de certains éléments ;
-- mix audio ;
-- état d’interaction.
-
-Éviter de dupliquer le Canvas ou de recharger le modèle.
-
----
-
-## 16. Micro-événements
-
-### 16.1 Sélection déterministe
-
-Les événements peuvent être pseudo-aléatoires à partir de :
-
-- date ;
-- identifiant du caillou ;
-- nombre d’ouvertures ;
-- historique des événements.
-
-Objectif : éviter qu’un simple refresh répété permette de forcer un événement rare.
-
-### 16.2 Architecture
+Les micro-événements restent calculés dans le domaine puis rendus par la scène.
 
 ```text
 rare-events.ts
-      │
-      ▼
+      ↓
 Eligibility engine
-      │
-      ▼
+      ↓
 RareEvent | null
-      │
-      ▼
+      ↓
 Scene effect renderer
 ```
 
-Le moteur décide **quoi** afficher ; la scène décide **comment** le rendre.
+Le showroom d’adoption n’affiche pas de micro-événements susceptibles de distraire le choix.
 
 ---
 
-## 17. Instantané
+## 22. Instantané
 
-### 17.1 Source
-
-La capture doit provenir du Canvas Three.js à une résolution contrôlée.
-
-### 17.2 Pipeline
+Pipeline :
 
 ```text
 état scène
@@ -733,286 +663,209 @@ rendu dédié
    ↓
 canvas/image blob
    ↓
-composition branding optionnelle
+branding optionnel
    ↓
 Web Share API ou téléchargement
 ```
 
-### 17.3 Qualité
-
-Ne pas capturer simplement une miniature de l’écran si un rendu dédié peut produire une image plus nette et sans contrôles UI.
-
-La capture ne doit pas nécessiter de serveur.
+Aucun serveur requis.
 
 ---
 
-## 18. Audio
+## 23. PWA et stratégie de cache
 
-Le sound design doit rester petit et local.
-
-Recommandation :
-
-- fichiers courts compressés ;
-- chargement différé ;
-- pas de lecture avant interaction utilisateur si le navigateur l’interdit ;
-- volume général très modéré ;
-- aucune boucle lourde obligatoire ;
-- possibilité de couper totalement le son.
-
-Le moteur audio peut rester basé sur `HTMLAudioElement` en V1. Web Audio API n’est nécessaire que si un besoin de spatialisation ou mixage dynamique réel apparaît.
-
----
-
-## 19. PWA
-
-### 19.1 Outil
-
-Utiliser `vite-plugin-pwa`.
-
-Il permet de générer le manifest et le service worker à partir de la configuration Vite.
-
-### 19.2 Stratégie de mise à jour
-
-CAILLOU™ ne doit pas forcer un reload pendant une interaction.
-
-Recommandation : **mise à jour avec prompt discret** lorsque de nouveaux fichiers sont disponibles.
-
-Parcours :
-
-```text
-nouvelle version détectée
-       ↓
-petite invitation non bloquante
-       ↓
-« Mettre à jour »
-       ↓
-sauvegarde locale
-       ↓
-activation + reload contrôlé
-```
-
-### 19.3 Précache
+### 23.1 Précache
 
 Précacher :
 
-- shell HTML/CSS/JS essentiel ;
+- shell HTML/CSS/JS ;
 - branding ;
 - icônes ;
-- modèle et ressources du caillou initial si connus lors du build, ou stratégie runtime robuste sinon ;
-- assets indispensables à l’écran hors ligne.
+- ressources légères nécessaires à l’onboarding ;
+- previews légères si retenues.
 
-Ne pas précacher aveuglément tous les gros modèles et toutes les textures au premier chargement.
+**Ne pas précacher les vingt GLB au premier chargement.**
 
-### 19.4 Cache runtime
+### 23.2 Runtime cache des roches
 
-Les autres cailloux et ambiances peuvent utiliser un cache runtime versionné avec limite et stratégie explicite.
+Chaque GLB visité peut entrer dans un cache runtime versionné.
+
+Objectifs :
+
+- revisite rapide ;
+- réduire les téléchargements répétés ;
+- permettre progressivement une consultation hors ligne des pierres déjà vues.
+
+### 23.3 Compagnon principal
+
+Après adoption, le modèle du compagnon principal devient un asset prioritaire du cache afin que le Socle fonctionne hors ligne.
+
+### 23.4 Limites
+
+Le cache doit posséder :
+
+- nom/version explicite ;
+- politique d’expiration ;
+- nettoyage lors de changements incompatibles ;
+- limite adaptée aux 20 assets.
 
 ---
 
-## 20. Chargement initial
+## 24. Chargement et transition
 
-Objectif : montrer quelque chose de beau avant que tous les assets lourds soient disponibles.
-
-Séquence recommandée :
+Séquence du showroom :
 
 ```text
-HTML shell
+UI + Studio
    ↓
-UI minimale
+placeholder du spécimen N
    ↓
-chargement état local
+GLB N
    ↓
-placeholder/silhouette premium
+modèle prêt
    ↓
-modèle actif + textures
-   ↓
-transition douce vers scène finale
+fade court
 ```
 
-Interdit : écran blanc prolongé.
+Lors du suivant :
 
-Éviter également les fausses barres de chargement humoristiques qui ralentissent volontairement l’utilisateur.
+```text
+fade out
+→ disposal
+→ placeholder N+1
+→ chargement
+→ fade in
+```
+
+Ne jamais conserver Rock N et Rock N+1 uniquement pour fabriquer un crossfade 3D coûteux.
+
+Une capture 2D du dernier frame peut être utilisée temporairement si elle améliore la transition sans complexité excessive.
 
 ---
 
-## 21. Responsive
+## 25. Responsive
 
 ### Téléphone portrait
 
 - Canvas dominant ;
-- commandes basses accessibles au pouce ;
-- fiches secondaires en sheet/modal ;
+- flèches gauche/droite dans les zones latérales ;
+- compteur `N / 20` ;
+- nom/label et CTA d’adoption en bas ;
 - safe areas iOS respectées.
 
 ### Tablette
 
 - Canvas plus généreux ;
-- possibilité de panneau latéral ;
+- flèches éloignées du sujet ;
 - paysage réellement travaillé.
 
 ### Desktop
 
-- interaction souris/trackpad ;
-- largeur maximale de l’UI ;
+- souris/trackpad ;
+- touches gauche/droite ;
 - Canvas centré ;
-- pas d’étirement type dashboard.
+- pas de dashboard.
 
 ---
 
-## 22. Accessibilité technique
+## 26. Accessibilité technique
 
 - HTML sémantique hors Canvas ;
-- boutons natifs quand possible ;
+- boutons natifs ;
 - focus visible ;
-- `aria-label` pour commandes iconiques ;
-- Escape ferme les overlays ;
-- tab order stable ;
-- `prefers-reduced-motion` lu par le système de scène ;
-- alternative aux gestes de rotation/zoom si nécessaire ;
-- l’absence de Canvas/WebGL doit afficher un fallback lisible plutôt qu’une erreur brute.
+- flèches avec `aria-label` ;
+- compteur textuel `7 sur 20` pour lecteur d’écran ;
+- `prefers-reduced-motion` ;
+- alternative aux gestes ;
+- fallback 2D si WebGL indisponible ;
+- adoption possible sans devoir effectuer une rotation 3D.
 
 ---
 
-## 23. Gestion des capacités
+## 27. Tests prioritaires
 
-Créer un module unique de détection :
+### Unitaires
 
-```text
-capabilities.ts
-```
-
-Il expose par exemple :
-
-- WebGL disponible ;
-- devicePixelRatio ;
-- reduced motion ;
-- vibration/haptique possible ;
-- Web Share disponible ;
-- PWA standalone ;
-- stockage persistant disponible ;
-- mémoire approximative si exposée.
-
-Les composants ne doivent pas répéter chacun leur propre détection navigateur.
-
----
-
-## 24. Tests
-
-### 24.1 Unitaires
-
-À couvrir prioritairement :
-
+- adoption ;
 - progression ;
 - titres ;
 - statistiques ;
-- moteur de micro-événements ;
+- micro-événements ;
 - validation import/export ;
-- migrations ;
-- sélection de contenu ;
-- règles anti-streak.
+- catalogue de 20 IDs uniques.
 
-### 24.2 Intégration
+### Intégration
 
-- onboarding complet ;
-- adoption ;
-- changement d’ambiance ;
-- sélection du compagnon principal ;
-- reset ;
-- import/export.
+- navigation précédent/suivant ;
+- wrap ou bornes `01/20` selon décision UX ;
+- changement rapide de direction ;
+- adoption du spécimen affiché ;
+- retour au showroom ;
+- changement de compagnon principal.
 
-### 24.3 3D
+### 3D
 
-Éviter de tester chaque détail Three.js en unit test.
+- chargement de chacun des 20 GLB ;
+- absence d’asset ou texture manquante ;
+- aucun mesh supplémentaire involontaire ;
+- disposal après changement ;
+- absence de croissance mémoire après plusieurs cycles ;
+- rendu sans erreur console.
 
-Tester plutôt :
-
-- chargement d’un catalogue d’assets valide ;
-- absence d’asset manquant ;
-- budgets de fichiers ;
-- screenshot/smoke tests ciblés ;
-- absence d’erreur console.
-
-### 24.4 E2E
-
-Playwright doit couvrir au minimum :
+### E2E
 
 ```text
 premier lancement
-→ choix d’un caillou
-→ nommage
-→ arrivée au Socle
-→ interaction
-→ changement d’ambiance
-→ fiche
-→ instantané
+→ showroom 3D
+→ parcourir plusieurs cailloux
+→ tourner le candidat
+→ adopter
+→ nommer
+→ Socle
 → reload
 → état conservé
 ```
 
-Un second scénario couvre import/export et un troisième le fonctionnement hors ligne.
-
 ---
 
-## 25. Contrôles qualité automatisés
+## 28. Validation automatisée des assets
 
-Commande cible unique :
+Un contrôle doit vérifier :
 
-```bash
-npm run check
-```
-
-Elle doit exécuter dans un ordre raisonnable :
-
-```text
-typecheck
-lint
-tests unitaires
-validation contenus/assets
-build
-smoke tests essentiels
-```
-
-Les tests navigateur lourds et audits complets peuvent être séparés si leur durée devient disproportionnée.
-
-Philosophie : **assez de tests pour protéger le produit, pas une raffinerie CI pour surveiller un caillou**.
-
----
-
-## 26. Validation des assets
-
-Un script de build doit pouvoir vérifier :
-
-- présence des 6 spécimens attendus ;
-- présence des textures déclarées ;
+- présence des **20 spécimens** attendus ;
+- IDs `rock-001` à `rock-020` uniques ;
+- GLB ouvrable ;
+- mesh attendu ;
+- UV présents ;
+- texture couleur ;
+- normal map ou matériau final valide ;
 - poids maximal configurable ;
-- chemins valides ;
-- IDs uniques ;
-- absence de fichiers de travail lourds dans le bundle de production ;
-- dimensions de textures compatibles ;
-- licence/provenance documentée dans les métadonnées de catalogue si les assets ne sont pas entièrement originaux.
+- provenance et licence documentées ;
+- absence de fichier `.blend` ou texture source lourde dans le bundle public par erreur.
 
 ---
 
-## 27. Sécurité et confidentialité
+## 29. Performance
 
-Surface d’attaque volontairement réduite :
+Les métriques critiques ne sont pas seulement les FPS.
 
-- aucun compte ;
-- aucun backend ;
-- aucune donnée sensible requise ;
-- aucun secret frontend ;
-- aucun HTML utilisateur injecté ;
-- noms affichés comme texte, jamais interprétés comme HTML ;
-- import JSON validé strictement ;
-- politique CSP compatible avec les besoins du build lorsque le déploiement le permet.
+Mesurer :
 
-Les analytics distants ne sont pas nécessaires à la V1.
+- délai avant premier spécimen visible ;
+- délai moyen précédent/suivant ;
+- pic mémoire GPU ;
+- mémoire après 20 changements ;
+- taille cache ;
+- frame time pendant rotation ;
+- chauffe sur session prolongée.
+
+Critère important : après un tour complet des 20 spécimens, la mémoire doit revenir à un niveau proche de celui observé avec un seul spécimen chargé.
 
 ---
 
-## 28. Déploiement recommandé
+## 30. Déploiement
 
-Vercel convient parfaitement à la V1 :
+Vercel convient à la V1 :
 
 ```text
 GitHub
@@ -1022,15 +875,11 @@ GitHub
   └─ main → Production
 ```
 
-L’application étant statique, aucun service serveur Vercel n’est requis.
-
-Alternative possible : GitHub Pages. Vercel est toutefois préférable si l’on souhaite des previews de PR immédiates et une gestion simple des headers/cache.
+L’application reste statique. Aucun service serveur Vercel n’est requis.
 
 ---
 
-## 29. Stratégie Git
-
-Recommandation :
+## 31. Stratégie Git
 
 ```text
 main
@@ -1042,16 +891,15 @@ Règles :
 
 - `main` toujours déployable ;
 - une PR = un objectif cohérent ;
-- assets lourds ajoutés consciemment ;
 - aucun merge avec contrôles essentiels rouges ;
-- migrations documentées dans le code ;
-- les trois documents de référence ne doivent pas être multipliés par des documents concurrents inutiles.
+- assets lourds ajoutés consciemment ;
+- les documents de référence existants évoluent au lieu d’être doublonnés par de nouveaux documents concurrents.
 
 ---
 
-## 30. Dépendances : politique de sobriété
+## 32. Dépendances : politique de sobriété
 
-Dépendances justifiées V1 :
+Production :
 
 ```text
 react
@@ -1059,58 +907,25 @@ react-dom
 three
 @react-three/fiber
 @react-three/drei
-lucide-react (optionnel)
 vite-plugin-pwa
-```
-
-Développement :
-
-```text
-typescript
-vite
-vitest
-eslint
-playwright
-testing-library ciblé
+lucide-react (optionnel)
 ```
 
 À éviter sans besoin démontré :
 
 - Redux ;
-- Zustand uniquement pour éviter quelques props ;
-- Tailwind si le design system CSS natif suffit ;
-- bibliothèque de composants générique lourde ;
-- moteur audio ;
+- store global supplémentaire uniquement pour le showroom ;
 - moteur physique ;
 - framework backend ;
 - ORM ;
-- SDK analytics.
+- SDK analytics ;
+- bibliothèque de carrousel 3D générique.
 
-Le produit possède peu d’état métier. React + reducer/context + adapter IndexedDB suffisent en V1.
-
----
-
-## 31. CSS et design tokens
-
-Utiliser CSS natif avec variables :
-
-```css
-:root {
-  --color-bg: ...;
-  --color-surface: ...;
-  --space-1: ...;
-  --radius-card: ...;
-  --duration-fast: ...;
-}
-```
-
-Les tokens sont définis dans `src/styles/tokens.css` à partir de la direction artistique.
-
-Pas de valeurs de couleurs éparpillées dans les composants sauf cas 3D explicitement documentés.
+Le showroom est assez simple pour être implémenté directement avec React et la scène existante.
 
 ---
 
-## 32. Découpage de livraison recommandé
+## 33. Découpage de livraison recommandé
 
 ### Phase 0 — Fondation
 
@@ -1122,85 +937,89 @@ Pas de valeurs de couleurs éparpillées dans les composants sauf cas 3D explici
 
 ### Phase 1 — Vertical slice
 
-Un seul caillou, une seule ambiance, rendu 3D finalisable :
+Un caillou exporté depuis le pipeline Blender, un showroom minimal et une ambiance Studio :
 
 ```text
 ouvrir
+→ voir Rock 001
+→ tourner
+→ suivant
+→ charger Rock 002
+→ revenir
 → adopter
 → nommer
-→ voir
-→ tourner
-→ fermer
-→ revenir
+→ Socle
 ```
 
-Cette phase valide le cœur avant de produire six assets.
+Cette phase valide le chargement/disposal avant d’exporter les vingt modèles finaux.
 
-### Phase 2 — Produit V1
+### Phase 2 — Catalogue V1
 
-- 6 spécimens ;
+- export des 20 GLB ;
+- catalogue de métadonnées ;
+- navigation 01/20 ;
+- transitions ;
+- cache runtime ;
+- adoption.
+
+### Phase 3 — Produit V1
+
 - 5 ambiances ;
 - fiche ;
-- collection ;
+- collection/showroom ;
 - progression ;
-- textes.
-
-### Phase 3 — Finition
-
+- textes ;
 - instantané ;
 - événements rares ;
 - audio ;
-- qualité adaptative ;
-- offline complet ;
+- offline du compagnon principal.
+
+### Phase 4 — Finition et release
+
 - accessibilité ;
-- tests appareils physiques.
-
-### Phase 4 — Release
-
-- audit assets ;
-- build production ;
+- qualité adaptative ;
+- tests appareils physiques ;
+- audit mémoire ;
 - validation PWA ;
 - import/export ;
-- test mise à jour ;
+- crédits/licences ;
 - publication V1.0.
 
 ---
 
-## 33. Risques techniques principaux
+## 34. Risques techniques principaux
 
-### R1 — Poids des assets 3D
+### R1 — Poids cumulé des 20 assets
 
-**Risque :** chargement lent et PWA énorme.  
-**Réponse :** budgets, lazy loading, compression géométrique, KTX2, pas de 8K inutile.
+**Réponse :** chargement séquentiel, runtime cache, aucun précache massif.
 
-### R2 — Chauffe et batterie
+### R2 — Fuite GPU lors du changement
 
-**Risque :** Canvas permanent à 60 fps pour une scène immobile.  
-**Réponse :** frameloop à la demande, DPR borné, qualité adaptative.
+**Réponse :** disposal explicite, tests de cycles complets, références nettoyées.
 
-### R3 — Rendu différent entre appareils
+### R3 — Conflit rotation / swipe
 
-**Risque :** lumière/matériau superbe sur desktop mais terne sur iPhone.  
-**Réponse :** vraie matrice d’appareils physiques et presets robustes.
+**Réponse :** flèches comme navigation primaire, détection de zone et seuils gestuels.
 
-### R4 — Gestes tactiles conflictuels
+### R4 — Rendu différent entre appareils
 
-**Risque :** tap, rotation, pinch et UI se déclenchent ensemble.  
-**Réponse :** couche de contrôles dédiée avec seuils de mouvement et états explicites.
+**Réponse :** matrice d’appareils physiques, preset Studio robuste, DPR adaptatif.
 
-### R5 — Effet « démo Three.js »
+### R5 — Chauffe et batterie
 
-**Risque :** techniquement 3D mais visuellement générique.  
-**Réponse :** direction photo, lumière, matériau, caméra et ombres traités comme un shooting produit.
+**Réponse :** frameloop à la demande et absence de 20 scènes cachées.
 
-### R6 — Surarchitecture
+### R6 — Effet « démo Three.js »
 
-**Risque :** multiplier stores, services, hooks et patterns pour une application simple.  
-**Réponse :** domaine pur, reducer clair, une persistance, une scène, peu de dépendances.
+**Réponse :** lumière, matériau, caméra et transition traités comme un showroom de produit.
+
+### R7 — Surarchitecture
+
+**Réponse :** un Canvas, un loader, un catalogue, un modèle actif.
 
 ---
 
-## 34. Décisions explicitement reportées après V1
+## 35. Décisions reportées après V1
 
 - WebGPU comme renderer principal ;
 - backend et synchronisation ;
@@ -1208,7 +1027,6 @@ Cette phase valide le cœur avant de produire six assets.
 - réalité augmentée ;
 - scan 3D utilisateur ;
 - génération procédurale de cailloux ;
-- shaders complexes spécifiques par GPU ;
 - physique avancée ;
 - boutique ;
 - compte ;
@@ -1216,8 +1034,10 @@ Cette phase valide le cœur avant de produire six assets.
 
 ---
 
-## 35. Règle d’architecture finale
+## 36. Règle d’architecture finale
+
+> **Vingt cailloux dans le catalogue ne doivent jamais devenir vingt cailloux dans la mémoire.**
+
+Et la règle historique reste valable :
 
 > **Le code autour du caillou doit être plus simple que le caillou.**
-
-Si une technologie ne rend pas directement la scène plus belle, l’expérience plus fiable ou le code réellement plus maintenable, elle ne mérite probablement pas d’entrer dans CAILLOU™ V1.
