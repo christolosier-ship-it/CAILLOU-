@@ -34,7 +34,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | 02 | Vercel, previews et garde-fous CI | Terminée — PR #5 fusionnée | 01 |
 | 03 | Supabase : schéma, RLS et contrats | Terminée — PR #7 fusionnée | 01 |
 | 04 | Auth pseudo + mot de passe | Terminée — PR #8 fusionnée | 03 |
-| 05 | Pipeline 3D de production et catalogue | À faire | pipeline audit existant |
+| 05 | Pipeline 3D de production et catalogue | Terminée — PR #10 fusionnée, 20/20 cailloux actifs | pipeline audit existant |
 | 06 | Showroom 3D des 20 cailloux | À faire | 01, 05 |
 | 07 | Adoption, nommage et Socle | À faire | 04, 06 |
 | 08 | Caresse et économie en Lithons | À faire | 03, 07 |

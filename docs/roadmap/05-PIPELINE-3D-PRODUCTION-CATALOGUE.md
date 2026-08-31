@@ -53,14 +53,22 @@ PR dédiée. Compléter compte rendu + index. Joindre les résultats de validati
 
 ## État / compte rendu
 
-**Statut : En validation finale**
+**Statut : Terminée**
 
-- Date : 2026-08-31
-- PR / commit : PR #10 — catalogue généré par `031bbf2583e1d28d65f0e6b0a4e08ec85722604f`
+- Date de clôture : 2026-09-01
+- PR : #10 fusionnée dans `main`
+- Commit de fusion production : `b46cb5bad67cbb1ec35bbd015d8660a43049d79f`
 - Blender figé : 4.5.13 LTS, archive officielle vérifiée par SHA-256
-- Rock 001/002 : PASS structure glTF + PASS Three.js/WebGL réel
-- Batch 20 : 20/20 exportés et validés dans Three.js/WebGL, 10 000 triangles chacun
-- Poids moyen/max : 0,555 MiB / 0,780 MiB
-- Licences : Rocks - Pack 5, Loïc Norgeot, CC BY 4.0, attribution et provenance dans le rapport de production
-- Dette : activation Supabase et validation CDN Vercel à effectuer seulement après fusion/déploiement des assets afin d'éviter tout pointeur actif vers un fichier absent
-- Étape suivante recommandée : 06
+- Source 3D : `Rocks - Pack 5` de Loïc Norgeot, licence CC BY 4.0, attribution et provenance conservées dans le rapport de production
+- Vertical slice : Rock 001 et Rock 002 validés par contrôle structurel glTF puis par rendu Three.js/WebGL réel avant lancement du batch complet
+- Batch production : 20/20 GLB autonomes exportés et validés, IDs stables `rock-001` à `rock-020`
+- Géométrie : 10 000 triangles pour chacun des 20 spécimens
+- Matériaux : base color + normal map embarquées, roughness calibrée pour conserver un rendu minéral sec sans aspect plastique
+- Poids GLB mesuré : moyenne 0,555 MiB, maximum 0,780 MiB
+- Previews : 20/20 générées et publiées avec les modèles
+- Validation web : chargement réel Three.js/WebGL validé sur les 20 modèles avant publication
+- Vercel : déploiement de production `dpl_EZqxcTVh1jwHhkhQY3HPdcaY4BGL` en état `READY`, associé au commit de fusion de la PR #10
+- Supabase : `rock_catalog` publié et activé après disponibilité des assets en production ; contrôle final = 20 actifs / 20 prêts, de `rock-001` à `rock-020`, avec `model_path`, `preview_path`, `source_mesh` et `triangle_count` renseignés
+- Spécimens nécessitant un traitement exceptionnel : aucun
+- Dette bloquante restante sur l'étape 05 : aucune
+- Étape suivante recommandée : 06 — Showroom 3D des 20 cailloux
