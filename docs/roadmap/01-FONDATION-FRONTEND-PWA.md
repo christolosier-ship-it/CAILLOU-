@@ -61,12 +61,12 @@ Travailler par PR. Après validation, compléter `État / compte rendu` ci-desso
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : Prête à fusionner**
 
-- Date :
-- PR / commit :
-- Réalisé :
-- Décisions prises :
-- Tests :
-- Écarts / dette :
-- Étape suivante recommandée : 02
+- Date : 31 août 2026.
+- PR / commit : PR #4 `feat: poser la fondation frontend PWA CAILLOU` ; socle applicatif validé au commit `acb1b47f285bfc3c4f36dfefe8abb23bfa2e8ca7` avant retrait du workflow de validation temporaire.
+- Réalisé : bootstrap React 19 + TypeScript 6 + Vite 8 ; React Three Fiber 9, Three.js et Drei ; PWA via `vite-plugin-pwa` ; manifest et service worker ; icônes provisoires 192/512 ; arborescence app/domaine/scène/features/persistence/PWA/styles/utils ; design tokens ; shell responsive sobre ; Canvas 3D procédural minimal ; ESLint, typecheck strict, Vitest et script `npm run check`.
+- Décisions prises : aucune fonctionnalité métier anticipée ; aucun client Supabase ni schéma ajouté ; aucun projet Vercel créé ; objet 3D de validation explicitement provisoire ; `frameloop="demand"` utilisé ; aucun GLB de production précaché ; TypeScript maintenu sur la majeure 6 conformément à l'architecture malgré l'existence de TypeScript 7.
+- Tests : validation temporaire GitHub Actions sous Node 22, ensuite retirée du diff afin de réserver la CI définitive à l'étape 02. `npm install --no-audit --no-fund` OK ; lint OK ; typecheck OK ; Vitest 2 fichiers / 4 tests verts ; build Vite 8.2.2 OK ; `manifest.webmanifest`, `sw.js` et Workbox générés par PWA 1.3.0.
+- Écarts / dette : l'avertissement Vite sur la configuration a été corrigé. Le bundle 3D reste volontairement non optimisé à ce stade : environ 1,10 Mo minifié / 301,5 ko gzip et avertissement de chunk > 500 ko ; à mesurer puis découper avec le showroom réel plutôt que masquer le seuil. Les icônes PWA restent provisoires. La validation visuelle via Preview Vercel et sur appareils physiques est reportée à l'étape 02. `npm install` signale une dépréciation transitive `glob@11.1.0`, non bloquante, à réévaluer lors du verrouillage de la chaîne d'installation. Aucun `package-lock.json` n'est encore versionné ; l'étape 02 devra trancher ce point avant de retenir `npm ci` pour la CI définitive.
+- Étape suivante recommandée : 02, après fusion de la PR #4.

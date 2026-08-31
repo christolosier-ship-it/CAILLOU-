@@ -28,9 +28,9 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 
 ## Ordre d'exécution
 
-| # | Étape | Statut initial | Dépendances |
+| # | Étape | Statut | Dépendances |
 |---:|---|---|---|
-| 01 | Fondation frontend et PWA | À faire | aucune |
+| 01 | Fondation frontend et PWA | Prête à fusionner — PR #4 | aucune |
 | 02 | Vercel, previews et garde-fous CI | À faire | 01 |
 | 03 | Supabase : schéma, RLS et contrats | À faire | 01 |
 | 04 | Auth pseudo + mot de passe | À faire | 03 |
