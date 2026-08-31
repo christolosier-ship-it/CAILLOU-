@@ -1,0 +1,33 @@
+:root {
+  --color-mineral-ivory: #f2efe9;
+  --color-limestone: #d8d2c8;
+  --color-warm-stone: #b9b1a5;
+  --color-graphite: #343330;
+  --color-basalt: #181817;
+  --color-carbon: #0e0e0d;
+  --color-aged-bronze: #9a784d;
+  --color-ochre: #a66f3f;
+  --color-moss: #66705c;
+  --color-quartz: #e5e1d8;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-control: 12px;
+  --radius-card: 18px;
+  --radius-sheet: 26px;
+
+  --duration-fast: 140ms;
+  --duration-ui: 260ms;
+  --duration-rock-switch: 380ms;
+
+  --content-max-width: 1240px;
+  --font-sans: Inter, "Instrument Sans", Manrope, Geist, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
