@@ -1,150 +1,561 @@
-# CAILLOU™ — Architecture technique et stack recommandée
+# CAILLOU™ - Architecture technique et stack V1
 
 > **Statut : architecture cible V1**  
-> **Objectif : PWA 3D locale, légère, tactile et durable**  
-> **Principe : la complexité doit servir le rendu du caillou, jamais créer une usine à gaz autour de lui.**
+> **Objectif : PWA 3D tactile avec compte, progression persistante, économie simple et backend Supabase**  
+> **Principe : la complexité serveur protège l'état du joueur ; la complexité graphique sert le caillou. Rien d'autre.**
 
 ---
 
 ## 1. Objet du document
 
-Ce document décrit l’architecture technique recommandée pour **CAILLOU™ V1**, la stack, l’organisation du dépôt, les responsabilités des modules, la stratégie 3D, la sélection des vingt spécimens, la persistance locale, la PWA, les performances, les tests et les règles de qualité.
+Ce document décrit l'architecture full stack de **CAILLOU™ V1** : frontend, 3D, authentification, base de données, économie en Lithons, accessoires, sécurité, cache, tests et déploiement Vercel.
 
-Le périmètre fonctionnel est défini dans `CAHIER-DES-CHARGES-V1.md`. Les règles visuelles et artistiques sont définies dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`. Le pipeline d’assets est décrit dans `WORKFLOW-3D-BLENDER-GITHUB.md`.
+Le périmètre fonctionnel est défini dans `CAHIER-DES-CHARGES-V1.md`. Les règles visuelles et artistiques sont définies dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`. Le pipeline 3D est décrit dans `WORKFLOW-3D-BLENDER-GITHUB.md`.
 
 ---
 
-## 2. Décision d’architecture
+## 2. Décision d'architecture
 
-CAILLOU™ V1 est une **Single Page Application statique, local-first et sans backend**.
+CAILLOU™ V1 devient une application **full stack**.
 
-Architecture générale :
+Supabase est la source de vérité de l'avancement utilisateur.
 
 ```text
-Navigateur / PWA
-      │
-      ▼
-React UI shell
-      │
-      ├──────────────► Domaine produit pur
-      │                     │
-      │                     ▼
-      │                État applicatif
-      │                     │
-      │                     ▼
-      │                IndexedDB locale
-      │
-      ▼
-React Three Fiber
-      │
-      ▼
-Three.js / WebGL
-      │
-      ▼
-1 GLB actif + textures + lumières + ambiances
+                         GitHub
+                           │
+                           ▼
+                        Vercel
+                           │
+                           ▼
+                    React / Vite PWA
+                    ┌──────┴──────┐
+                    │             │
+                    ▼             ▼
+             React UI        React Three Fiber
+                    │             │
+                    │             ▼
+                    │          Three.js
+                    │             │
+                    │             ▼
+                    │        1 GLB actif
+                    │
+                    ▼
+                 Supabase
+          ┌─────────┼──────────┐
+          ▼         ▼          ▼
+        Auth     Postgres   Edge Functions
+          │         │          │
+          └─────────┴──────────┘
+                    │
+                    ▼
+        état canonique du joueur
 ```
 
-Le catalogue contient **20 spécimens**, mais la scène n’en instancie **qu’un seul à la fois**.
-
-Aucun serveur applicatif n’est requis pour :
-
-- parcourir le catalogue ;
-- adopter un caillou ;
-- le nommer ;
-- afficher et manipuler la scène ;
-- conserver la progression ;
-- changer d’ambiance ;
-- prendre un instantané ;
-- afficher les statistiques ;
-- déclencher les micro-événements ;
-- exporter/importer une sauvegarde.
-
-Le déploiement ne sert qu’à distribuer les fichiers statiques et les mises à jour.
+Vercel distribue l'application et les assets statiques. Supabase gère l'identité, la progression et l'économie.
 
 ---
 
 ## 3. Stack recommandée
 
-### 3.1 Socle
-
 | Couche | Choix V1 | Rôle |
 |---|---|---|
-| UI | React 19 | composition de l’interface |
-| Typage | TypeScript 6 | contrats stricts et domaine typé |
-| Build | Vite 8 | développement et bundle de production |
-| 3D | Three.js | moteur de rendu WebGL |
-| Binding 3D | `@react-three/fiber` 9 | scène Three.js déclarative dans React |
-| Helpers 3D | `@react-three/drei` | chargement GLTF et helpers ciblés |
-| PWA | `vite-plugin-pwa` | manifest, service worker, cache et mises à jour |
-| Persistance | IndexedDB native derrière un adapter typé | données locales |
-| Tests unitaires | Vitest | domaine, persistance et règles produit |
-| Tests composants | Testing Library | interactions UI importantes |
-| Tests navigateur | Playwright | parcours critiques et PWA |
-| Icônes UI | Lucide React ou SVG locaux | pictogrammes sobres |
+| UI | React 19 | interface |
+| Typage | TypeScript 6 | contrats stricts |
+| Build | Vite 8 | développement et build |
+| 3D | Three.js | moteur WebGL |
+| Binding 3D | `@react-three/fiber` 9 | scène React |
+| Helpers 3D | `@react-three/drei` | GLTF, contrôles et helpers ciblés |
+| Backend | Supabase | Auth + Postgres + fonctions serveur |
+| Client backend | `@supabase/supabase-js` | sessions et accès API |
+| PWA | `vite-plugin-pwa` | manifest, service worker, cache |
+| Cache local | IndexedDB | cache non autoritaire uniquement |
+| Déploiement | Vercel | previews et production |
+| Tests unitaires | Vitest | domaine et économie |
+| Tests composants | Testing Library | interactions UI |
+| Tests navigateur | Playwright | parcours critiques |
+| Tests base/RLS | Supabase CLI / tests SQL | sécurité des données |
 
-### 3.2 Versions de référence
-
-Au 31 août 2026 :
-
-- React stable : branche 19 ;
-- TypeScript 6.0 publié ;
-- Vite 8 stable ;
-- React Three Fiber 9 adapté à React 19.
-
-Les versions patch exactes sont verrouillées par le lockfile au bootstrap du projet.
-
-### 3.3 Node
-
-Recommandation : **Node 22 LTS ou version LTS compatible plus récente**.
+À éviter sans besoin démontré : Redux, ORM frontend, moteur physique, backend Vercel parallèle à Supabase, deuxième monnaie ou framework de jeu complet.
 
 ---
 
-## 4. Pourquoi React Three Fiber
+## 4. Responsabilités par couche
 
-Le produit est dominé par une scène 3D interactive, mais son interface, sa persistance et son contenu restent une application React classique.
+### Frontend
+
+Le frontend est responsable de :
+
+- l'interface ;
+- la scène 3D ;
+- la reconnaissance des gestes ;
+- les transitions ;
+- la présentation du catalogue ;
+- le cache des assets ;
+- les appels aux opérations serveur.
+
+Le frontend **n'est jamais autoritaire** pour :
+
+- le solde de Lithons ;
+- un achat ;
+- l'inventaire ;
+- la propriété d'un caillou ;
+- les statistiques persistantes.
+
+### Supabase
+
+Supabase est responsable de :
+
+- l'identité ;
+- le pseudo unique ;
+- la session ;
+- les cailloux adoptés et jetés ;
+- la progression ;
+- le portefeuille de Lithons ;
+- le journal des gains et dépenses ;
+- le catalogue d'accessoires ;
+- l'inventaire ;
+- l'équipement ;
+- les opérations transactionnelles ;
+- la sécurité RLS.
+
+### Vercel
+
+Vercel est responsable de :
+
+- la distribution du frontend ;
+- le CDN des assets statiques ;
+- les Preview Deployments ;
+- la production depuis `main`.
+
+Aucune Function Vercel n'est requise en V1.
+
+---
+
+## 5. Authentification pseudo + mot de passe
+
+### 5.1 Contrainte
+
+L'expérience utilisateur exige uniquement :
 
 ```text
-React
-├─ Interface 2D
-├─ État produit
-└─ Canvas 3D
-   └─ Three.js
+pseudo
+mot de passe
 ```
 
-Cette approche évite une couche impérative Three.js géante et permet de conserver un état applicatif unique.
+Supabase Auth natif associe l'authentification par mot de passe à un email ou un téléphone. La V1 masque donc ce détail derrière une petite couche serveur.
+
+### 5.2 Auth broker
+
+Deux Edge Functions Supabase sont prévues :
+
+```text
+auth-register
+
+auth-login
+```
+
+Elles exposent une API centrée sur le pseudo.
+
+### 5.3 Identifiant Auth interne
+
+Le pseudo normalisé produit un identifiant Auth interne non visible par l'utilisateur. Une adresse technique déterministe peut être utilisée comme identifiant Supabase Auth, par exemple à partir d'un hash du pseudo normalisé sur un domaine réservé à l'application.
+
+L'utilisateur ne voit, ne saisit et ne manipule jamais cet identifiant technique.
+
+### 5.4 Inscription
+
+```text
+pseudo + mot de passe
+        ↓
+auth-register
+        ↓
+normalisation du pseudo
+        ↓
+vérification unicité
+        ↓
+création Supabase Auth
+        ↓
+création profile
+        ↓
+session
+```
+
+Le secret/service role nécessaire à l'administration Auth reste exclusivement dans l'Edge Function.
+
+### 5.5 Connexion
+
+```text
+pseudo + mot de passe
+        ↓
+auth-login
+        ↓
+reconstruction de l'identifiant interne
+        ↓
+Supabase Auth password sign-in
+        ↓
+session JWT
+```
+
+### 5.6 Pseudo
+
+En V1, le pseudo de connexion est unique et considéré comme immuable afin de garder le mécanisme d'authentification simple.
+
+Un changement de pseudo futur devra distinguer identifiant de connexion et nom d'affichage.
+
+### 5.7 Récupération
+
+Sans email ou téléphone utilisateur, le flux standard de récupération par email n'est pas disponible. Aucune récupération improvisée ne doit être ajoutée. Une stratégie dédiée devra être conçue avant une publication où la récupération autonome devient obligatoire.
 
 ---
 
-## 5. Pourquoi ne pas utiliser un moteur de jeu
+## 6. Modèle de données cible
 
-Unity, Godot ou un moteur Web exporté ne sont pas recommandés pour la V1.
+Le schéma exact est versionné par migrations SQL.
 
-CAILLOU™ n’a pas besoin de physique avancée, monde ouvert, animation squelettique, moteur réseau ou gameplay temps réel lourd.
+### 6.1 `profiles`
 
-Three.js offre le contrôle nécessaire pour obtenir un rendu produit premium avec un poids compatible PWA.
+```text
+id uuid primary key -> auth.users.id
+username text unique not null
+username_normalized text unique not null
+created_at timestamptz
+updated_at timestamptz
+```
+
+### 6.2 `rock_catalog`
+
+```text
+id text primary key             -- rock-001 ... rock-020
+catalog_index int unique
+label text
+short_description text
+description text
+model_path text
+preview_path text
+source_mesh text
+triangle_count int
+active boolean
+```
+
+Le catalogue possède exactement vingt entrées actives pour la V1.
+
+### 6.3 `user_rocks`
+
+```text
+id uuid primary key
+user_id uuid -> profiles.id
+specimen_id text -> rock_catalog.id
+name text
+adopted_at timestamptz
+discarded_at timestamptz null
+last_cleaned_at timestamptz
+created_at timestamptz
+updated_at timestamptz
+```
+
+Un utilisateur ne possède qu'un seul caillou actif à la fois.
+
+Cette règle doit être protégée par une contrainte/index partiel côté Postgres, pas uniquement par le frontend.
+
+### 6.4 `rock_progress`
+
+```text
+user_rock_id uuid primary key -> user_rocks.id
+caress_count bigint default 0
+cleaning_count bigint default 0
+interaction_count bigint default 0
+observation_seconds bigint default 0
+lithons_generated bigint default 0
+updated_at timestamptz
+```
+
+### 6.5 `wallets`
+
+```text
+user_id uuid primary key -> profiles.id
+balance bigint not null default 0 check (balance >= 0)
+lifetime_earned bigint not null default 0
+lifetime_spent bigint not null default 0
+updated_at timestamptz
+```
+
+### 6.6 `lithon_ledger`
+
+```text
+id uuid primary key
+user_id uuid -> profiles.id
+user_rock_id uuid null -> user_rocks.id
+delta bigint not null
+reason text not null
+event_key uuid null
+accessory_id text null
+created_at timestamptz
+```
+
+Objectifs :
+
+- audit du portefeuille ;
+- idempotence ;
+- diagnostic des erreurs ;
+- reconstruction éventuelle du solde.
+
+`event_key` possède une contrainte d'unicité adaptée afin qu'une caresse réémise après un timeout réseau ne soit pas créditée deux fois.
+
+### 6.7 `accessories`
+
+```text
+id text primary key
+name text
+description text
+price_lithons bigint check (price_lithons >= 0)
+asset_path text
+slot text
+active boolean
+sort_order int
+```
+
+### 6.8 `user_accessories`
+
+```text
+user_id uuid -> profiles.id
+accessory_id text -> accessories.id
+purchased_at timestamptz
+primary key (user_id, accessory_id)
+```
+
+Un accessoire V1 est acheté une fois et rejoint définitivement l'inventaire du compte.
+
+### 6.9 `equipped_accessories`
+
+```text
+user_rock_id uuid -> user_rocks.id
+accessory_id text -> accessories.id
+slot text
+equipped_at timestamptz
+primary key (user_rock_id, slot)
+```
+
+L'équipement est lié au caillou actif, mais la propriété reste liée au compte.
 
 ---
 
-## 6. Arborescence cible du dépôt
+## 7. Économie Lithon
+
+### 7.1 Règle
+
+```text
+1 caresse valide = +1 Lithon
+```
+
+Le Lithon n'a aucune valeur réelle.
+
+### 7.2 Une caresse n'est pas une écriture directe
+
+Le frontend détecte une caresse valide puis appelle une fonction transactionnelle :
+
+```text
+register_caress(user_rock_id, event_key)
+```
+
+La fonction :
+
+1. identifie l'utilisateur via `auth.uid()` ;
+2. vérifie que le caillou lui appartient et est actif ;
+3. vérifie que `event_key` n'a pas déjà été consommé ;
+4. incrémente `caress_count` ;
+5. incrémente `lithons_generated` ;
+6. crédite `wallets.balance` de 1 ;
+7. incrémente `lifetime_earned` ;
+8. écrit `+1` dans `lithon_ledger` ;
+9. renvoie le nouveau solde.
+
+Tout se produit dans une seule transaction Postgres.
+
+### 7.3 Validation gestuelle
+
+Le client distingue :
+
+- rotation normale ;
+- mode caresse ;
+- mode nettoyage.
+
+Une caresse demande un mouvement continu dépassant des seuils minimaux de distance et de durée. Un tap ou un simple maintien n'est pas récompensé.
+
+Il n'existe aucune limite quotidienne. Des garde-fous techniques peuvent empêcher un même événement ou des événements manifestement dupliqués d'être comptés plusieurs fois.
+
+### 7.4 Achat atomique
+
+L'achat passe par :
+
+```text
+purchase_accessory(accessory_id)
+```
+
+La fonction :
+
+1. vérifie l'utilisateur ;
+2. charge le prix serveur ;
+3. vérifie que l'accessoire est actif ;
+4. vérifie qu'il n'est pas déjà possédé ;
+5. verrouille/vérifie le portefeuille ;
+6. refuse si le solde est insuffisant ;
+7. débite exactement le prix ;
+8. incrémente `lifetime_spent` ;
+9. crée `user_accessories` ;
+10. écrit le mouvement négatif dans `lithon_ledger` ;
+11. renvoie l'inventaire et le nouveau solde.
+
+Le prix envoyé par le client n'est jamais utilisé comme autorité.
+
+---
+
+## 8. Nettoyage
+
+La poussière est dérivée de `last_cleaned_at`.
+
+```text
+last_cleaned_at
+      ↓
+temps écoulé
+      ↓
+niveau visuel de poussière borné
+```
+
+Aucune table de « saleté » n'est nécessaire si une fonction déterministe suffit.
+
+La fin d'un nettoyage validé appelle une opération serveur qui :
+
+- met à jour `last_cleaned_at` ;
+- incrémente `cleaning_count` ;
+- n'accorde aucun Lithon.
+
+La poussière n'a aucune conséquence sur l'économie ou l'état du caillou.
+
+---
+
+## 9. Jeter un caillou
+
+Opération serveur :
+
+```text
+discard_active_rock(user_rock_id)
+```
+
+Elle :
+
+1. vérifie propriété et statut actif ;
+2. renseigne `discarded_at` ;
+3. retire les équipements du caillou si nécessaire ;
+4. conserve le portefeuille ;
+5. conserve `user_accessories` ;
+6. conserve `rock_progress` ;
+7. conserve l'historique.
+
+Le frontend retire immédiatement le modèle après succès. Aucune animation de lancer n'est prévue.
+
+---
+
+## 10. Sécurité et RLS
+
+Toutes les tables exposées via la Data API doivent avoir RLS activé et des grants minimaux.
+
+### Lecture utilisateur
+
+Un utilisateur peut lire :
+
+- son profil ;
+- ses cailloux ;
+- ses progressions ;
+- son portefeuille ;
+- son ledger ;
+- son inventaire ;
+- ses équipements ;
+- le catalogue des cailloux ;
+- le catalogue des accessoires actifs.
+
+### Écritures directes interdites
+
+Le client ne doit pas pouvoir directement :
+
+- modifier `wallets.balance` ;
+- insérer un mouvement de ledger ;
+- changer le prix d'un accessoire ;
+- créer une propriété d'accessoire ;
+- augmenter ses statistiques économiques.
+
+Ces opérations passent par des fonctions SQL ou Edge Functions contrôlées.
+
+### Fonctions sensibles
+
+Pour chaque fonction `security definer` :
+
+- `search_path` explicite et minimal ;
+- `auth.uid()` vérifié ;
+- droits `EXECUTE` limités à `authenticated` ;
+- aucune confiance dans un `user_id` fourni par le client ;
+- validations de propriété dans la fonction ;
+- tests allow/deny automatisés.
+
+### Service role
+
+La clé service role n'est jamais présente dans le bundle Vite ou dans une variable `VITE_*`.
+
+Elle reste uniquement dans les environnements serveur Supabase nécessaires aux opérations d'administration Auth.
+
+---
+
+## 11. Catalogue 3D et mémoire GPU
+
+Le catalogue contient vingt spécimens, mais **un seul modèle 3D est actif dans la scène**.
+
+```text
+metadata 20 roches
+        ↓
+rock-007 sélectionné
+        ↓
+chargement model.glb
+        ↓
+1 instance Three.js
+```
+
+Au changement :
+
+```text
+fade court
+→ disposal du modèle courant
+→ chargement du suivant
+→ apparition
+```
+
+À libérer :
+
+- géométries ;
+- matériaux ;
+- textures non partagées ;
+- render targets ;
+- références au modèle précédent.
+
+La navigation `01 -> 20 -> 01` ne doit pas produire une croissance continue de la mémoire GPU.
+
+---
+
+## 12. Assets et distribution
+
+Arborescence cible :
 
 ```text
 CAILLOU-/
 ├── Ressource/
-│   ├── source .blend
+│   ├── rock_001.blend
 │   └── textures sources
 │
 ├── public/
 │   ├── assets/
 │   │   ├── rocks/
-│   │   │   ├── rock-001/
-│   │   │   │   └── model.glb
-│   │   │   ├── rock-002/
-│   │   │   │   └── model.glb
-│   │   │   ├── ...
-│   │   │   └── rock-020/
-│   │   │       └── model.glb
+│   │   │   ├── rock-001/model.glb
+│   │   │   └── ... rock-020/model.glb
 │   │   ├── rock-previews/
-│   │   ├── ambiences/
+│   │   ├── accessories/
 │   │   ├── audio/
 │   │   └── branding/
 │   └── icons/
@@ -152,892 +563,411 @@ CAILLOU-/
 ├── scripts/
 │   └── blender/
 │       ├── audit_rocks.py
-│       └── futurs scripts d’export
+│       └── export_rocks.py
+│
+├── supabase/
+│   ├── migrations/
+│   ├── functions/
+│   │   ├── auth-register/
+│   │   └── auth-login/
+│   └── tests/
 │
 ├── src/
 │   ├── app/
 │   ├── domain/
+│   ├── backend/
+│   │   └── supabase/
 │   ├── content/
-│   │   └── rocks.ts
 │   ├── scene/
-│   │   ├── RockCanvas.tsx
-│   │   ├── RockScene.tsx
-│   │   ├── RockModel.tsx
-│   │   ├── RockLoader.tsx
-│   │   ├── camera/
-│   │   ├── lighting/
-│   │   ├── controls/
-│   │   ├── ambiences/
-│   │   ├── effects/
-│   │   ├── quality/
-│   │   └── capture/
 │   ├── features/
-│   │   ├── onboarding/
+│   │   ├── auth/
 │   │   ├── showroom/
+│   │   ├── naming/
 │   │   ├── pedestal/
-│   │   ├── profile/
-│   │   ├── collection/
-│   │   ├── ambiences/
-│   │   ├── snapshot/
-│   │   ├── observation/
-│   │   └── settings/
-│   ├── persistence/
+│   │   ├── caress/
+│   │   ├── cleaning/
+│   │   ├── accessories/
+│   │   ├── bio/
+│   │   └── discard/
 │   ├── pwa/
+│   ├── cache/
 │   ├── styles/
 │   └── utils/
 │
-├── tests/
-├── .github/workflows/
-└── documents Markdown existants
+└── tests/
 ```
 
-Les noms exacts pourront évoluer, mais la séparation **source 3D / assets web / scène / domaine / UI** doit rester claire.
+Les noms précis peuvent évoluer. La séparation `assets sources / assets web / domaine / scène / backend` doit rester nette.
 
 ---
 
-## 7. Règles de dépendances
+## 13. État frontend
 
-### 7.1 Domaine pur
+L'application distingue trois catégories :
 
-`src/domain` contient les règles métier :
+### État serveur
 
-- adoption ;
+- session ;
+- profil ;
+- caillou actif ;
 - progression ;
-- titres ;
-- statistiques ;
-- micro-événements ;
-- validation de sauvegarde.
-
-Il ne dépend jamais de React, Three.js, IndexedDB ou du navigateur.
-
-### 7.2 Scène 3D
-
-La scène reçoit un état :
-
-```ts
-{
-  rockId,
-  ambienceId,
-  qualityTier,
-  observationMode,
-  rareEvent
-}
-```
-
-Elle produit des événements :
-
-```ts
-onRockTap()
-onInteractionStart()
-onInteractionEnd()
-onSnapshotReady()
-```
-
-Le showroom ajoute des événements applicatifs :
-
-```ts
-onPreviousRock()
-onNextRock()
-onRockReady()
-onRockLoadError()
-onAdoptRock()
-```
-
-La scène ne décide pas des règles de progression ou d’adoption.
-
----
-
-## 8. Catalogue des vingt spécimens
-
-### 8.1 Identifiants
-
-Le catalogue versionné utilise des IDs stables :
-
-```text
-rock-001
-rock-002
-...
-rock-020
-```
-
-### 8.2 Structure de catalogue
-
-Exemple conceptuel :
-
-```ts
-type RockSpecimen = {
-  id: RockSpecimenId
-  index: number
-  label: string
-  modelUrl: string
-  previewUrl?: string
-  sourceMesh: string
-  triangleCount: number
-  textureSize: number
-  attribution: {
-    author: string
-    source: string
-    license: string
-  }
-}
-```
-
-Le catalogue n’embarque pas les meshes. Il ne contient que les métadonnées et URLs.
-
-### 8.3 État de sélection
-
-```ts
-type ShowroomState = {
-  selectedIndex: number
-  selectedRockId: RockSpecimenId
-  loadState: 'idle' | 'loading' | 'ready' | 'error'
-}
-```
-
-Aucune instance Three.js n’est stockée dans l’état React persistant.
-
----
-
-## 9. Modèle de données utilisateur
-
-```ts
-type AppState = {
-  schemaVersion: number
-  appVersion: string
-  adoptedRocks: AdoptedRock[]
-  activeRockId: string
-  activeAmbienceId: string
-  progression: ProgressionState
-  rareEvents: RareEventHistory
-  settings: Settings
-  stats: UsageStats
-}
-```
-
-```ts
-type AdoptedRock = {
-  id: string
-  specimenId: RockSpecimenId
-  name: string
-  adoptedAt: string
-  lastViewedAt?: string
-}
-```
-
-La géométrie, les matériaux, la licence et les textes du spécimen appartiennent au catalogue applicatif et ne sont pas dupliqués dans la sauvegarde.
-
----
-
-## 10. Persistance IndexedDB
-
-Utiliser IndexedDB derrière un adapter typé.
-
-Stores recommandés :
-
-```text
-state
-meta
-```
-
-Les assets 3D ne sont pas recopiés dans IndexedDB. Leur cache appartient au service worker / navigateur.
-
-Sauvegarde immédiate après :
-
-- adoption ;
-- changement de nom ;
-- changement de compagnon principal ;
-- import ;
-- reset.
-
----
-
-## 11. Pipeline 3D V1
-
-### 11.1 Source maître
-
-Le fichier Blender placé dans `Ressource/` constitue la source de production des vingt spécimens.
-
-L’audit automatisé a confirmé :
-
-- 20 meshes distincts ;
-- environ 10 000 triangles par mesh LOD2 ;
-- UV disponibles ;
-- matériau individuel ;
-- texture couleur ;
-- normal map ;
-- rendu individuel automatisable.
-
-### 11.2 Format web
-
-Format de livraison : **glTF 2.0 binaire `.glb`**.
-
-Chaque spécimen final doit pouvoir être distribué comme asset autonome.
-
-### 11.3 Traitement cible
-
-```text
-.blend source
-   ↓
-isoler rock_XXX_LOD2
-   ↓
-reconnecter / vérifier textures
-   ↓
-centrer / orienter / normaliser
-   ↓
-matériau PBR CAILLOU™
-   ↓
-export GLB individuel
-   ↓
-validation poids / rendu / licence
-```
-
-### 11.4 LOD2
-
-Le LOD2 à environ 10k triangles est accepté comme base V1.
-
-Aucune décimation supplémentaire n’est imposée par défaut. On optimise seulement si les mesures réelles le justifient.
-
-### 11.5 Textures
-
-Base source : environ 1024 × 1024 couleur + normal.
-
-Une roughness peut être calibrée ou générée si nécessaire. L’objectif n’est pas d’inventer du détail mais de restituer correctement la matière sous l’éclairage CAILLOU™.
-
----
-
-## 12. Budget cible par spécimen
-
-Valeurs initiales à mesurer :
-
-- géométrie : ~10k triangles ;
-- texture : 1K source, 1K ou 2K uniquement si une amélioration réelle est démontrée ;
-- GLB final : viser **< 5 Mo** si possible ;
-- tolérance supérieure ponctuelle si la qualité le justifie et si le chargement reste acceptable.
-
-La présence de 20 assets ne signifie pas qu’ils doivent tous être transférés au démarrage.
-
----
-
-## 13. Showroom 3D : règle fondamentale
-
-### 13.1 Une seule roche active
-
-Le showroom ne maintient **qu’un seul spécimen 3D instancié à la fois**.
-
-Interdit :
-
-```text
-20 GLB chargés
-20 scènes cachées
-20 textures en GPU
-```
-
-Attendu :
-
-```text
-catalogue metadata
-       ↓
-rock-007 demandé
-       ↓
-1 GLB chargé
-       ↓
-1 scène active
-```
-
-### 13.2 Cycle de changement
-
-```text
-Rock A affiché
-   ↓
-transition de sortie
-   ↓
-dispose Rock A
-   ↓
-chargement Rock B
-   ↓
-transition d’entrée
-   ↓
-Rock B affiché
-```
-
-Le Canvas est réutilisé. Le modèle change, pas toute l’application.
-
-### 13.3 Disposal obligatoire
-
-Au changement de spécimen, libérer explicitement :
-
-- géométries ;
-- matériaux ;
-- textures non partagées ;
-- render targets éventuels ;
-- références applicatives au modèle précédent.
-
-La navigation répétée `01 → 20 → 01` ne doit pas produire une croissance continue de la mémoire GPU.
-
-### 13.4 Loader annulable
-
-Si l’utilisateur change rapidement de direction pendant un chargement :
-
-- ignorer le résultat obsolète ;
-- éviter d’insérer tardivement le mauvais modèle ;
-- utiliser un token/version de requête ou un mécanisme d’annulation lorsque possible.
-
----
-
-## 14. Cache réseau versus mémoire GPU
-
-La règle « un seul caillou chargé » concerne la scène 3D et la mémoire GPU.
-
-Le navigateur peut conserver les fichiers déjà visités dans son cache HTTP/PWA.
-
-Ainsi :
-
-```text
-rock-003 déjà visité
-→ GLB possiblement présent sur disque/cache
-→ aucune instance Three.js active
-→ retour ultérieur plus rapide
-```
-
-Cette distinction permet d’avoir une navigation efficace sans garder vingt modèles actifs.
-
----
-
-## 15. Previews et placeholder
-
-Les métadonnées des vingt spécimens sont légères et peuvent être chargées immédiatement.
-
-Des previews 2D peuvent être utilisées :
-
-- comme placeholder pendant le changement ;
-- comme fallback si WebGL échoue ;
-- éventuellement pour une vue secondaire de collection.
-
-Le showroom principal reste **3D**.
-
-Aucune preview 2D ne doit remplacer l’inspection du modèle lors de l’adoption normale.
-
----
-
-## 16. Contrôles du showroom
-
-### 16.1 Navigation
-
-Les boutons précédent/suivant constituent la méthode de navigation de référence.
-
-Ils doivent être :
-
-- accessibles au tactile ;
-- accessibles au clavier ;
-- libellés ARIA ;
-- utilisables indépendamment du Canvas.
-
-### 16.2 Rotation
-
-Un PointerDown démarré sur la zone interactive du modèle active la rotation.
-
-La couche de contrôles doit distinguer :
-
-```text
-rotation du caillou
-≠
-navigation précédent/suivant
-```
-
-### 16.3 Swipe facultatif
-
-Un swipe horizontal de navigation peut être accepté dans des zones hors objet si les essais mobiles prouvent qu’il n’entre pas en conflit avec la rotation.
-
-Les flèches restent disponibles dans tous les cas.
-
-### 16.4 Zoom
-
-Pinch / molette autorisé avec bornes de distance. Il n’est jamais requis pour valider une adoption.
-
----
-
-## 17. Stratégie de rendu 3D
-
-Renderer V1 : WebGL via Three.js.
-
-WebGPU n’est pas une exigence V1.
-
-Principes :
-
-- caméra perspective contrôlée ;
-- limites de zoom ;
-- pas de clipping visible ;
-- DPR adaptatif ;
-- fond et décor séparés du modèle ;
-- `frameloop="demand"` autant que possible.
-
-Un nouveau rendu est demandé lors :
-
-- rotation ;
-- zoom ;
+- portefeuille ;
+- inventaire ;
+- équipement.
+
+### État UI temporaire
+
+- modal ouverte ;
+- index showroom ;
+- mode actuel `normal | caress | cleaning` ;
 - transition ;
-- micro-événement ;
-- variation lumineuse ;
-- capture.
+- erreurs ;
+- loading.
+
+### État 3D
+
+- modèle actif ;
+- rotation ;
+- caméra ;
+- textures ;
+- niveau visuel de poussière ;
+- accessoires équipés.
+
+Aucune instance Three.js n'est stockée dans Supabase ou dans le domaine métier.
 
 ---
 
-## 18. Qualité adaptative
+## 14. PWA et cache
 
-### Economy
-
-- DPR borné bas ;
-- ombres simplifiées ;
-- effets réduits.
-
-### Auto
-
-- tier par défaut ;
-- adaptation au DPR, mémoire et frame time.
-
-### High
-
-- DPR supérieur borné ;
-- ombres maximales raisonnables ;
-- effets complets.
-
-Le mesh LOD2 reste identique tant que le profilage ne démontre pas le besoin d’une géométrie alternative.
-
----
-
-## 19. Lumière et ombres
-
-Le rendu premium dépend davantage de la lumière que du nombre de polygones.
-
-Architecture d’ambiance :
-
-```text
-Ambience
-├─ background
-├─ ground
-├─ key light
-├─ fill light
-├─ rim light
-├─ environment/reflections
-└─ contact shadow
-```
-
-Le showroom utilise un preset **Studio de sélection** unique pour les vingt pierres afin de ne pas favoriser un candidat par son décor.
-
----
-
-## 20. Socle et Mode Observation
-
-Le Socle et le showroom peuvent réutiliser le même moteur de rendu et les mêmes composants de modèle, mais pas nécessairement la même composition UI.
-
-Le Mode Observation ne crée pas une nouvelle scène. Il modifie visibilité de l’UI, cadrage, audio et effets.
-
----
-
-## 21. Micro-événements
-
-Les micro-événements restent calculés dans le domaine puis rendus par la scène.
-
-```text
-rare-events.ts
-      ↓
-Eligibility engine
-      ↓
-RareEvent | null
-      ↓
-Scene effect renderer
-```
-
-Le showroom d’adoption n’affiche pas de micro-événements susceptibles de distraire le choix.
-
----
-
-## 22. Instantané
-
-Pipeline :
-
-```text
-état scène
-   ↓
-rendu dédié
-   ↓
-canvas/image blob
-   ↓
-branding optionnel
-   ↓
-Web Share API ou téléchargement
-```
-
-Aucun serveur requis.
-
----
-
-## 23. PWA et stratégie de cache
-
-### 23.1 Précache
+### Précache
 
 Précacher :
 
 - shell HTML/CSS/JS ;
 - branding ;
 - icônes ;
-- ressources légères nécessaires à l’onboarding ;
-- previews légères si retenues.
+- petites ressources nécessaires au login et au showroom.
 
-**Ne pas précacher les vingt GLB au premier chargement.**
+Ne pas précacher les vingt GLB.
 
-### 23.2 Runtime cache des roches
+### Runtime cache
 
-Chaque GLB visité peut entrer dans un cache runtime versionné.
+Les GLB visités peuvent être conservés dans un cache runtime versionné.
 
-Objectifs :
+### IndexedDB
 
-- revisite rapide ;
-- réduire les téléchargements répétés ;
-- permettre progressivement une consultation hors ligne des pierres déjà vues.
+IndexedDB peut conserver :
 
-### 23.3 Compagnon principal
+- métadonnées de cache ;
+- dernier état serveur lu pour affichage de secours ;
+- préférences locales non sensibles.
 
-Après adoption, le modèle du compagnon principal devient un asset prioritaire du cache afin que le Socle fonctionne hors ligne.
+IndexedDB n'est pas la source de vérité du portefeuille ou de l'inventaire.
 
-### 23.4 Limites
+### Mode hors ligne V1
 
-Le cache doit posséder :
+La V1 privilégie la cohérence serveur :
 
-- nom/version explicite ;
-- politique d’expiration ;
-- nettoyage lors de changements incompatibles ;
-- limite adaptée aux 20 assets.
+- un caillou déjà mis en cache peut rester visible et manipulable hors ligne ;
+- authentification initiale, gains de Lithons, achats, nettoyage persistant et abandon nécessitent une connexion ;
+- aucune monnaie spéculative n'est créée hors ligne ;
+- l'UI signale calmement l'indisponibilité de la synchronisation.
 
----
-
-## 24. Chargement et transition
-
-Séquence du showroom :
-
-```text
-UI + Studio
-   ↓
-placeholder du spécimen N
-   ↓
-GLB N
-   ↓
-modèle prêt
-   ↓
-fade court
-```
-
-Lors du suivant :
-
-```text
-fade out
-→ disposal
-→ placeholder N+1
-→ chargement
-→ fade in
-```
-
-Ne jamais conserver Rock N et Rock N+1 uniquement pour fabriquer un crossfade 3D coûteux.
-
-Une capture 2D du dernier frame peut être utilisée temporairement si elle améliore la transition sans complexité excessive.
+Cette règle pourra évoluer vers une outbox idempotente plus tard si le besoin est démontré.
 
 ---
 
-## 25. Responsive
+## 15. Déploiement Vercel
 
-### Téléphone portrait
-
-- Canvas dominant ;
-- flèches gauche/droite dans les zones latérales ;
-- compteur `N / 20` ;
-- nom/label et CTA d’adoption en bas ;
-- safe areas iOS respectées.
-
-### Tablette
-
-- Canvas plus généreux ;
-- flèches éloignées du sujet ;
-- paysage réellement travaillé.
-
-### Desktop
-
-- souris/trackpad ;
-- touches gauche/droite ;
-- Canvas centré ;
-- pas de dashboard.
-
----
-
-## 26. Accessibilité technique
-
-- HTML sémantique hors Canvas ;
-- boutons natifs ;
-- focus visible ;
-- flèches avec `aria-label` ;
-- compteur textuel `7 sur 20` pour lecteur d’écran ;
-- `prefers-reduced-motion` ;
-- alternative aux gestes ;
-- fallback 2D si WebGL indisponible ;
-- adoption possible sans devoir effectuer une rotation 3D.
-
----
-
-## 27. Tests prioritaires
-
-### Unitaires
-
-- adoption ;
-- progression ;
-- titres ;
-- statistiques ;
-- micro-événements ;
-- validation import/export ;
-- catalogue de 20 IDs uniques.
-
-### Intégration
-
-- navigation précédent/suivant ;
-- wrap ou bornes `01/20` selon décision UX ;
-- changement rapide de direction ;
-- adoption du spécimen affiché ;
-- retour au showroom ;
-- changement de compagnon principal.
-
-### 3D
-
-- chargement de chacun des 20 GLB ;
-- absence d’asset ou texture manquante ;
-- aucun mesh supplémentaire involontaire ;
-- disposal après changement ;
-- absence de croissance mémoire après plusieurs cycles ;
-- rendu sans erreur console.
-
-### E2E
-
-```text
-premier lancement
-→ showroom 3D
-→ parcourir plusieurs cailloux
-→ tourner le candidat
-→ adopter
-→ nommer
-→ Socle
-→ reload
-→ état conservé
-```
-
----
-
-## 28. Validation automatisée des assets
-
-Un contrôle doit vérifier :
-
-- présence des **20 spécimens** attendus ;
-- IDs `rock-001` à `rock-020` uniques ;
-- GLB ouvrable ;
-- mesh attendu ;
-- UV présents ;
-- texture couleur ;
-- normal map ou matériau final valide ;
-- poids maximal configurable ;
-- provenance et licence documentées ;
-- absence de fichier `.blend` ou texture source lourde dans le bundle public par erreur.
-
----
-
-## 29. Performance
-
-Les métriques critiques ne sont pas seulement les FPS.
-
-Mesurer :
-
-- délai avant premier spécimen visible ;
-- délai moyen précédent/suivant ;
-- pic mémoire GPU ;
-- mémoire après 20 changements ;
-- taille cache ;
-- frame time pendant rotation ;
-- chauffe sur session prolongée.
-
-Critère important : après un tour complet des 20 spécimens, la mémoire doit revenir à un niveau proche de celui observé avec un seul spécimen chargé.
-
----
-
-## 30. Déploiement
-
-Vercel convient à la V1 :
+Architecture cible :
 
 ```text
 GitHub
   │
-  ├─ branche / PR → Preview
+  ├─ Pull Request -> Vercel Preview
   │
-  └─ main → Production
+  └─ main -> Vercel Production
 ```
 
-L’application reste statique. Aucun service serveur Vercel n’est requis.
+Variables frontend :
+
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
+
+Aucun secret administrateur Supabase n'est exposé à Vercel côté client.
+
+Les secrets des Edge Functions restent configurés dans Supabase.
+
+### Environnements
+
+À terme :
+
+- environnement de développement/prévisualisation ;
+- environnement de production.
+
+Une Preview Vercel ne doit pas modifier silencieusement une base de production lorsqu'un environnement de test séparé existe.
 
 ---
 
-## 31. Stratégie Git
+## 16. Performance 3D
+
+Cible actuelle par spécimen :
+
+- environ 10 000 triangles ;
+- base color 1K ;
+- normal 1K ;
+- roughness calibrée si nécessaire ;
+- GLB individuel ;
+- un seul actif à la fois.
+
+Mesurer :
+
+- délai avant premier caillou visible ;
+- temps de changement de spécimen ;
+- frame time pendant rotation ;
+- mémoire GPU après cycles complets ;
+- taille du cache ;
+- chauffe sur mobile ;
+- coût des accessoires équipés.
+
+Le LOD2 est conservé tant que les mesures ne démontrent pas un problème réel.
+
+---
+
+## 17. Qualité adaptative
+
+Trois profils :
+
+### Économie
+
+- DPR limité ;
+- ombres simplifiées ;
+- effets réduits.
+
+### Auto
+
+- profil par défaut ;
+- adaptation selon DPR et frame time.
+
+### Élevée
+
+- DPR supérieur mais borné ;
+- ombres et effets complets raisonnables.
+
+Le rendu utilise `frameloop="demand"` autant que possible.
+
+---
+
+## 18. Tests prioritaires
+
+### Domaine
+
+- caresse valide ;
+- caresse invalide ;
+- poussière calculée ;
+- règles de prix ;
+- états du caillou actif/jeté.
+
+### Base de données
+
+- un seul caillou actif par utilisateur ;
+- portefeuille jamais négatif ;
+- caresse idempotente ;
+- achat atomique ;
+- refus d'achat sans solde ;
+- impossibilité d'acheter deux fois un accessoire unique ;
+- abandon conserve portefeuille et inventaire.
+
+### RLS
+
+Pour chaque table utilisateur :
+
+- propriétaire autorisé ;
+- autre utilisateur refusé ;
+- anonyme refusé ;
+- mutations économiques directes refusées.
+
+### E2E
+
+```text
+création compte
+→ showroom
+→ navigation entre plusieurs spécimens
+→ adoption
+→ nommage
+→ Socle
+→ caresse
+→ +1 Lithon
+→ achat accessoire
+→ équipement
+→ Bio / Stats
+→ reload
+→ état conservé
+```
+
+Deuxième scénario :
+
+```text
+connexion
+→ Jeter
+→ confirmation
+→ disparition immédiate
+→ aucun caillou actif
+→ Lithons conservés
+→ accessoires conservés
+→ nouvelle adoption possible
+```
+
+### 3D
+
+- les vingt GLB chargent ;
+- aucun asset manquant ;
+- disposal effectif ;
+- accessoires n'explosent pas le budget GPU ;
+- aucune croissance mémoire après plusieurs tours de showroom.
+
+---
+
+## 19. Git et CI
 
 ```text
 main
-└─ feature/*
+└─ feature/* ou docs/*
    └─ Pull Request
 ```
 
-Règles :
+`main` doit rester déployable.
 
-- `main` toujours déployable ;
-- une PR = un objectif cohérent ;
-- aucun merge avec contrôles essentiels rouges ;
-- assets lourds ajoutés consciemment ;
-- les documents de référence existants évoluent au lieu d’être doublonnés par de nouveaux documents concurrents.
+Contrôles cibles :
 
----
+- lint ;
+- TypeScript ;
+- tests unitaires ;
+- tests base/RLS lorsque le schéma existe ;
+- build Vite ;
+- validation des assets lorsque concernés ;
+- Preview Vercel.
 
-## 32. Dépendances : politique de sobriété
-
-Production :
-
-```text
-react
-react-dom
-three
-@react-three/fiber
-@react-three/drei
-vite-plugin-pwa
-lucide-react (optionnel)
-```
-
-À éviter sans besoin démontré :
-
-- Redux ;
-- store global supplémentaire uniquement pour le showroom ;
-- moteur physique ;
-- framework backend ;
-- ORM ;
-- SDK analytics ;
-- bibliothèque de carrousel 3D générique.
-
-Le showroom est assez simple pour être implémenté directement avec React et la scène existante.
+Le pipeline Blender reste séparé des contrôles frontend ordinaires pour ne pas lancer un traitement lourd à chaque changement UI.
 
 ---
 
-## 33. Découpage de livraison recommandé
+## 20. Phases de livraison
 
-### Phase 0 — Fondation
+### Phase 0 - Fondation full stack
 
 - Vite/React/TS ;
-- lint/typecheck/tests ;
+- client Supabase ;
+- schéma initial ;
+- Auth pseudo + mot de passe ;
 - PWA shell ;
-- tokens ;
-- état local minimal.
+- Vercel.
 
-### Phase 1 — Vertical slice
-
-Un caillou exporté depuis le pipeline Blender, un showroom minimal et une ambiance Studio :
+### Phase 1 - Vertical slice
 
 ```text
-ouvrir
-→ voir Rock 001
-→ tourner
-→ suivant
-→ charger Rock 002
-→ revenir
-→ adopter
-→ nommer
+compte
+→ Rock 001 / Rock 002
+→ adoption
+→ nommage
 → Socle
+→ reload
 ```
 
-Cette phase valide le chargement/disposal avant d’exporter les vingt modèles finaux.
+Objectif : valider Auth, persistance et disposal 3D.
 
-### Phase 2 — Catalogue V1
+### Phase 2 - Boucle de jeu
+
+- Caresser ;
+- Lithons ;
+- portefeuille ;
+- ledger ;
+- Nettoyer ;
+- Bio / Stats ;
+- Jeter.
+
+### Phase 3 - Accessoires
+
+- catalogue ;
+- achat atomique ;
+- inventaire ;
+- équipement ;
+- assets 3D/cosmétiques.
+
+### Phase 4 - Catalogue complet
 
 - export des 20 GLB ;
-- catalogue de métadonnées ;
-- navigation 01/20 ;
-- transitions ;
-- cache runtime ;
-- adoption.
+- descriptions ;
+- showroom 01/20 ;
+- optimisation cache et mémoire.
 
-### Phase 3 — Produit V1
-
-- 5 ambiances ;
-- fiche ;
-- collection/showroom ;
-- progression ;
-- textes ;
-- instantané ;
-- événements rares ;
-- audio ;
-- offline du compagnon principal.
-
-### Phase 4 — Finition et release
+### Phase 5 - Finition V1
 
 - accessibilité ;
-- qualité adaptative ;
+- responsive ;
 - tests appareils physiques ;
-- audit mémoire ;
-- validation PWA ;
-- import/export ;
+- hardening RLS ;
+- audit performance ;
 - crédits/licences ;
-- publication V1.0.
+- release.
 
 ---
 
-## 34. Risques techniques principaux
+## 21. Risques principaux
 
-### R1 — Poids cumulé des 20 assets
+### R1 - Économie modifiée depuis le client
 
-**Réponse :** chargement séquentiel, runtime cache, aucun précache massif.
+Réponse : portefeuille non modifiable directement, fonctions transactionnelles serveur et ledger.
 
-### R2 — Fuite GPU lors du changement
+### R2 - Double crédit réseau
 
-**Réponse :** disposal explicite, tests de cycles complets, références nettoyées.
+Réponse : `event_key` unique et fonctions idempotentes.
 
-### R3 — Conflit rotation / swipe
+### R3 - Achat concurrent
 
-**Réponse :** flèches comme navigation primaire, détection de zone et seuils gestuels.
+Réponse : transaction Postgres, contrôle du solde et contrainte `balance >= 0`.
 
-### R4 — Rendu différent entre appareils
+### R4 - Pseudo-only avec Supabase Auth
 
-**Réponse :** matrice d’appareils physiques, preset Studio robuste, DPR adaptatif.
+Réponse : couche Auth serveur qui masque l'identifiant technique Supabase et garde le pseudo comme seule identité UX.
 
-### R5 — Chauffe et batterie
+### R5 - Fuite RLS
 
-**Réponse :** frameloop à la demande et absence de 20 scènes cachées.
+Réponse : grants minimaux, RLS partout, tests allow/deny, aucune service role côté client.
 
-### R6 — Effet « démo Three.js »
+### R6 - Fuite GPU
 
-**Réponse :** lumière, matériau, caméra et transition traités comme un showroom de produit.
+Réponse : un seul GLB actif, disposal explicite, tests 01 -> 20 -> 01.
 
-### R7 — Surarchitecture
+### R7 - Surarchitecture
 
-**Réponse :** un Canvas, un loader, un catalogue, un modèle actif.
+Réponse : React + Supabase + Vercel. Aucun quatrième backend.
 
 ---
 
-## 35. Décisions reportées après V1
+## 22. Décisions reportées après V1
 
-- WebGPU comme renderer principal ;
-- backend et synchronisation ;
-- multijoueur ;
+- social ;
+- amis ;
+- classement ;
+- échanges ;
+- boutique en argent réel ;
+- notifications de rétention ;
+- WebGPU principal ;
 - réalité augmentée ;
-- scan 3D utilisateur ;
-- génération procédurale de cailloux ;
-- physique avancée ;
-- boutique ;
-- compte ;
-- notifications.
+- scan utilisateur ;
+- multijoueur ;
+- marketplace ;
+- récupération de compte avancée tant que son UX n'est pas décidée.
 
 ---
 
-## 36. Règle d’architecture finale
+## 23. Règle d'architecture finale
+
+> **Le client peut demander un Lithon. Seul le serveur peut décider qu'il existe.**
+
+Et la règle 3D reste inchangée :
 
 > **Vingt cailloux dans le catalogue ne doivent jamais devenir vingt cailloux dans la mémoire.**
-
-Et la règle historique reste valable :
-
-> **Le code autour du caillou doit être plus simple que le caillou.**
