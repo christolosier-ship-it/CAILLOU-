@@ -28,3 +28,8 @@ export function getRockCatalogEntry(catalogIndex: number) {
   if (!entry) throw new Error(`Unknown rock catalog index: ${catalogIndex}`)
   return entry
 }
+
+export function getRelativeRockIndex(currentIndex: number, delta: number) {
+  const catalogLength = ROCK_CATALOG.length
+  return ((currentIndex + delta) % catalogLength + catalogLength) % catalogLength
+}
