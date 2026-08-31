@@ -2,5 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "ignoreCommand": "sh scripts/vercel-ignore-build.sh"
+  "ignoreCommand": "sh scripts/vercel-ignore-build.sh",
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true,
+      "preview/**": true
+    }
+  }
 }
