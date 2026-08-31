@@ -15,6 +15,7 @@ on:
       - 'Ressource/**'
       - 'scripts/blender/export_rocks.py'
       - 'scripts/web/rock-render-validation.html'
+      - 'scripts/web/validate-rock-render.mjs'
       - '.github/workflows/produce-rocks.yml'
   pull_request:
     branches:
@@ -23,6 +24,7 @@ on:
       - 'Ressource/**'
       - 'scripts/blender/export_rocks.py'
       - 'scripts/web/rock-render-validation.html'
+      - 'scripts/web/validate-rock-render.mjs'
       - '.github/workflows/produce-rocks.yml'
 
 permissions:
@@ -97,6 +99,9 @@ jobs:
       - name: Build frontend with slice assets
         run: npm run build
 
+      - name: Install Chrome validation driver
+        run: npm install --no-save --package-lock=false --no-audit --no-fund puppeteer-core@24.16.0
+
       - name: Validate Rock 001 + Rock 002 in real Three.js WebGL renderer
         shell: bash
         run: |
@@ -107,44 +112,21 @@ jobs:
           trap 'kill $server_pid || true' EXIT
           sleep 2
           google-chrome --version
-
-          chrome_flags=(
-            --headless=new
-            --no-sandbox
-            --disable-gpu-sandbox
-            --disable-dev-shm-usage
-            --ignore-gpu-blocklist
-            --enable-webgl
-            --enable-unsafe-swiftshader
-            --use-gl=angle
-            --use-angle=swiftshader-webgl
-            --window-size=1024,1024
-            --virtual-time-budget=12000
-          )
-
-          for rock_id in rock-001 rock-002; do
-            url="http://127.0.0.1:4173/scripts/web/rock-render-validation.html?model=/public/assets/rocks/${rock_id}/model.glb"
-            html="build/rock-production/web-validation/${rock_id}.html"
-
-            if ! google-chrome "${chrome_flags[@]}" --dump-dom "$url" > "$html"; then
-              cat "$html" || true
-              cat /tmp/caillou-http.log || true
-              exit 1
-            fi
-
-            if ! grep -q 'data-status="pass"' "$html"; then
-              cat "$html"
-              cat /tmp/caillou-http.log || true
-              exit 1
-            fi
-
-            google-chrome \
-              "${chrome_flags[@]}" \
-              --screenshot="build/rock-production/web-validation/${rock_id}.png" \
-              "$url"
-          done
-
+          node scripts/web/validate-rock-render.mjs rock-001 rock-002
           echo "Rock 001 and Rock 002 passed the browser renderer gate."
+
+      - name: Upload vertical-slice diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: caillou-rock-slice-${{ github.run_id }}
+          path: |
+            build/rock-production/report.json
+            build/rock-production/web-validation/
+            public/assets/rock-previews/rock-001.png
+            public/assets/rock-previews/rock-002.png
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Export complete batch of 20 after slice gate
         env:
