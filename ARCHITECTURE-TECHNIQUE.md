@@ -146,7 +146,7 @@ Supabase Auth natif associe l'authentification par mot de passe à un email ou u
 
 ### 5.2 Auth broker
 
-Deux Edge Functions Supabase sont prévues :
+Deux Edge Functions Supabase sont utilisées :
 
 ```text
 auth-register
@@ -154,13 +154,31 @@ auth-register
 auth-login
 ```
 
-Elles exposent une API centrée sur le pseudo.
+Elles exposent une API centrée uniquement sur le pseudo et le mot de passe.
+
+Ces deux endpoints sont pré-authentification. Ils n'exigent donc pas un JWT utilisateur existant, mais vérifient la clé publique du projet, la méthode HTTP et leurs entrées. Les clés secrètes permettant l'administration de Supabase Auth restent exclusivement dans l'environnement serveur Supabase.
 
 ### 5.3 Identifiant Auth interne
 
-Le pseudo normalisé produit un identifiant Auth interne non visible par l'utilisateur. Une adresse technique déterministe peut être utilisée comme identifiant Supabase Auth, par exemple à partir d'un hash du pseudo normalisé sur un domaine réservé à l'application.
+L'identifiant email requis par Supabase Auth est **aléatoire et non dérivé du pseudo**. Lors de l'inscription, `auth-register` génère une adresse technique sur le domaine interne réservé à l'application, par exemple :
 
-L'utilisateur ne voit, ne saisit et ne manipule jamais cet identifiant technique.
+```text
+<uuid-aléatoire>@auth.caillou.invalid
+```
+
+Cette adresse n'est jamais retournée au navigateur. Le pseudo reste l'unique identifiant visible et manipulé par l'utilisateur.
+
+La correspondance canonique est :
+
+```text
+profiles.username_normalized
+        ↓
+profiles.id = auth.users.id
+        ↓
+auth.users.email technique
+```
+
+Cette stratégie évite de coupler le format de l'identifiant Supabase au pseudo et permet au broker de faire évoluer l'identifiant technique sans modifier l'UX.
 
 ### 5.4 Inscription
 
@@ -169,18 +187,22 @@ pseudo + mot de passe
         ↓
 auth-register
         ↓
-normalisation du pseudo
+normalisation et validation du pseudo
         ↓
 vérification unicité
         ↓
-création Supabase Auth
+création Supabase Auth avec email interne aléatoire
         ↓
 création profile
         ↓
-session
+wallet créé par trigger Postgres
+        ↓
+Supabase Auth password sign-in
+        ↓
+session JWT
 ```
 
-Le secret/service role nécessaire à l'administration Auth reste exclusivement dans l'Edge Function.
+Le broker compense les échecs intermédiaires : si la création du profil ou l'ouverture de session échoue après la création Auth, l'utilisateur Auth technique est supprimé afin de ne pas laisser de compte fantôme.
 
 ### 5.5 Connexion
 
@@ -189,20 +211,62 @@ pseudo + mot de passe
         ↓
 auth-login
         ↓
-reconstruction de l'identifiant interne
+normalisation du pseudo
+        ↓
+lookup profiles.username_normalized
+        ↓
+récupération serveur de auth.users par id
+        ↓
+lecture serveur de l'email technique
         ↓
 Supabase Auth password sign-in
         ↓
 session JWT
 ```
 
-### 5.6 Pseudo
+Un pseudo inconnu et un mauvais mot de passe produisent volontairement la même réponse publique afin de ne pas transformer le broker en annuaire de comptes.
 
-En V1, le pseudo de connexion est unique et considéré comme immuable afin de garder le mécanisme d'authentification simple.
+### 5.6 Pseudo et mot de passe
+
+Le pseudo de connexion est unique, insensible à la casse pour l'unicité et considéré comme immuable en V1.
+
+Normalisation V1 :
+
+- suppression des espaces de début et de fin ;
+- regroupement des suites d'espaces en un espace ;
+- casse d'affichage conservée dans `username` ;
+- forme normalisée en minuscules dans `username_normalized` ;
+- longueur de 3 à 24 caractères ;
+- lettres Unicode, chiffres, espace, point, tiret et underscore ;
+- premier et dernier caractère alphanumériques.
+
+Le mot de passe contient de 10 à 128 caractères. La V1 privilégie une longueur minimale claire plutôt qu'une composition artificielle imposant plusieurs classes de caractères.
 
 Un changement de pseudo futur devra distinguer identifiant de connexion et nom d'affichage.
 
-### 5.7 Récupération
+### 5.7 Session, déconnexion et reprise
+
+Le frontend utilise `@supabase/supabase-js` avec persistance et rafraîchissement automatique de session.
+
+Au démarrage :
+
+```text
+session locale Supabase
+        ↓
+profil propre sous RLS
+        ↓
+caillou actif ?
+   ┌────┴────┐
+  non       oui
+   ↓         ↓
+showroom   Socle
+```
+
+La déconnexion V1 utilise le scope `local` : elle ferme la session sur l'appareil courant sans imposer une déconnexion globale des autres appareils.
+
+Si une session locale existe mais que le réseau est indisponible, l'application peut afficher un état de reprise local non autoritaire. Elle ne suppose jamais le caillou, le portefeuille ou l'inventaire comme état canonique sans validation serveur.
+
+### 5.8 Récupération
 
 Sans email ou téléphone utilisateur, le flux standard de récupération par email n'est pas disponible. Aucune récupération improvisée ne doit être ajoutée. Une stratégie dédiée devra être conçue avant une publication où la récupération autonome devient obligatoire.
 
