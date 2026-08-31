@@ -58,9 +58,12 @@ export function useAuthSession() {
 
   useEffect(() => {
     void refresh()
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) void hydrate(session)
-      else if (!explicitSignOut.current) setState({ status: 'signed-out', message: 'Votre session a expiré. Reconnectez-vous.' })
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        void hydrate(session)
+      } else if (event === 'SIGNED_OUT' && !explicitSignOut.current) {
+        setState({ status: 'signed-out', message: 'Votre session a expiré. Reconnectez-vous.' })
+      }
     })
 
     return () => data.subscription.unsubscribe()
