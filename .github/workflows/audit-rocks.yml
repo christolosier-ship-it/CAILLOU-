@@ -31,10 +31,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Blender and ImageMagick
+      - name: Install Blender and headless rendering dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender imagemagick
+          sudo apt-get install -y blender imagemagick xvfb libegl1 libgl1 libglx-mesa0
           blender --version
 
       - name: Locate Blender source
@@ -51,10 +51,13 @@ jobs:
           echo "Using $BLEND_FILE"
 
       - name: Audit Blender scene and render previews
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           set -euo pipefail
           rm -rf audit
-          blender -b "${{ steps.source.outputs.blend_file }}" \
+          xvfb-run -a -s '-screen 0 1280x1024x24' \
+            blender -b "${{ steps.source.outputs.blend_file }}" \
             --python scripts/blender/audit_rocks.py \
             -- --output audit
 
