@@ -44,6 +44,8 @@ jobs:
           test "$status" = '201'
           token_a="$(printf '%s' "$body" | jq -er '.session.access_token')"
           test "$(printf '%s' "$body" | jq -r '.username')" = "$username"
+          ! printf '%s' "$body" | grep -q '@auth.caillou.invalid'
+          test "$(printf '%s' "$body" | jq 'has("user")')" = 'false'
 
           response="$(post auth-register "$(jq -nc --arg u "$username_b" --arg p "$password" '{username:$u,password:$p}')")"
           split_response "$response"
@@ -72,6 +74,7 @@ jobs:
           split_response "$response"
           test "$status" = '200'
           token_a="$(printf '%s' "$body" | jq -er '.session.access_token')"
+          ! printf '%s' "$body" | grep -q '@auth.caillou.invalid'
 
           own_profiles="$(curl -fsS "$SUPABASE_URL/rest/v1/profiles?select=id,username" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $token_a")"
           test "$(printf '%s' "$own_profiles" | jq 'length')" = '1'
@@ -82,5 +85,3 @@ jobs:
 
           anonymous_profiles="$(curl -fsS "$SUPABASE_URL/rest/v1/profiles?select=id" -H "apikey: $SUPABASE_KEY")"
           test "$(printf '%s' "$anonymous_profiles" | jq 'length')" = '0'
-
-          curl -fsS -X POST "$SUPABASE_URL/auth/v1/logout" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $token_a" >/dev/null
