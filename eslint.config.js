@@ -18,6 +18,15 @@ export default tseslint.config(
     },
   },
   {
+    files: ['scripts/web/validate-rock-render.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+      },
+    },
+  },
+  {
     files: ['supabase/functions/**/*.ts'],
     languageOptions: {
       globals: {
