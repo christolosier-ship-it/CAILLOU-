@@ -19,7 +19,7 @@ export function useAuthSession() {
   const explicitSignOut = useRef(false)
 
   const hydrate = useCallback(async (session: Session) => {
-    const cachedUsername = localStorage.getItem(USERNAME_CACHE) ?? undefined
+    const cachedUsername = localStorage.getItem(USERNAME_CACHE)
 
     try {
       const [{ data: profile, error: profileError }, { data: rocks, error: rocksError }] = await Promise.all([
@@ -37,7 +37,7 @@ export function useAuthSession() {
         destination: resolveAuthenticatedDestination((rocks?.length ?? 0) > 0),
       })
     } catch {
-      setState({ status: 'offline', username: cachedUsername })
+      setState(cachedUsername ? { status: 'offline', username: cachedUsername } : { status: 'offline' })
     }
   }, [])
 
@@ -45,10 +45,11 @@ export function useAuthSession() {
     const { data, error } = await supabase.auth.getSession()
     if (error || !data.session) {
       const hadSession = localStorage.getItem(SESSION_SEEN) === '1'
-      setState({
-        status: 'signed-out',
-        message: hadSession && !explicitSignOut.current ? 'Votre session a expiré. Reconnectez-vous.' : undefined,
-      })
+      setState(
+        hadSession && !explicitSignOut.current
+          ? { status: 'signed-out', message: 'Votre session a expiré. Reconnectez-vous.' }
+          : { status: 'signed-out' },
+      )
       return
     }
 
