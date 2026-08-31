@@ -14,6 +14,7 @@ on:
     paths:
       - 'Ressource/**'
       - 'scripts/blender/export_rocks.py'
+      - 'scripts/blender/export_rocks_ci.py'
       - 'scripts/web/rock-render-validation.html'
       - 'scripts/web/validate-rock-render.mjs'
       - '.github/workflows/produce-rocks.yml'
@@ -23,6 +24,7 @@ on:
     paths:
       - 'Ressource/**'
       - 'scripts/blender/export_rocks.py'
+      - 'scripts/blender/export_rocks_ci.py'
       - 'scripts/web/rock-render-validation.html'
       - 'scripts/web/validate-rock-render.mjs'
       - '.github/workflows/produce-rocks.yml'
@@ -90,7 +92,7 @@ jobs:
           rm -rf public/assets/rocks public/assets/rock-previews build/rock-production
           xvfb-run -a -s '-screen 0 1280x1024x24' \
             blender -b "${{ steps.source.outputs.blend_file }}" \
-            --python scripts/blender/export_rocks.py \
+            --python scripts/blender/export_rocks_ci.py \
             -- --mode slice --report "$REPORT_PATH"
 
       - name: Install frontend dependencies
@@ -123,8 +125,6 @@ jobs:
           path: |
             build/rock-production/report.json
             build/rock-production/web-validation/
-            public/assets/rock-previews/rock-001.png
-            public/assets/rock-previews/rock-002.png
           if-no-files-found: warn
           retention-days: 14
 
@@ -136,8 +136,34 @@ jobs:
           rm -rf public/assets/rocks public/assets/rock-previews
           xvfb-run -a -s '-screen 0 1280x1024x24' \
             blender -b "${{ steps.source.outputs.blend_file }}" \
-            --python scripts/blender/export_rocks.py \
+            --python scripts/blender/export_rocks_ci.py \
             -- --mode all --report "$REPORT_PATH"
+
+      - name: Validate and render complete batch in real Three.js WebGL renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/assets/rock-previews build/rock-production/web-validation
+          python3 -m http.server 4173 > /tmp/caillou-http-all.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          sleep 2
+
+          rock_ids=()
+          for i in $(seq 1 20); do
+            printf -v rock_id 'rock-%03d' "$i"
+            rock_ids+=("$rock_id")
+          done
+
+          node scripts/web/validate-rock-render.mjs "${rock_ids[@]}"
+
+          for rock_id in "${rock_ids[@]}"; do
+            cp "build/rock-production/web-validation/${rock_id}.png" \
+              "public/assets/rock-previews/${rock_id}.png"
+          done
+
+          test "$(find public/assets/rock-previews -maxdepth 1 -type f -name 'rock-*.png' | wc -l)" -eq 20
+          echo "All 20 rocks passed Three.js/WebGL and received production previews."
 
       - name: Generate Supabase publication migration from measured report
         shell: bash
@@ -192,6 +218,7 @@ jobs:
           print(f"- Max GLB: **{summary['maxMiB']} MiB**")
           print(f"- External dependencies: **0**")
           print(f"- Browser gate: **Rock 001 + Rock 002 PASS**")
+          print(f"- Full WebGL catalogue validation: **20/20 PASS**")
           print()
           print('| Rock | Tris | GLB MiB | Mesh |')
           print('|---|---:|---:|---|')
@@ -224,4 +251,5 @@ jobs:
             exit 0
           fi
           git commit -m 'build(3d): publish validated 20-rock production catalogue'
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin HEAD:"$GITHUB_REF_NAME"
