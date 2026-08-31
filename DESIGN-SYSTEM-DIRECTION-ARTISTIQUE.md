@@ -16,6 +16,7 @@ Ce document définit l’identité visuelle et sensorielle de **CAILLOU™ V1** 
 - typographie ;
 - hiérarchie ;
 - composants ;
+- showroom de sélection ;
 - rendu 3D ;
 - matériaux ;
 - lumière ;
@@ -27,8 +28,6 @@ Ce document définit l’identité visuelle et sensorielle de **CAILLOU™ V1** 
 - ton éditorial ;
 - accessibilité ;
 - règles anti-dérive.
-
-Il doit être utilisé comme cahier des charges lors de la création des assets 3D et de l’interface.
 
 Le périmètre produit est défini dans `CAHIER-DES-CHARGES-V1.md`. Les contraintes techniques sont définies dans `ARCHITECTURE-TECHNIQUE.md`.
 
@@ -48,6 +47,7 @@ quasi-immobilité    ×  précision de produit luxe
 fonction minimale   ×  finition obsessionnelle
 humour absurde      ×  ton institutionnel
 objet banal          ×  statut de pièce de collection
+20 pierres quelconques × casting traité comme de la haute joaillerie
 ```
 
 La blague ne doit jamais être ajoutée par-dessus le design. **Le design lui-même est la blague.**
@@ -85,19 +85,16 @@ Un caillou éclairé comme une montre de prestige est plus drôle qu’un caillo
 - gamification visible ;
 - interface néon ;
 - science-fiction gratuite ;
-- skeuomorphisme lourd ;
 - géologie scolaire ;
-- application de méditation stéréotypée ;
-- mascotte à visage humain ;
+- marketplace ;
+- cartes de rareté ;
 - esthétique crypto/NFT.
 
 ---
 
 ## 4. Personnalité de marque
 
-CAILLOU™ parle et se présente comme une institution excessivement sérieuse consacrée à la présence minérale.
-
-### Traits
+CAILLOU™ se présente comme une institution excessivement sérieuse consacrée à la présence minérale.
 
 | Trait | Intensité |
 |---|---:|
@@ -109,97 +106,44 @@ CAILLOU™ parle et se présente comme une institution excessivement sérieuse c
 | Enfantin | 0/10 |
 | Frénétique | 0/10 |
 
-L’expérience doit pouvoir faire sourire sans demander une seule animation comique explicite.
-
 ---
 
-## 5. Nom et usage de la marque
+## 5. Marque
 
 Nom officiel :
 
 # **CAILLOU™**
 
-### Règles
-
-- le nom de marque s’écrit en capitales dans les éléments de branding ;
-- le symbole `™` est utilisé dans la marque, les écrans institutionnels et certaines captures, mais pas répété dans chaque phrase ;
-- dans le corps éditorial, `CAILLOU™` ou `CAILLOU` sont acceptables selon le contexte ;
-- le nom du spécimen utilisateur conserve la casse choisie par l’utilisateur.
-
-### Signature principale
+Signature principale :
 
 > **Une présence minérale de qualité.**
 
-### Signature produit alternative
+Signature alternative :
 
 > **Enfin un compagnon qui ne demande absolument rien.**
 
-La première est préférable dans l’interface. La seconde convient mieux à la présentation du concept.
-
----
-
-## 6. Logo
-
-### 6.1 Direction
-
-Le logo V1 doit rester extrêmement simple :
-
-```text
-CAILLOU™
-```
-
-Le mot-symbole est l’identité principale.
-
-Un pictogramme peut être développé pour l’icône PWA : silhouette de galet très simple, asymétrique, dense, sans visage ni détail illustratif.
-
-### 6.2 Pictogramme
-
-Caractéristiques :
-
-- silhouette reconnaissable à 32 px ;
-- forme organique asymétrique ;
-- aucune fissure cliché ;
-- pas d’yeux ;
-- pas de sourire ;
-- pas de bras ;
-- pas de contour cartoon ;
-- volume suggéré par une variation minérale subtile plutôt que par un emoji.
-
-### 6.3 Zone de respiration
-
-Autour du mot-symbole ou du pictogramme, conserver au minimum l’équivalent de la hauteur du `C` comme zone libre dans les compositions principales.
+Le mot-symbole reste extrêmement simple. L’icône PWA peut utiliser une silhouette de pierre asymétrique, sans visage ni détail cartoon.
 
 ---
 
 # PARTIE II — COULEUR ET TYPOGRAPHIE
 
-## 7. Palette maîtresse
-
-La palette doit évoquer pierre, papier, musée, charbon et métal patiné.
-
-### 7.1 Neutres
+## 6. Palette maîtresse
 
 | Token | Valeur | Usage |
 |---|---|---|
 | `mineral-ivory` | `#F2EFE9` | fond clair principal |
 | `limestone` | `#D8D2C8` | surfaces secondaires |
-| `warm-stone` | `#B9B1A5` | séparateurs, éléments désactivés |
-| `graphite` | `#343330` | texte secondaire sombre |
-| `basalt` | `#181817` | fond sombre / texte principal |
-| `carbon` | `#0E0E0D` | scènes nocturnes, profondeur |
-
-### 7.2 Accents
-
-| Token | Valeur | Usage |
-|---|---|---|
-| `aged-bronze` | `#9A784D` | accent premium très parcimonieux |
-| `ochre` | `#A66F3F` | pierre chaude / détails ponctuels |
+| `warm-stone` | `#B9B1A5` | séparateurs |
+| `graphite` | `#343330` | texte secondaire |
+| `basalt` | `#181817` | fond sombre / texte |
+| `carbon` | `#0E0E0D` | profondeur |
+| `aged-bronze` | `#9A784D` | accent premium |
+| `ochre` | `#A66F3F` | accent chaud |
 | `moss` | `#66705C` | ambiance végétale |
-| `quartz` | `#E5E1D8` | reflets et surfaces claires |
+| `quartz` | `#E5E1D8` | reflets / surfaces claires |
 
-### 7.3 Règle de dosage
-
-Dans l’UI standard :
+Dosage :
 
 ```text
 80–90 % neutres
@@ -207,611 +151,431 @@ Dans l’UI standard :
 0–5 % accent
 ```
 
-CAILLOU™ ne doit jamais donner l’impression d’avoir une « couleur de marque » agressive.
-
-Le caillou et sa matière fournissent l’essentiel de la couleur.
+Le caillou fournit l’essentiel de la couleur.
 
 ---
 
-## 8. Mode clair
+## 7. Typographie
 
-### Fond
+Direction : contemporaine, nette, légèrement éditoriale.
 
-`mineral-ivory`
-
-### Surfaces
-
-Blanc cassé légèrement plus lumineux que le fond, jamais blanc clinique pur partout.
-
-### Texte
-
-- principal : `basalt` ;
-- secondaire : `graphite` ;
-- faible emphase : gris dérivé de `warm-stone` avec contraste vérifié.
-
-### Accent
-
-`aged-bronze` uniquement pour :
-
-- état sélectionné ;
-- détail de distinction ;
-- petit filet ;
-- iconographie exceptionnelle.
-
----
-
-## 9. Mode sombre
-
-Le mode sombre n’est pas noir OLED uniforme.
-
-### Fond
-
-`#111110` à `#181817` selon surface.
-
-### Surfaces
-
-Graphite très sombre avec différences de luminance discrètes.
-
-### Texte
-
-Ivoire chaud plutôt que blanc pur.
-
-### Accent
-
-Bronze désaturé ou quartz selon contraste.
-
-Le mode sombre doit ressembler à une galerie après fermeture, pas à une interface gaming.
-
----
-
-## 10. Typographie
-
-### 10.1 Direction
-
-La typographie doit être contemporaine, nette et légèrement éditoriale.
-
-Recommandation V1 :
-
-- une **sans-serif premium et neutre** pour l’ensemble de l’interface ;
-- éventuellement une **serif éditoriale très limitée** pour les noms de spécimens ou certaines plaques muséales, seulement si le contraste reste élégant.
-
-### 10.2 Choix pratique
-
-Priorité à une police libre pouvant être embarquée localement et utilisée hors ligne.
-
-Candidats à évaluer visuellement au prototype :
+Candidats :
 
 - Instrument Sans ;
 - Inter ;
 - Manrope ;
 - Geist Sans.
 
-Option éditoriale secondaire à tester, sans obligation :
+Option secondaire très limitée : Instrument Serif.
 
-- Instrument Serif.
+Échelle indicative mobile :
 
-La licence exacte et les fichiers nécessaires devront être vérifiés avant intégration.
+| Style | Taille |
+|---|---:|
+| Display | 40–52 px |
+| H1 | 28–34 px |
+| H2 | 20–24 px |
+| Body | 16–18 px |
+| Small | 13–14 px |
+| Micro | 11–12 px |
 
-### 10.3 Fallback
-
-```css
-font-family:
-  "Instrument Sans",
-  "Inter",
-  -apple-system,
-  BlinkMacSystemFont,
-  "Segoe UI",
-  sans-serif;
-```
-
-### 10.4 Échelle typographique
-
-| Style | Taille cible mobile | Usage |
-|---|---:|---|
-| Display | 40–52 px | CAILLOU™, onboarding exceptionnel |
-| H1 | 28–34 px | nom du caillou, titre écran |
-| H2 | 20–24 px | sections |
-| Body | 16–18 px | texte principal |
-| Small | 13–14 px | métadonnées |
-| Micro | 11–12 px | plaque, label très secondaire |
-
-### 10.5 Graisses
-
-Limiter les graisses :
-
-- Regular 400 ;
-- Medium 500 ;
-- Semibold 600.
-
-Éviter les ExtraBold et Black qui casseraient le raffinement général.
-
-### 10.6 Capitales
-
-Les capitales sont réservées :
-
-- à la marque ;
-- à quelques labels institutionnels ;
-- aux micro-métadonnées.
-
-Les phrases normales restent en casse naturelle.
+Limiter les graisses à 400, 500 et 600.
 
 ---
 
 # PARTIE III — ESPACE ET COMPOSITION
 
-## 11. Grille
+## 8. Grille
 
 ### Mobile
 
-- marge latérale : 20–24 px ;
-- grille conceptuelle 4 colonnes ;
-- composants fluides.
+- marge latérale 20–24 px ;
+- scène 3D dominante ;
+- commandes tactiles au bord sans étouffer le sujet.
 
 ### Tablette
 
-- marge : 32–48 px ;
-- grille 8 colonnes.
+- marge 32–48 px ;
+- Canvas généreux ;
+- paysage traité comme un vrai format.
 
 ### Desktop
 
-- largeur UI maximale contrôlée ;
-- Canvas généreux ;
-- grilles 12 colonnes si nécessaire, sans transformer le produit en dashboard.
+- Canvas centré ;
+- largeur UI maîtrisée ;
+- aucune transformation en dashboard.
 
 ---
 
-## 12. Échelle d’espacement
+## 9. Espacement et surfaces
 
-Token de base : `4 px`.
+Échelle : `4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96`.
+
+Rayons indicatifs :
+
+- boutons : 10–12 px ;
+- cartes rares : 16–20 px ;
+- sheets : 24–28 px.
+
+Les ombres UI sont discrètes. Le relief principal appartient à la scène 3D.
+
+---
+
+# PARTIE IV — LES 20 SPÉCIMENS
+
+## 10. Nouvelle règle de catalogue
+
+La V1 ne repose plus sur six archétypes visuels prédéfinis.
+
+Elle présente **vingt cailloux réels, quelconques et différents**, issus des scans retenus.
+
+Leur intérêt vient de :
+
+- leur forme réelle ;
+- leurs irrégularités ;
+- leur matière ;
+- leur couleur ;
+- leur façon d’accrocher la lumière.
+
+Aucune pierre ne doit être artificiellement transformée en « quartz », « volcanique », « rare » ou « premium » pour lui donner une fonction marketing.
+
+Le produit assume pleinement :
+
+> **Voici vingt cailloux. Choisissez-en un.**
+
+---
+
+## 11. Nommage avant adoption
+
+Avant que l’utilisateur nomme son compagnon, utiliser une nomenclature neutre :
 
 ```text
-4
-8
-12
-16
-24
-32
-48
-64
-96
+Spécimen 01
+Spécimen 02
+...
+Spécimen 20
 ```
 
-Le produit doit respirer. Entre deux blocs importants, préférer trop d’espace à une accumulation de cartes.
+Éviter les noms commerciaux qui suggèrent une hiérarchie.
+
+Après adoption, le nom choisi par l’utilisateur devient l’identité principale.
 
 ---
 
-## 13. Rayons
+## 12. Égalité visuelle
 
-Les surfaces ne doivent être ni complètement carrées ni « app mobile bonbon ».
+Les vingt spécimens doivent bénéficier :
 
-| Élément | Rayon cible |
-|---|---:|
-| boutons compacts | 10–12 px |
-| cartes | 16–20 px |
-| sheets | 24–28 px en haut |
-| chips | 999 px si réellement une pilule |
+- du même niveau de finition ;
+- du même preset de lumière dans le showroom ;
+- d’une caméra auto-ajustée selon leur bounding box ;
+- du même espace à l’écran ;
+- du même niveau de présence éditoriale ;
+- d’aucun badge de rareté.
 
-Éviter un rayon de 30 px appliqué à tout sans distinction.
-
----
-
-## 14. Élévation
-
-Les ombres de l’interface restent extrêmement discrètes.
-
-Le relief principal appartient à la scène 3D.
-
-### Surfaces UI
-
-Préférer :
-
-- contraste de fond ;
-- bord très subtil ;
-- légère ombre diffuse.
-
-Éviter :
-
-- grosse drop shadow noire ;
-- glassmorphism généralisé ;
-- glow lumineux.
+Un caillou ne doit pas paraître « meilleur » uniquement parce que son éclairage est plus flatteur.
 
 ---
 
-# PARTIE IV — SCÈNE 3D
+## 13. Géométrie
 
-## 15. Principe de rendu
+Base V1 validée : meshes LOD2 autour de 10 000 triangles.
 
-Le caillou doit pouvoir être montré isolément dans une capture et rester crédible.
+Critères visuels :
 
-Test de qualité :
+- silhouette naturelle ;
+- aucune facette gênante ;
+- UV corrects ;
+- détails majeurs conservés ;
+- rotation lisible sous lumière rasante.
 
-> Si l’on retire toute l’interface et le logo, l’image doit encore ressembler à une photographie produit premium d’un véritable objet minéral.
-
----
-
-## 16. Géométrie des cailloux
-
-### 16.1 Silhouette
-
-Chaque spécimen doit posséder une silhouette immédiatement différente.
-
-La différence ne doit pas reposer uniquement sur une texture.
-
-Exemples :
-
-- Galet de rivière : forme aplatie, arrondie, légère asymétrie ;
-- Pierre volcanique : masse irrégulière, cavités, angles émoussés ;
-- Quartz : silhouette cassée plus cristalline mais non caricaturale ;
-- Granite : forme plus anguleuse et dense ;
-- Ocre : pierre naturelle irrégulière et douce ;
-- Galet noir : forme minimaliste, presque sculptée par l’eau.
-
-### 16.2 Imperfection
-
-Aucune symétrie parfaite.
-
-Le réalisme vient de :
-
-- micro-asymétries ;
-- bordures irrégulières ;
-- variations de courbure ;
-- petits défauts ;
-- surface non uniforme.
-
-### 16.3 Densité géométrique
-
-Le maillage doit être suffisamment dense pour conserver la silhouette sous rotation et lumière rasante, mais pas utilisé pour simuler des micro-détails qui devraient être dans les normales/textures.
-
-Le budget exact doit être défini par profilage.
+Le réalisme vient autant des normales et de la lumière que de la densité géométrique.
 
 ---
 
-## 17. Textures et matière
+## 14. Textures et matière
 
-### 17.1 Maps recommandées
+Maps prioritaires :
 
-Selon spécimen :
-
-- base color/albedo ;
+- base color ;
 - normal ;
-- roughness ;
-- ambient occlusion si visible ;
-- éventuellement bump/height maîtrisé.
+- roughness calibrée ;
+- AO uniquement si utile.
 
-### 17.2 Rugosité
+La pierre ne doit jamais ressembler à du plastique.
 
-La pierre ne doit pas être traitée comme du plastique.
-
-La roughness doit présenter des variations locales fines.
-
-Même le galet noir premium ne doit pas devenir un bonbon brillant : il peut avoir des zones satinées, polies par l’eau, mais conserver une réponse minérale.
-
-### 17.3 Échelle des détails
-
-Trois niveaux visuels :
+Trois niveaux de lecture :
 
 ```text
-silhouette     visible à distance
+silhouette     visible immédiatement
 macro-texture  visible en rotation
 micro-texture  visible au zoom
 ```
 
-Le zoom doit révéler quelque chose : grains, pores, strates, petites irrégularités.
-
-### 17.4 Couleur
-
-Éviter les noirs bouchés et blancs purs dans les textures.
-
-Conserver assez d’information pour que la lumière définisse le volume.
+Les noirs restent détaillés, les blancs ne brûlent pas, les normales ne doivent pas sembler exagérées.
 
 ---
 
-## 18. Spécimens — direction détaillée
+# PARTIE V — SHOWROOM 3D DE SÉLECTION
 
-### 18.1 Galet de rivière
+## 15. Principe
 
-**Palette :** gris chaud moyen, nuances froides ponctuelles.  
-**Surface :** lisse mais pas miroir.  
-**Forme :** aplatie, douce, rassurante.  
-**Détail signature :** petite veine ou zone légèrement plus claire.  
-**Éclairage idéal :** grande source douce latérale.
+La sélection initiale est une **expérience 3D plein écran**, pas une grille de fiches.
 
-### 18.2 Pierre volcanique
+Un seul caillou occupe la scène à la fois.
 
-**Palette :** charbon, brun très sombre, cendres.  
-**Surface :** poreuse, micro-cavités crédibles.  
-**Forme :** irrégulière et plus verticale.  
-**Détail signature :** quelques cavités profondes mais lisibles.  
-**Attention :** ne pas la transformer en astéroïde de science-fiction.
+L’utilisateur doit pouvoir se dire :
 
-### 18.3 Quartz pâle
-
-**Palette :** blanc cassé, beige froid, transparence très limitée.  
-**Surface :** zones cristallines et cassures.  
-**Forme :** plus angulaire.  
-**Détail signature :** profondeur interne légère.  
-**Attention :** le shader ne doit pas coûter disproportionnellement cher pour un effet de réfraction invisible sur mobile.
-
-### 18.4 Caillou granitique
-
-**Palette :** gris clair à moyen, grains noirs et crème.  
-**Surface :** grenue, dense.  
-**Forme :** robuste et légèrement trapue.  
-**Détail signature :** grain minéral visible au zoom.
-
-### 18.5 Pierre ocre
-
-**Palette :** terre cuite atténuée, sable, ocre chaud.  
-**Surface :** mate, légèrement friable visuellement.  
-**Forme :** naturelle et irrégulière.  
-**Détail signature :** variation de strate très discrète.
-
-### 18.6 Galet noir premium
-
-**Palette :** anthracite profond, jamais noir absolu.  
-**Surface :** satin minéral, zones plus polies.  
-**Forme :** compacte, lisse, très belle en silhouette.  
-**Détail signature :** reflet doux continu qui se déplace pendant la rotation.  
-**C’est le spécimen vitrine de l’application.**
+> « Celui-là. Je ne sais pas pourquoi, mais c’est lui. »
 
 ---
 
-## 19. Échelle et socle
-
-Le caillou doit occuper généralement **45 à 65 % de la hauteur utile de la scène** selon orientation.
-
-Il ne flotte pas visiblement.
-
-Le contact avec le support doit être crédible :
-
-- vraie position de repos ;
-- ombre de contact ;
-- légère occlusion ;
-- aucune pénétration géométrique évidente.
-
-Le socle ne doit jamais être plus spectaculaire que l’objet.
-
----
-
-## 20. Caméra
-
-### 20.1 Perspective
-
-Utiliser une perspective peu déformante, proche de la photographie produit.
-
-Plage initiale à tester :
-
-- FOV environ `28° à 35°` ;
-- distance ajustée selon bounding box ;
-- pas de grand-angle.
-
-### 20.2 Position initiale
-
-Le modèle n’est pas obligatoirement parfaitement frontal ou centré mathématiquement.
-
-Une légère asymétrie peut renforcer la sensation photographique.
-
-### 20.3 Zoom
-
-Le zoom maximal doit permettre de lire la matière sans entrer dans la géométrie.
-
-Le zoom minimal conserve le caillou comme sujet principal.
-
-### 20.4 Mouvement caméra
-
-Aucun mouvement permanent.
-
-En Mode Observation, un déplacement quasi imperceptible peut être testé, mais doit être désactivé en reduced motion et supprimé s’il donne une sensation de « démo 3D ».
-
----
-
-## 21. Éclairage
-
-### 21.1 Philosophie
-
-Éclairer le caillou comme un photographe produit, pas comme un niveau de jeu vidéo.
-
-### 21.2 Schéma de base
+## 16. Composition mobile
 
 ```text
-        Rim
-         ↘
+┌─────────────────────────────┐
+│           CAILLOU™          │
+│                             │
+│                             │
+│  ‹        [ROCHE]        ›  │
+│             3D              │
+│                             │
+│                             │
+│          07 / 20            │
+│        Spécimen 07          │
+│                             │
+│  Une stabilité prometteuse. │
+│                             │
+│    Adopter ce caillou       │
+└─────────────────────────────┘
+```
 
+Le caillou doit occuper environ **50 à 65 % de la hauteur utile de la zone 3D**.
+
+---
+
+## 17. Navigation gauche / droite
+
+### Flèches
+
+Les flèches sont :
+
+- grandes zones tactiles ;
+- graphiquement discrètes ;
+- placées à gauche et à droite du sujet ;
+- disponibles en permanence ;
+- jamais décoratives.
+
+Elles doivent sembler appartenir à une vitrine, pas à un slider publicitaire.
+
+### Clavier
+
+Sur desktop : touches gauche/droite.
+
+### Swipe
+
+Le swipe horizontal peut compléter les flèches si les tests montrent qu’il ne concurrence pas la rotation.
+
+La priorité reste :
+
+```text
+drag sur caillou = rotation
+flèches = navigation
+```
+
+---
+
+## 18. Rotation dans le showroom
+
+Le caillou doit pouvoir être examiné avant adoption.
+
+Sensation :
+
+- dense ;
+- légèrement inertielle ;
+- aucune rotation automatique permanente ;
+- mouvement vertical limité ;
+- zoom raisonnable.
+
+La manipulation est la preuve que l’utilisateur choisit un **objet**, pas une image.
+
+---
+
+## 19. Changement de spécimen
+
+Le changement précédent/suivant ne doit pas évoquer une carte qui glisse dans un carrousel.
+
+Séquence visuelle recommandée :
+
+1. légère baisse d’opacité / lumière du spécimen courant ;
+2. disparition courte ;
+3. maintien du Studio et des textes stables ;
+4. placeholder minéral ou dernière image figée pendant le chargement ;
+5. apparition douce du nouveau spécimen ;
+6. lumière qui se stabilise rapidement.
+
+Durée perçue cible : courte et calme.
+
+Pas de tourbillon, zoom spectaculaire, flip 3D ou transition arcade.
+
+---
+
+## 20. Un seul objet 3D à l’écran
+
+La transition ne doit pas nécessiter deux cailloux 3D simultanés.
+
+Si un masque est nécessaire pendant le chargement, utiliser :
+
+- silhouette neutre ;
+- preview 2D ;
+- dernier frame figé ;
+- fondu du fond.
+
+Le changement doit rester élégant même si le réseau prend un instant.
+
+---
+
+## 21. Compteur
+
+Format recommandé :
+
+```text
+07 / 20
+```
+
+ou, pour accessibilité textuelle :
+
+```text
+Spécimen 7 sur 20
+```
+
+Le compteur est une information de position, pas une jauge de progression.
+
+Aucun pourcentage de « collection complétée ».
+
+---
+
+## 22. Texte du showroom
+
+Le texte doit rester minimal.
+
+Exemples :
+
+> « Surface régulière. Intentions inconnues. »
+
+> « Présence compacte. »
+
+> « Orientation convenable. »
+
+> « Une stabilité prometteuse. »
+
+> « Aucun défaut diplomatique visible. »
+
+Ne pas attribuer une personnalité complète à chacun avant adoption.
+
+---
+
+## 23. CTA d’adoption
+
+Libellé recommandé :
+
+**Adopter ce caillou**
+
+Le bouton est clair, stable, sans animation de vente.
+
+Pas :
+
+- « Obtenir maintenant » ;
+- « Débloquer » ;
+- « Ajouter au panier » ;
+- « Choisir le rare ».
+
+Après le tap, transition vers le nommage.
+
+---
+
+# PARTIE VI — CAMÉRA ET LUMIÈRE
+
+## 24. Caméra showroom
+
+Perspective proche de la photographie produit.
+
+Plage initiale :
+
+- FOV 28° à 35° ;
+- distance auto-ajustée selon bounding box ;
+- pas de grand-angle.
+
+Chaque roche doit occuper une proportion similaire à l’écran malgré des dimensions différentes.
+
+---
+
+## 25. Preset Studio de sélection
+
+Le showroom possède une seule configuration de référence :
+
+```text
+        Rim discret
+            ↘
 Fill →  CAILLOU  ← Key large
 
        Contact shadow
 ```
 
-### 21.3 Key light
+### Key
 
-- source large ;
+- large ;
 - douce ;
-- légèrement latérale et haute ;
-- crée la lecture principale de la forme.
+- légèrement haute et latérale.
 
-### 21.4 Fill
+### Fill
 
 - faible ;
-- empêche les ombres bouchées ;
-- ne doit pas aplatir le volume.
+- conserve les détails dans les ombres.
 
-### 21.5 Rim
+### Rim
 
 - très discret ;
-- sépare la silhouette du fond ;
-- particulièrement utile pour la pierre noire.
+- uniquement pour détacher la silhouette.
 
-### 21.6 Ombre
+### Fond
 
-- contact net au point d’appui ;
-- diffusion progressive ;
-- jamais une ellipse générique trop noire sous l’objet.
+Neutre et identique entre les vingt spécimens.
 
-### 21.7 Exposition
-
-Les highlights doivent conserver de la matière. Pas de zones brûlées massives sur le quartz ou le galet poli.
+Le showroom est l’endroit où l’on compare les pierres. Les ambiances décoratives viennent après l’adoption.
 
 ---
 
-# PARTIE V — AMBIANCES
+## 26. Contact et socle
 
-## 22. Studio minéral
+Le caillou ne flotte pas.
 
-### Intention
+Exigences :
 
-Le caillou comme produit de prestige.
+- vraie position de repos ;
+- ombre de contact ;
+- légère occlusion ;
+- aucune pénétration évidente ;
+- support minimal.
 
-### Décor
-
-- cyclorama minimal ;
-- surface mate ;
-- aucune décoration visible nécessaire.
-
-### Lumière
-
-- lumière studio douce ;
-- contraste contrôlé ;
-- excellente lecture de roughness.
-
-### Son
-
-Quasi-silence. Éventuellement très léger bruit de pièce.
-
-### Rôle
-
-Ambiance par défaut et référence de calibration des matériaux.
+Le support ne doit jamais rivaliser avec la roche.
 
 ---
 
-## 23. Jardin zen
-
-### Intention
-
-Présence minérale calme sans tomber dans la caricature « méditation app ».
-
-### Décor
-
-- sable fin ;
-- quelques sillons subtils ;
-- éventuellement un élément secondaire flou ;
-- composition sobre.
-
-### Lumière
-
-Naturelle, matinale ou fin d’après-midi légère.
-
-### Son
-
-Vent extrêmement doux, quelques grains, aucun gong obligatoire.
-
-### Interdit
-
-- bouddha décoratif ;
-- bambou cliché ;
-- musique zen générique.
-
----
-
-## 24. Mousse
-
-### Intention
-
-Le caillou semble trouvé dans un sous-bois humide mais photographié avec soin.
-
-### Décor
-
-- mousse courte ;
-- sol sombre ;
-- profondeur de champ visuelle discrète.
-
-### Lumière
-
-Diffuse, verte seulement par rebond, jamais filtre vert global.
-
-### Son
-
-Ambiance forestière quasi imperceptible.
-
-### Micro-événement privilégié
-
-Petite goutte d’eau ou insecte lointain.
-
----
-
-## 25. Bois noble
-
-### Intention
-
-Le caillou devient objet de bureau ou pièce domestique de collection.
-
-### Décor
-
-- bois naturel sombre ou noyer ;
-- grain réaliste ;
-- fond très simple.
-
-### Lumière
-
-Chaude mais pas orange.
-
-### Son
-
-Silence intérieur.
-
-### Danger
-
-Éviter l’esthétique « publicité parfum cliché » avec trop de doré.
-
----
-
-## 26. Vitrine muséale
-
-### Intention
-
-Le niveau maximal du sérieux absurde.
-
-### Décor
-
-- socle sobre ;
-- plaque institutionnelle ;
-- fond de galerie ;
-- éventuel textile ou pierre claire.
-
-### Plaque exemple
-
-```text
-BERNARD
-Galet de rivière
-Collection particulière
-Activité observée : faible
-```
-
-### Lumière
-
-Spot de galerie doux + remplissage invisible.
-
-### Son
-
-Ambiance de salle vide presque inaudible.
-
----
-
-# PARTIE VI — INTERFACE
+# PARTIE VII — LE SOCLE ET LES AMBIANCES
 
 ## 27. Le Socle
 
-L’écran principal doit être construit autour du Canvas et non l’inverse.
+Après adoption, le Socle devient l’écran principal.
 
-Composition mobile recommandée :
+Composition :
 
 ```text
 ┌─────────────────────────┐
 │ CAILLOU™            ··· │
 │                         │
-│                         │
-│       [ CAI LLOU ]      │
-│          3D             │
-│                         │
+│       [ CAILLOU ]       │
+│           3D            │
 │                         │
 │        BERNARD          │
 │  Présence stable.       │
@@ -820,128 +584,117 @@ Composition mobile recommandée :
 └─────────────────────────┘
 ```
 
-Le mot-symbole peut devenir encore plus discret après le premier lancement.
+Le mot-symbole peut devenir très discret après le premier lancement.
 
 ---
 
-## 28. Navigation
+## 28. Studio minéral
 
-### Principe
+Ambiance de référence : cyclorama minimal, surface mate, lumière studio douce.
+
+C’est également la base esthétique du showroom, avec encore moins d’éléments décoratifs.
+
+---
+
+## 29. Jardin zen
+
+- sable fin ;
+- sillons subtils ;
+- lumière naturelle ;
+- aucun bouddha, bambou cliché ou gong obligatoire.
+
+---
+
+## 30. Mousse
+
+- mousse courte ;
+- sol sombre ;
+- lumière diffuse ;
+- vert uniquement par rebond ;
+- goutte ou insecte possible comme micro-événement.
+
+---
+
+## 31. Bois noble
+
+- noyer ou bois naturel sombre ;
+- lumière chaude mais non orange ;
+- silence intérieur ;
+- éviter le luxe parfum cliché.
+
+---
+
+## 32. Vitrine muséale
+
+Le niveau maximal du sérieux absurde.
+
+Exemple de plaque :
+
+```text
+BERNARD
+Spécimen 07
+Collection particulière
+Activité observée : faible
+```
+
+---
+
+# PARTIE VIII — INTERFACE
+
+## 33. Navigation
 
 Peu d’options visibles à la fois.
 
-Sur téléphone, privilégier :
+Sur téléphone :
 
-- barre d’actions compacte en bas ;
-- bottom sheets pour les contenus secondaires ;
-- plein écran uniquement lorsque la tâche le justifie.
+- barre d’actions compacte ;
+- sheets pour contenus secondaires ;
+- plein écran seulement pour showroom, observation et photo lorsque justifié.
 
-Éviter :
-
-- menu hamburger contenant vingt entrées ;
-- rail latéral façon dashboard ;
-- cinq onglets permanents si quatre actions discrètes suffisent.
+Éviter menu profond, rail dashboard et multiplication de cartes.
 
 ---
 
-## 29. Boutons
+## 34. Boutons
 
-### Bouton principal
+Bouton principal : contraste fort, texte court, hauteur tactile confortable, pas de gradient.
 
-- fond basalt ou ivoire selon thème ;
-- contraste fort ;
-- texte court ;
-- hauteur tactile confortable ;
-- pas de gradient.
+Bouton secondaire : surface légère ou contour discret.
 
-### Bouton secondaire
-
-- surface légère ou contour discret ;
-- jamais concurrent du bouton principal.
-
-### Bouton iconique
-
-- minimum tactile 44 × 44 px ;
-- icône 18–22 px ;
-- état hover/focus/pressed clair.
-
-### Pressed
-
-Micro-réduction ou variation de fond très légère.
+Bouton iconique : minimum 44 × 44 px, focus et pressed visibles.
 
 Pas de rebond cartoon.
 
 ---
 
-## 30. Cartes et sheets
+## 35. États de chargement
 
-Les cartes ne doivent pas devenir le langage universel de l’application.
+Aucun spinner générique au centre du caillou.
 
-Utiliser une carte lorsqu’un contenu est réellement groupé :
+Approche :
 
-- spécimen dans la collection ;
-- statistique éditoriale ;
-- ambiance à sélectionner.
+1. fond Studio déjà présent ;
+2. silhouette ou preview ;
+3. texte éventuel « Préparation du spécimen. » ;
+4. fondu vers le modèle prêt.
 
-Les sheets mobiles doivent laisser voir ou sentir la scène derrière lorsque possible.
-
----
-
-## 31. Icônes
-
-Style :
-
-- ligne simple ;
-- poids homogène ;
-- géométrie sobre.
-
-Lucide convient comme base si les icônes retenues restent cohérentes.
-
-Éviter les emojis comme iconographie fonctionnelle principale.
+Pas de faux pourcentage.
 
 ---
 
-## 32. États de chargement
+## 36. Erreur 3D
 
-Le chargement d’un modèle ne doit pas afficher un spinner générique au milieu du caillou.
-
-Approche recommandée :
-
-1. fond d’ambiance disponible immédiatement ;
-2. silhouette minérale mate ou placeholder de volume ;
-3. léger fondu vers le modèle texturé quand il est prêt.
-
-Texte éventuel :
-
-> « Préparation du spécimen. »
-
-Pas de faux pourcentage si aucune progression fiable n’est disponible.
-
----
-
-## 33. État d’erreur 3D
-
-Si WebGL ou l’asset échoue :
-
-- conserver l’interface ;
-- afficher une représentation 2D propre si disponible ;
-- message sobre.
-
-Exemple :
+Si un asset échoue :
 
 > « Le spécimen n’a pas pu être présenté en trois dimensions. Sa stabilité n’est pas remise en cause. »
 
-Action : **Réessayer**.
-
-L’humour ne doit pas masquer l’information utile.
+Actions : **Réessayer** et navigation précédent/suivant toujours disponible.
 
 ---
 
-# PARTIE VII — MOUVEMENT
+# PARTIE IX — MOUVEMENT
 
-## 34. Philosophie d’animation
-
-Le mouvement doit donner du poids.
+## 37. Philosophie
 
 Un caillou :
 
@@ -949,147 +702,83 @@ Un caillou :
 - ne flotte pas ;
 - ne danse pas ;
 - ne respire pas ;
-- ne cligne pas des yeux, puisqu’il n’en possède pas.
+- ne cligne pas des yeux.
 
-L’animation sert principalement :
-
-- la manipulation ;
-- les transitions ;
-- la lumière ;
-- les événements environnementaux.
+Le mouvement sert la manipulation, les transitions, la lumière et les événements environnementaux.
 
 ---
 
-## 35. Rotation manuelle
-
-### Sensation
-
-Dense, légèrement inertielle.
-
-### Après relâchement
+## 38. Rotation
 
 - inertie courte ;
 - décélération naturelle ;
-- arrêt franc mais doux.
-
-Pas de rotation infinie automatique.
-
-### Vertical
-
-Limiter l’angle afin que le caillou conserve une présentation plausible sur son socle.
+- arrêt doux ;
+- angle vertical borné ;
+- aucune rotation infinie automatique.
 
 ---
 
-## 36. Tap
+## 39. Transitions UI
 
-Un tap peut produire :
-
-1. micro-réaction de lumière ;
-2. déplacement quasi imperceptible ou aucun déplacement ;
-3. haptique court ;
-4. son minéral léger ;
-5. observation textuelle occasionnelle.
-
-Ne pas déclencher les cinq éléments systématiquement à chaque tap.
-
----
-
-## 37. Transitions UI
-
-Durées indicatives :
-
-| Type | Durée |
+| Type | Durée indicative |
 |---|---:|
 | feedback immédiat | 100–160 ms |
-| bouton / hover | 120–180 ms |
+| bouton | 120–180 ms |
 | sheet | 220–320 ms |
+| changement de spécimen | 250–500 ms hors temps réseau |
 | changement d’ambiance | 500–900 ms |
-| événement contemplatif | plusieurs secondes si non bloquant |
 
-Courbes : accélérations naturelles, pas de bounce.
+Courbes naturelles, jamais de bounce.
 
 ---
 
-## 38. Reduced motion
+## 40. Reduced motion
 
-Lorsque `prefers-reduced-motion: reduce` est actif :
+Avec `prefers-reduced-motion: reduce` :
 
-- inertie fortement réduite ;
+- inertie réduite ;
 - transitions simplifiées ;
-- aucun mouvement caméra automatique ;
-- micro-événements animés remplacés ou raccourcis ;
-- fades courts acceptables.
-
-Le caillou reste manipulable.
+- pas de mouvement caméra automatique ;
+- fades courts ;
+- changement de spécimen fonctionnel sans animation complexe.
 
 ---
 
-# PARTIE VIII — SON ET HAPTIQUE
+# PARTIE X — SON ET HAPTIQUE
 
-## 39. Sound design
+## 41. Sound design
 
-CAILLOU™ ne possède pas de bande-son permanente obligatoire.
+Le silence fait partie du produit.
 
-Le silence fait partie du design.
+Familles sonores :
 
-### Familles sonores
+- petit toc pierre/surface ;
+- frottement léger ;
+- ambiance très discrète ;
+- accent rare de distinction.
 
-- contact pierre/surface ;
-- frottement très léger ;
-- ambiance de décor ;
-- éventuellement petit accent lors d’une distinction.
-
-### Caractéristiques
-
-- faible volume ;
-- dynamique douce ;
-- sons courts ;
-- peu de hautes fréquences agressives ;
-- pas de jingles mobiles génériques.
+Le showroom peut rester quasiment silencieux.
 
 ---
 
-## 40. Son de contact
+## 42. Haptique
 
-Le son signature doit être un **petit toc minéral sec et élégant**.
+Quand disponible : impulsion courte, faible, désactivable.
 
-Pas :
-
-- `boing` ;
-- bruit de cartoon ;
-- cloche ;
-- explosion ;
-- bruit de pierre énorme disproportionné.
-
-Plusieurs variantes proches sont recommandées pour éviter la répétition exacte.
+Le changement gauche/droite peut utiliser un feedback extrêmement discret si cela améliore la sensation, mais ne doit jamais vibrer fortement à chaque pierre.
 
 ---
 
-## 41. Haptique
+# PARTIE XI — TON ÉDITORIAL
 
-Quand disponible :
-
-- impulsion très courte lors d’un contact ;
-- intensité faible ;
-- jamais nécessaire à la compréhension ;
-- désactivable.
-
-Éviter les séquences vibratoires longues qui transformeraient le caillou en gadget.
-
----
-
-# PARTIE IX — TON ÉDITORIAL
-
-## 42. Voix
+## 43. Voix
 
 CAILLOU™ s’exprime comme un conservateur de musée doté d’un sens de l’absurde très sec.
 
-### Structure typique
-
 ```text
-constat factuel sérieux
+constat sérieux
 +
-objet ridiculement banal
+objet banal
 =
 humour
 ```
@@ -1098,17 +787,11 @@ Exemple :
 
 > « Aucun déplacement spontané n’a été observé. »
 
-L’application n’ajoute pas :
-
-> « 😂 Parce que c’est un caillou !!! »
-
-La première phrase suffit.
+La phrase suffit.
 
 ---
 
-## 43. Lexique privilégié
-
-Utiliser :
+## 44. Lexique privilégié
 
 - spécimen ;
 - présence ;
@@ -1119,7 +802,6 @@ Utiliser :
 - masse ;
 - surface ;
 - activité ;
-- période ;
 - reconnaissance ;
 - collection ;
 - distinction ;
@@ -1127,56 +809,30 @@ Utiliser :
 - conforme ;
 - mesuré.
 
-Avec modération :
-
-- géologique ;
-- lithique ;
-- sédimentaire ;
-- minéralogique.
-
-Les termes scientifiques ne doivent pas prétendre à une rigueur réelle lorsque la donnée est fictive.
+Les termes scientifiques sont utilisés avec prudence.
 
 ---
 
-## 44. Exemples de statuts conformes
+## 45. Exemples conformes
 
 - « Présence stable. »
 - « Aucun changement significatif. »
 - « Activité particulièrement contenue. »
-- « État minéral satisfaisant. »
-- « Stabilité remarquable depuis la dernière observation. »
 - « Votre spécimen conserve un excellent niveau de roche. »
 - « Aucun projet immédiat n’a été communiqué. »
 - « Mobilité spontanée non détectée. »
-- « Journée techniquement réussie. »
 - « La situation reste minérale. »
 - « Dignité intacte. »
-- « Rien à signaler. Ce qui est encourageant. »
-
----
-
-## 45. Réactions conformes
-
-Après tap :
-
-- « Contact enregistré. »
-- « Réaction mesurée. »
-- « Aucun mouvement de panique. »
-- « Surface contrôlée. »
-- « Interaction tolérée. »
 
 Après rotation :
 
 - « Orientation révisée. »
 - « Nouvel angle validé. »
 
-Après longue absence :
+Après absence :
 
 - « La situation est restée sous contrôle. »
 - « Aucun développement préoccupant. »
-- « [Nom] poursuit ses activités habituelles. »
-
-Aucune phrase ne doit reprocher l’absence.
 
 ---
 
@@ -1185,64 +841,69 @@ Aucune phrase ne doit reprocher l’absence.
 Éviter :
 
 - memes datés ;
-- références pop permanentes ;
 - grossièretés gratuites ;
-- humour agressif ;
 - humour enfantin ;
 - jeux de mots sur chaque écran ;
-- géologie volontairement fausse présentée comme vraie ;
-- caillou qui supplie l’utilisateur de revenir.
-
-Le produit doit encore faire sourire dans plusieurs années.
+- caillou bavard ;
+- reproches liés à l’absence ;
+- fausse rareté ;
+- textes de vente.
 
 ---
 
-# PARTIE X — ÉCRANS SPÉCIFIQUES
+# PARTIE XII — ÉCRANS SPÉCIFIQUES
 
 ## 47. Onboarding
 
-### Écran d’accueil
-
-Beaucoup d’espace négatif.
+Écran d’accueil : beaucoup d’espace négatif.
 
 ```text
         CAILLOU™
 
-   [un magnifique galet]
+   [un magnifique caillou]
 
  Une présence minérale de qualité.
 
    Commencer l’adoption
 ```
 
-Pas de carrousel de six slides marketing.
-
-### Sélection
-
-Les spécimens sont traités comme des objets de showroom :
-
-- grande image/3D ;
-- nom ;
-- trois propriétés ;
-- navigation horizontale ou grille selon écran.
-
-### Nommage
-
-Champ unique, élégant, autofocus contrôlé.
-
-La scène reste visible si possible.
+Pas de carrousel marketing.
 
 ---
 
-## 48. Fiche minérale
+## 48. Showroom
+
+Le showroom est la pièce maîtresse du premier lancement.
+
+Obligatoire :
+
+- un seul spécimen 3D ;
+- flèches latérales ;
+- compteur ;
+- label sobre ;
+- rotation ;
+- CTA d’adoption ;
+- aucune grille de 20 miniatures comme expérience principale.
+
+---
+
+## 49. Nommage
+
+Champ unique et élégant.
+
+Le caillou choisi reste visible si possible.
+
+Le passage de « Spécimen 07 » à « Bernard » doit donner la sensation que l’objet devient personnel sans changer physiquement.
+
+---
+
+## 50. Fiche minérale
 
 Direction : carte de musée + fiche produit.
 
-Hiérarchie :
-
 ```text
 BERNARD
-Galet noir premium
+Spécimen 07
 
 Référence minérale
 
@@ -1250,37 +911,27 @@ Adopté le …
 Présence …
 Mobilité …
 Interactions …
-
-[statistiques absurdes]
 ```
 
-Les chiffres ne doivent pas ressembler à un dashboard analytique saturé de graphiques.
-
-Pas de donut chart pour indiquer que le caillou ne bouge pas.
+Pas de dashboard analytique.
 
 ---
 
-## 49. Collection
+## 51. Collection
 
-Le mot « collection » ne justifie pas une grille de cartes façon marketplace.
+La Collection réutilise idéalement le langage du showroom.
 
-Présentation possible :
+Les vingt pierres peuvent être parcourues séquentiellement. Une vue 2D secondaire est acceptable pour navigation rapide, mais l’expérience noble reste l’inspection 3D.
 
-- galerie horizontale ;
-- vitrine ;
-- chaque spécimen bien espacé ;
-- état actif clairement indiqué ;
-- aucune rareté colorée.
-
-Les cailloux non adoptés peuvent être visibles sans cadenas agressif.
+Aucune rareté colorée, cadenas agressif ou barre de complétion.
 
 ---
 
-## 50. Instantané
+## 52. Instantané
 
-Le mode photo doit masquer toute interface inutile.
+Le mode photo masque l’interface inutile.
 
-Options limitées :
+Options :
 
 - cadrage ;
 - nom on/off ;
@@ -1288,98 +939,34 @@ Options limitées :
 - partager ;
 - enregistrer.
 
-### Branding de capture
-
-Très discret :
-
-```text
-CAILLOU™
-```
-
-petit, dans un coin, avec éventuellement nom et variété.
-
-La capture doit rester assez belle pour être partagée sans ressembler à une publicité.
+Branding très discret : `CAILLOU™` dans un coin.
 
 ---
 
-# PARTIE XI — ICÔNE ET PWA
+# PARTIE XIII — ACCESSIBILITÉ VISUELLE
 
-## 51. Icône d’application
+## 53. Contraste et texte
 
-### Composition
+Tous les textes fonctionnels respectent un contraste accessible indépendamment de la scène 3D.
 
-- fond ivoire ou basalte ;
-- un seul galet sombre ou clair ;
-- vue légèrement en trois quarts ;
-- lumière douce ;
-- aucun texte dans les petites tailles.
-
-### Contraintes
-
-L’icône doit fonctionner :
-
-- à 512 px ;
-- à 192 px ;
-- à 60–76 px sur écran d’accueil ;
-- avec masque adaptatif quand la plateforme l’applique.
-
-La silhouette doit donc porter l’identité, pas la micro-texture.
+Ne pas poser les informations critiques directement sur la texture du caillou.
 
 ---
 
-## 52. Splash / lancement
+## 54. Navigation accessible du showroom
 
-Simple :
-
-```text
-fond uni
-CAILLOU™
-petite silhouette minérale
-```
-
-Pas d’animation longue imposée à chaque ouverture.
-
-Le meilleur écran de lancement est celui qui disparaît rapidement.
+- flèches tactiles ≥ 44 × 44 px ;
+- focus visible ;
+- labels lecteur d’écran ;
+- compteur annoncé comme position, par exemple « Spécimen 7 sur 20 » ;
+- adoption accessible sans rotation ;
+- touches clavier précédent/suivant sur desktop.
 
 ---
 
-# PARTIE XII — ACCESSIBILITÉ VISUELLE
+# PARTIE XIV — DESIGN TOKENS
 
-## 53. Contraste
-
-Tous les textes fonctionnels doivent respecter un contraste accessible indépendamment de la scène 3D.
-
-Ne jamais poser un texte directement sur une texture mouvante sans surface ou traitement assurant la lisibilité.
-
----
-
-## 54. Taille et zoom
-
-L’interface doit tolérer l’agrandissement du texte sans cacher les actions principales.
-
-Les labels critiques ne sont pas exclusivement des icônes.
-
----
-
-## 55. Couleur
-
-Un spécimen sélectionné ne doit pas être indiqué uniquement par le bronze : ajouter également coche, texte ou structure.
-
----
-
-## 56. Mouvement et clignotement
-
-Aucun flash rapide.
-
-Les changements lumineux restent progressifs et modérés.
-
----
-
-# PARTIE XIII — DESIGN TOKENS
-
-## 57. Tokens CSS initiaux
-
-Base indicative à ajuster pendant le prototype :
+## 55. Tokens CSS initiaux
 
 ```css
 :root {
@@ -1409,26 +996,24 @@ Base indicative à ajuster pendant le prototype :
 
   --duration-fast: 140ms;
   --duration-ui: 260ms;
+  --duration-rock-switch: 380ms;
   --duration-scene: 700ms;
 }
 ```
 
-Ces valeurs servent de point de départ, pas de justification pour ignorer les tests visuels.
-
 ---
 
-## 58. Tokens 3D
+## 56. Tokens 3D
 
-Les réglages de lumière doivent également devenir des presets centralisés, pas des nombres magiques dispersés.
+Les réglages de lumière et caméra sont centralisés.
 
 Exemple conceptuel :
 
 ```ts
-const studioMineral = {
+const showroomStudio = {
   camera: {
     fov: 32,
-    minDistance: 2.2,
-    maxDistance: 5.0,
+    framingRatio: 0.58,
   },
   light: {
     keyIntensity: 3.0,
@@ -1441,91 +1026,109 @@ const studioMineral = {
 }
 ```
 
-Les valeurs finales doivent être calibrées sur les vrais assets, pas copiées aveuglément depuis cet exemple.
+Les valeurs finales sont calibrées sur les vingt vrais assets.
 
 ---
 
-# PARTIE XIV — CRITÈRES DE QUALITÉ DES ASSETS
+# PARTIE XV — CRITÈRES DE QUALITÉ DES ASSETS
 
-## 59. Revue obligatoire d’un caillou
-
-Avant validation d’un modèle :
+## 57. Revue obligatoire d’un caillou
 
 ### Silhouette
 
 - [ ] reconnaissable sans texture ;
 - [ ] asymétrie naturelle ;
-- [ ] aucune facette involontaire visible.
+- [ ] aucune facette involontaire gênante.
 
 ### Matière
 
-- [ ] pas d’aspect plastique ;
-- [ ] roughness variée ;
-- [ ] détails crédibles au zoom ;
-- [ ] pas de répétition de texture évidente.
+- [ ] base color correcte ;
+- [ ] normal map crédible ;
+- [ ] roughness non plastique ;
+- [ ] détail lisible au zoom raisonnable.
 
-### Éclairage
+### Showroom
 
-- [ ] lisible en Studio ;
-- [ ] lisible en ambiance sombre ;
-- [ ] highlights non brûlés ;
-- [ ] ombres non bouchées.
+- [ ] cadrage cohérent avec les 19 autres ;
+- [ ] éclairage neutre et flatteur sans favoritisme ;
+- [ ] vraie position de repos ;
+- [ ] transition précédent/suivant propre.
 
 ### Mobile
 
-- [ ] rendu vérifié sur vrai smartphone ;
 - [ ] rotation fluide ;
-- [ ] poids conforme au budget ;
-- [ ] temps de chargement acceptable.
+- [ ] poids conforme ;
+- [ ] chargement acceptable ;
+- [ ] aucun artefact texture.
 
-### Identité
+### Provenance
 
-- [ ] clairement distinct des cinq autres ;
-- [ ] suffisamment beau pour être choisi comme premier caillou ;
-- [ ] aucune décoration cartoon ajoutée pour le rendre « intéressant ».
+- [ ] source documentée ;
+- [ ] auteur documenté ;
+- [ ] licence documentée ;
+- [ ] attribution affichable dans les crédits.
 
 ---
 
-## 60. Revue obligatoire d’une ambiance
+## 58. Revue obligatoire du catalogue
 
-- [ ] le caillou reste le sujet dominant ;
+- [ ] 20 spécimens distincts ;
+- [ ] aucun doublon accidentel ;
+- [ ] IDs stables ;
+- [ ] tous chargent dans le même Studio ;
+- [ ] aucun n’est marqué comme rare ou inférieur ;
+- [ ] le tour complet 01 → 20 est visuellement cohérent ;
+- [ ] le retour 20 → 01 reste fluide ;
+- [ ] aucune fuite mémoire visible lors d’une navigation prolongée.
+
+---
+
+## 59. Revue obligatoire d’une ambiance
+
+- [ ] le caillou reste dominant ;
 - [ ] la lumière améliore la matière ;
-- [ ] le décor ne paraît pas vide par accident mais minimal volontairement ;
-- [ ] aucune référence culturelle cliché inutile ;
-- [ ] fonctionne avec les 6 spécimens ;
+- [ ] le décor est minimal volontairement ;
+- [ ] fonctionne avec les vingt spécimens ;
 - [ ] contraste UI vérifié ;
 - [ ] coût GPU raisonnable ;
 - [ ] sound design facultatif et discret.
 
 ---
 
-# PARTIE XV — ANTI-PATTERNS
+# PARTIE XVI — ANTI-PATTERNS
 
-## 61. Ce qui ferait immédiatement perdre l’identité CAILLOU™
+## 60. Ce qui ferait perdre l’identité CAILLOU™
 
 ### Visuel
 
-- yeux collés sur le caillou ;
-- bouche animée ;
-- chapeau de fête permanent ;
-- couleurs arc-en-ciel ;
-- particules dans tous les sens ;
+- yeux ;
+- bouche ;
+- costumes ;
+- arc-en-ciel ;
+- particules partout ;
 - grosse barre XP ;
 - étoiles de rareté ;
 - coffres ;
-- confettis à chaque action ;
-- arrière-plan spatial sans raison ;
-- neon cyberpunk.
+- confettis ;
+- néon cyberpunk.
+
+### Showroom
+
+- grille type e-commerce comme écran principal ;
+- vingt GLB affichés simultanément ;
+- badges « rare », « épique », « recommandé » ;
+- prix ou monnaie ;
+- fiche produit surchargée ;
+- autoplay rapide entre les pierres ;
+- choix algorithmique « meilleur pour vous ».
 
 ### UX
 
 - popup quotidienne ;
 - récompense « reviens demain » ;
 - menu complexe ;
-- dashboard statistique ;
-- tutoriel long ;
-- bouton partout ;
-- badges rouges de notification.
+- badges rouges ;
+- tutoriel long.
 
 ### Ton
 
@@ -1534,148 +1137,149 @@ Avant validation d’un modèle :
 - « SUPER !!! +500 ROCK COINS » ;
 - « Vite, reviens avant minuit ! »
 
-Tout cela appartient à un autre produit.
-
 ---
 
-# PARTIE XVI — RÈGLES POUR LES ÉVOLUTIONS FUTURES
+# PARTIE XVII — ÉVOLUTIONS FUTURES
+
+## 61. Nouveaux spécimens
+
+Un nouveau caillou doit apporter une vraie différence de silhouette, matière ou réponse lumineuse.
+
+Ne pas ajouter des recolorations artificielles uniquement pour augmenter le nombre.
+
+Le catalogue de 20 est déjà généreux pour la V1.
+
+---
 
 ## 62. Accessoires éventuels
 
-Si des accessoires sont introduits après V1, ils doivent rester :
+S’ils arrivent après V1 : rares, sobres, crédibles, facultatifs.
 
-- rares ;
-- sobres ;
-- visuellement crédibles ;
-- facultatifs ;
-- jamais nécessaires à l’état du caillou.
-
-Exemple acceptable : petit socle alternatif ou plaque.
-
-Exemple risqué : lunettes, moustache, dizaines de costumes.
-
-Le second transforme immédiatement le produit en mascotte cartoon.
+Un socle alternatif est acceptable. Une garde-robe de moustaches ne l’est pas.
 
 ---
 
-## 63. Nouveaux spécimens
+# PARTIE XVIII — VISION DE L’EXPÉRIENCE
 
-Chaque nouveau caillou doit apporter une vraie différence :
+## 63. Premier choix
 
-- silhouette ;
-- origine visuelle ;
-- matériau ;
-- réponse lumineuse.
+L’utilisateur entre dans le showroom.
 
-Ne pas créer vingt recolorations du même mesh.
+Un premier caillou apparaît sous une lumière douce.
+
+Il le tourne.
+
+Il touche la flèche droite.
+
+La pierre disparaît calmement.
+
+Une autre prend sa place.
+
+`02 / 20`.
+
+Puis une autre.
+
+Au bout de quelques spécimens, une préférence irrationnelle commence à se former.
+
+Aucune statistique ne lui dit lequel choisir.
+
+Aucune pierre n’est rare.
+
+Aucun algorithme n’aide.
+
+Il revient au numéro 07.
+
+Il le tourne encore une fois.
+
+Il appuie sur :
+
+**Adopter ce caillou**
+
+Quelques secondes plus tard, Spécimen 07 devient **Bernard**.
+
+C’est exactement l’expérience recherchée.
 
 ---
 
-## 64. Nouvelles ambiances
+## 64. Socle final
 
-Une ambiance doit être conçue autour d’une lumière et d’une relation matière/environnement, pas uniquement d’un fond différent.
+L’utilisateur revient plus tard.
 
-Question de validation :
+Bernard est là.
 
-> « Cette ambiance permet-elle de regarder le même caillou autrement ? »
+La lumière accroche une zone de matière qu’il n’avait pas remarquée.
 
-Si la réponse est non, elle n’est pas nécessaire.
+Il le fait tourner.
 
----
-
-# PARTIE XVII — VISION DU PREMIER ÉCRAN FINAL
-
-## 65. Expérience recherchée
-
-L’utilisateur ouvre CAILLOU™.
-
-Le fond apparaît presque immédiatement.
-
-Le caillou est déjà là ou se révèle en douceur.
-
-Il reçoit une lumière latérale lente et naturelle.
-
-En dessous :
-
-**BERNARD**
-
-> Présence stable. Dignité intacte.
-
-Trois ou quatre commandes discrètes.
-
-L’utilisateur glisse le doigt.
-
-Bernard tourne avec du poids.
-
-La lumière accroche une zone polie qu’il n’avait pas encore remarquée.
-
-Il relâche.
-
-Le caillou s’arrête.
+Bernard s’arrête avec du poids.
 
 Un petit toc minéral se fait entendre s’il le touche.
 
 Rien d’autre ne réclame son attention.
 
-**C’est exactement l’expérience.**
+**C’est exactement le produit.**
 
 ---
 
-# 66. Checklist de validation V1 visuelle
+## 65. Checklist de validation V1 visuelle
 
-## Marque
+### Marque
 
-- [ ] mot-symbole final ;
-- [ ] pictogramme final ;
+- [ ] mot-symbole ;
+- [ ] pictogramme ;
 - [ ] icône PWA ;
 - [ ] variantes clair/sombre.
 
-## UI
+### Showroom
+
+- [ ] 20 spécimens ;
+- [ ] un seul caillou visible ;
+- [ ] flèches gauche/droite ;
+- [ ] compteur N/20 ;
+- [ ] rotation tactile ;
+- [ ] CTA adoption ;
+- [ ] transitions sobres ;
+- [ ] loading premium ;
+- [ ] erreur récupérable ;
+- [ ] navigation clavier ;
+- [ ] reduced motion.
+
+### UI
 
 - [ ] tokens finalisés ;
-- [ ] typographie embarquée/licenciée ;
+- [ ] typographie licenciée ;
 - [ ] Socle mobile ;
 - [ ] tablette ;
 - [ ] desktop ;
-- [ ] onboarding ;
 - [ ] fiche ;
-- [ ] collection ;
+- [ ] collection/showroom ;
 - [ ] ambiances ;
 - [ ] instantané ;
-- [ ] réglages ;
-- [ ] états loading/error/empty ;
-- [ ] focus et reduced motion.
+- [ ] réglages.
 
-## 3D
+### 3D
 
-- [ ] 6 silhouettes distinctes ;
+- [ ] 20 silhouettes/scans validés ;
 - [ ] textures finales ;
 - [ ] roughness calibrée ;
+- [ ] preset Studio showroom ;
 - [ ] 5 presets d’ambiance ;
-- [ ] caméra finale ;
+- [ ] caméra auto-fit ;
 - [ ] ombre de contact ;
 - [ ] qualité mobile ;
 - [ ] capture haute qualité.
 
-## Sensoriel
-
-- [ ] son contact ;
-- [ ] variantes audio ;
-- [ ] sons d’ambiance ;
-- [ ] haptique subtil ;
-- [ ] expérience cohérente son désactivé.
-
-## Ton
+### Ton
 
 - [ ] aucun écran bavard ;
 - [ ] humour sec ;
-- [ ] aucun reproche après absence ;
+- [ ] aucune rareté ;
 - [ ] aucune mécanique anxiogène ;
 - [ ] le caillou reste un caillou.
 
 ---
 
-# 67. Règle finale de direction artistique
+# 66. Règle finale de direction artistique
 
 Avant de valider n’importe quel écran, asset ou animation, poser trois questions :
 
