@@ -15,7 +15,11 @@ export function App() {
   }
 
   if (state.status === 'signed-out') {
-    return <AuthScreen message={state.message} onAuthenticated={refresh} />
+    return state.message ? (
+      <AuthScreen message={state.message} onAuthenticated={refresh} />
+    ) : (
+      <AuthScreen onAuthenticated={refresh} />
+    )
   }
 
   if (state.status === 'offline') {
