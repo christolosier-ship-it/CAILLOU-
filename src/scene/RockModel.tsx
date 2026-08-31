@@ -1,6 +1,7 @@
 import { useGLTF } from '@react-three/drei'
 import { useEffect, useMemo } from 'react'
-import { Material, Mesh, Texture } from 'three'
+import { Mesh, Texture } from 'three'
+import type { Material } from 'three'
 
 function disposeMaterial(material: Material) {
   for (const value of Object.values(material)) {
