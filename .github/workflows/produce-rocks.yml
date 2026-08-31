@@ -108,31 +108,38 @@ jobs:
           sleep 2
           google-chrome --version
 
+          chrome_flags=(
+            --headless=new
+            --no-sandbox
+            --disable-gpu-sandbox
+            --disable-dev-shm-usage
+            --ignore-gpu-blocklist
+            --enable-webgl
+            --enable-unsafe-swiftshader
+            --use-gl=angle
+            --use-angle=swiftshader-webgl
+            --window-size=1024,1024
+            --virtual-time-budget=12000
+          )
+
           for rock_id in rock-001 rock-002; do
             url="http://127.0.0.1:4173/scripts/web/rock-render-validation.html?model=/public/assets/rocks/${rock_id}/model.glb"
-            google-chrome \
-              --headless=new \
-              --no-sandbox \
-              --disable-dev-shm-usage \
-              --ignore-gpu-blocklist \
-              --enable-webgl \
-              --enable-unsafe-swiftshader \
-              --use-angle=swiftshader \
-              --window-size=1024,1024 \
-              --virtual-time-budget=12000 \
-              --dump-dom "$url" > "build/rock-production/web-validation/${rock_id}.html"
-            grep -q 'data-status="pass"' "build/rock-production/web-validation/${rock_id}.html"
+            html="build/rock-production/web-validation/${rock_id}.html"
+
+            if ! google-chrome "${chrome_flags[@]}" --dump-dom "$url" > "$html"; then
+              cat "$html" || true
+              cat /tmp/caillou-http.log || true
+              exit 1
+            fi
+
+            if ! grep -q 'data-status="pass"' "$html"; then
+              cat "$html"
+              cat /tmp/caillou-http.log || true
+              exit 1
+            fi
 
             google-chrome \
-              --headless=new \
-              --no-sandbox \
-              --disable-dev-shm-usage \
-              --ignore-gpu-blocklist \
-              --enable-webgl \
-              --enable-unsafe-swiftshader \
-              --use-angle=swiftshader \
-              --window-size=1024,1024 \
-              --virtual-time-budget=12000 \
+              "${chrome_flags[@]}" \
               --screenshot="build/rock-production/web-validation/${rock_id}.png" \
               "$url"
           done
