@@ -1,0 +1,224 @@
+name: Produce CAILLOU rocks
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Commit validated assets to the selected branch
+        required: false
+        default: true
+        type: boolean
+  push:
+    branches:
+      - feature/05-3d-production-catalogue
+    paths:
+      - 'Ressource/**'
+      - 'scripts/blender/export_rocks.py'
+      - 'scripts/web/rock-render-validation.html'
+      - '.github/workflows/produce-rocks.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: produce-rocks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BLENDER_VERSION: '4.5.13'
+  BLENDER_SERIES: '4.5'
+  REPORT_PATH: build/rock-production/report.json
+
+jobs:
+  produce:
+    name: Export, web-validate and publish 20 GLBs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Blender 4.5.13 LTS from official archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://download.blender.org/release/Blender${BLENDER_SERIES}"
+          archive="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          checksum="blender-${BLENDER_VERSION}.sha256"
+          curl --fail --location --retry 3 --output "$archive" "$base/$archive"
+          curl --fail --location --retry 3 --output "$checksum" "$base/$checksum"
+          grep " $archive$" "$checksum" | sha256sum --check --strict
+          tar -xf "$archive"
+          echo "$PWD/blender-${BLENDER_VERSION}-linux-x64" >> "$GITHUB_PATH"
+
+      - name: Verify production Blender pin
+        run: blender --version | head -n 2
+
+      - name: Locate source blend
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          BLEND_FILE="$(find Ressource -maxdepth 1 -type f -name '*.blend' | sort | head -n 1)"
+          test -n "$BLEND_FILE"
+          echo "blend_file=$BLEND_FILE" >> "$GITHUB_OUTPUT"
+          echo "Using $BLEND_FILE"
+
+      - name: Export vertical slice Rock 001 + Rock 002
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set -euo pipefail
+          rm -rf public/assets/rocks public/assets/rock-previews build/rock-production
+          xvfb-run -a -s '-screen 0 1280x1024x24' \
+            blender -b "${{ steps.source.outputs.blend_file }}" \
+            --python scripts/blender/export_rocks.py \
+            -- --mode slice --report "$REPORT_PATH"
+
+      - name: Install frontend dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build frontend with slice assets
+        run: npm run build
+
+      - name: Validate Rock 001 + Rock 002 in real Three.js WebGL renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/rock-production/web-validation
+          python3 -m http.server 4173 > /tmp/caillou-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          sleep 2
+          google-chrome --version
+
+          for rock_id in rock-001 rock-002; do
+            url="http://127.0.0.1:4173/scripts/web/rock-render-validation.html?model=/public/assets/rocks/${rock_id}/model.glb"
+            google-chrome \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --ignore-gpu-blocklist \
+              --enable-webgl \
+              --enable-unsafe-swiftshader \
+              --use-angle=swiftshader \
+              --window-size=1024,1024 \
+              --virtual-time-budget=12000 \
+              --dump-dom "$url" > "build/rock-production/web-validation/${rock_id}.html"
+            grep -q 'data-status="pass"' "build/rock-production/web-validation/${rock_id}.html"
+
+            google-chrome \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --ignore-gpu-blocklist \
+              --enable-webgl \
+              --enable-unsafe-swiftshader \
+              --use-angle=swiftshader \
+              --window-size=1024,1024 \
+              --virtual-time-budget=12000 \
+              --screenshot="build/rock-production/web-validation/${rock_id}.png" \
+              "$url"
+          done
+
+          echo "Rock 001 and Rock 002 passed the browser renderer gate."
+
+      - name: Export complete batch of 20 after slice gate
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set -euo pipefail
+          rm -rf public/assets/rocks public/assets/rock-previews
+          xvfb-run -a -s '-screen 0 1280x1024x24' \
+            blender -b "${{ steps.source.outputs.blend_file }}" \
+            --python scripts/blender/export_rocks.py \
+            -- --mode all --report "$REPORT_PATH"
+
+      - name: Generate Supabase publication migration from measured report
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('build/rock-production/report.json').read_text(encoding='utf-8'))
+          migration = Path('supabase/migrations/20260831232000_publish_rock_catalog_3d.sql')
+          lines = [
+              '-- Generated from the validated Blender production report.\n',
+              '-- Assets remain static on Vercel; Supabase stores canonical catalogue metadata.\n',
+              'begin;\n',
+          ]
+          for rock in report['rocks']:
+              def q(value):
+                  return "'" + str(value).replace("'", "''") + "'"
+              lines.append(
+                  'update public.rock_catalog set '
+                  f"model_path = {q(rock['modelPath'])}, "
+                  f"preview_path = {q(rock['previewPath'])}, "
+                  f"source_mesh = {q(rock['sourceMesh'])}, "
+                  f"triangle_count = {int(rock['sourceTriangles'])}, "
+                  'active = true '
+                  f"where id = {q(rock['id'])};\n"
+              )
+          lines.extend([
+              "do $$ begin if (select count(*) from public.rock_catalog where active) <> 20 then raise exception 'Expected 20 active rock catalogue rows'; end if; end $$;\n",
+              'commit;\n',
+          ])
+          migration.write_text(''.join(lines), encoding='utf-8')
+          PY
+
+      - name: Build frontend with complete production catalogue
+        run: npm run build
+
+      - name: Summarize measured production output
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          report = json.loads(Path('build/rock-production/report.json').read_text(encoding='utf-8'))
+          summary = report['summary']
+          print('# CAILLOU™ 3D production')
+          print()
+          print(f"- Blender: `{report['blenderVersion']}` (pinned `{report['blenderPinned']}`)")
+          print(f"- Exported rocks: **{summary['count']}**")
+          print(f"- Mean GLB: **{summary['meanMiB']} MiB**")
+          print(f"- Max GLB: **{summary['maxMiB']} MiB**")
+          print(f"- External dependencies: **0**")
+          print(f"- Browser gate: **Rock 001 + Rock 002 PASS**")
+          print()
+          print('| Rock | Tris | GLB MiB | Mesh |')
+          print('|---|---:|---:|---|')
+          for rock in report['rocks']:
+              print(f"| {rock['id']} | {rock['sourceTriangles']} | {rock['validation']['mib']} | `{rock['sourceMesh']}` |")
+          PY
+
+      - name: Upload production validation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: caillou-rock-production
+          path: |
+            build/rock-production/
+            public/assets/rock-previews/
+            public/assets/rocks/catalog.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit validated production assets to feature branch
+        if: ${{ github.event_name == 'push' || inputs.publish == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/assets/rocks public/assets/rock-previews build/rock-production/report.json supabase/migrations/20260831232000_publish_rock_catalog_3d.sql
+          if git diff --cached --quiet; then
+            echo 'Production outputs are already up to date.'
+            exit 0
+          fi
+          git commit -m 'build(3d): publish validated 20-rock production catalogue'
+          git push origin HEAD:${GITHUB_REF_NAME}
