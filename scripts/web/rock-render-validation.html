@@ -35,21 +35,24 @@
 
     const params = new URLSearchParams(location.search)
     const model = params.get('model')
-    if (!model) fail(new Error('Missing ?model= path'))
 
-    let renderer
-    try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' })
-      renderer.setPixelRatio(1)
-      renderer.setSize(innerWidth, innerHeight)
-      renderer.outputColorSpace = THREE.SRGBColorSpace
-      renderer.toneMapping = THREE.ACESFilmicToneMapping
-      renderer.toneMappingExposure = 1
-      renderer.shadowMap.enabled = true
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap
-      document.body.prepend(renderer.domElement)
-    } catch (error) {
-      fail(error)
+    let renderer = null
+    if (!model) {
+      fail(new Error('Missing ?model= path'))
+    } else {
+      try {
+        renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' })
+        renderer.setPixelRatio(1)
+        renderer.setSize(innerWidth, innerHeight)
+        renderer.outputColorSpace = THREE.SRGBColorSpace
+        renderer.toneMapping = THREE.ACESFilmicToneMapping
+        renderer.toneMappingExposure = 1
+        renderer.shadowMap.enabled = true
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap
+        document.body.prepend(renderer.domElement)
+      } catch (error) {
+        fail(error)
+      }
     }
 
     const scene = new THREE.Scene()
@@ -94,35 +97,40 @@
     }
 
     if (renderer && model) {
-      const loader = new GLTFLoader()
-      loader.load(model, (gltf) => {
-        try {
-          const root = gltf.scene
-          let meshCount = 0
-          let texturedMaterialCount = 0
-          root.traverse((child) => {
-            if (!child.isMesh) return
-            meshCount += 1
-            child.castShadow = true
-            child.receiveShadow = true
-            const materials = Array.isArray(child.material) ? child.material : [child.material]
-            for (const material of materials) {
-              if (material?.map && material?.normalMap && material?.roughness >= 0.65) texturedMaterialCount += 1
-            }
-          })
-          if (meshCount !== 1 || texturedMaterialCount < 1) {
-            throw new Error(`Unexpected render payload meshes=${meshCount}, texturedMaterials=${texturedMaterialCount}`)
+      try {
+        const loader = new GLTFLoader()
+        const gltf = await loader.loadAsync(model)
+        const root = gltf.scene
+        let meshCount = 0
+        let texturedMaterialCount = 0
+
+        root.traverse((child) => {
+          if (!child.isMesh) return
+          meshCount += 1
+          child.castShadow = true
+          child.receiveShadow = true
+          const materials = Array.isArray(child.material) ? child.material : [child.material]
+          for (const material of materials) {
+            if (material?.map && material?.normalMap && material?.roughness >= 0.65) texturedMaterialCount += 1
           }
-          scene.add(root)
-          fit(root)
-          renderer.render(scene, camera)
-          status.textContent = `PASS ${model}`
-          document.documentElement.dataset.status = 'pass'
-          document.title = `PASS ${model}`
-        } catch (error) {
-          fail(error)
+        })
+
+        if (meshCount !== 1 || texturedMaterialCount < 1) {
+          throw new Error(`Unexpected render payload meshes=${meshCount}, texturedMaterials=${texturedMaterialCount}`)
         }
-      }, undefined, fail)
+
+        scene.add(root)
+        fit(root)
+        renderer.render(scene, camera)
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+        renderer.render(scene, camera)
+
+        status.textContent = `PASS ${model}`
+        document.documentElement.dataset.status = 'pass'
+        document.title = `PASS ${model}`
+      } catch (error) {
+        fail(error)
+      }
     }
 
     addEventListener('resize', () => {
