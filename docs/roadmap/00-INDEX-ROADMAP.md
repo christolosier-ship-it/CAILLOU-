@@ -32,7 +32,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 |---:|---|---|---|
 | 01 | Fondation frontend et PWA | Terminée — PR #4 fusionnée | aucune |
 | 02 | Vercel, previews et garde-fous CI | Terminée — PR #5 fusionnée | 01 |
-| 03 | Supabase : schéma, RLS et contrats | À faire | 01 |
+| 03 | Supabase : schéma, RLS et contrats | Terminée — PR #7 fusionnée | 01 |
 | 04 | Auth pseudo + mot de passe | À faire | 03 |
 | 05 | Pipeline 3D de production et catalogue | À faire | pipeline audit existant |
 | 06 | Showroom 3D des 20 cailloux | À faire | 01, 05 |
