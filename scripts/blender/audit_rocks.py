@@ -96,7 +96,7 @@ def remove_audit_helpers():
             bpy.data.objects.remove(obj, do_unlink=True)
 
 
-def add_camera_and_lights(bbox):
+def add_camera_and_stage(bbox):
     scene = bpy.context.scene
     remove_audit_helpers()
 
@@ -114,20 +114,6 @@ def add_camera_and_lights(bbox):
     camera.rotation_euler = (center - camera.location).to_track_quat("-Z", "Y").to_euler()
     camera_data.lens = 58
 
-    def add_area(name, location, energy, size_scale):
-        light_data = bpy.data.lights.new(name, type="AREA")
-        light_data.energy = energy
-        light_data.size = radius * size_scale
-        light = bpy.data.objects.new(name, light_data)
-        light["caillou_audit_helper"] = True
-        scene.collection.objects.link(light)
-        light.location = center + Vector(location) * radius
-        light.rotation_euler = (center - light.location).to_track_quat("-Z", "Y").to_euler()
-
-    add_area("CAILLOU_Key", (2.2, -2.5, 3.0), 900, 3.0)
-    add_area("CAILLOU_Fill", (-2.5, -0.8, 1.5), 450, 3.8)
-    add_area("CAILLOU_Rim", (0.6, 2.5, 2.7), 700, 2.2)
-
     floor_mesh = bpy.data.meshes.new("CAILLOU_Audit_Floor_Mesh")
     floor = bpy.data.objects.new("CAILLOU_Audit_Floor", floor_mesh)
     floor["caillou_audit_helper"] = True
@@ -140,40 +126,40 @@ def add_camera_and_lights(bbox):
     floor_mesh.update()
 
     mat = bpy.data.materials.new("CAILLOU_Audit_Floor_Material")
-    mat.diffuse_color = (0.15, 0.15, 0.14, 1.0)
-    mat.use_nodes = True
-    bsdf = mat.node_tree.nodes.get("Principled BSDF")
-    if bsdf:
-        bsdf.inputs["Base Color"].default_value = (0.11, 0.11, 0.105, 1.0)
-        bsdf.inputs["Roughness"].default_value = 0.78
+    mat.diffuse_color = (0.11, 0.11, 0.105, 1.0)
     floor.data.materials.append(mat)
 
 
 def configure_render(output_path: Path):
     scene = bpy.context.scene
 
-    for candidate in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE", "BLENDER_WORKBENCH"):
-        try:
-            scene.render.engine = candidate
-            break
-        except Exception:
-            continue
+    # Casting previews favor speed and recognizability over final visual quality.
+    # The premium studio render comes later for selected CAILLOU™ specimens.
+    scene.render.engine = "BLENDER_WORKBENCH"
+    shading = scene.display.shading
+    shading.light = "STUDIO"
+    shading.color_type = "TEXTURE"
 
-    scene.render.resolution_x = 640
-    scene.render.resolution_y = 640
+    if hasattr(shading, "show_shadows"):
+        shading.show_shadows = True
+    if hasattr(shading, "show_cavity"):
+        shading.show_cavity = True
+    if hasattr(shading, "cavity_type"):
+        shading.cavity_type = "WORLD"
+    if hasattr(shading, "show_specular_highlight"):
+        shading.show_specular_highlight = True
+    if hasattr(shading, "background_type"):
+        shading.background_type = "VIEWPORT"
+    if hasattr(shading, "background_color"):
+        shading.background_color = (0.025, 0.025, 0.022)
+
+    scene.render.resolution_x = 480
+    scene.render.resolution_y = 480
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
     scene.render.film_transparent = False
     scene.render.filepath = str(output_path)
-
-    world = scene.world or bpy.data.worlds.new("World")
-    scene.world = world
-    world.use_nodes = True
-    bg = world.node_tree.nodes.get("Background")
-    if bg:
-        bg.inputs["Color"].default_value = (0.025, 0.025, 0.022, 1.0)
-        bg.inputs["Strength"].default_value = 0.35
 
 
 def render_preview(obj, all_mesh_objects, output_path):
@@ -185,7 +171,7 @@ def render_preview(obj, all_mesh_objects, output_path):
     obj.hide_viewport = False
 
     bbox = world_bbox(obj)
-    add_camera_and_lights(bbox)
+    add_camera_and_stage(bbox)
     configure_render(output_path)
 
     try:
@@ -200,6 +186,44 @@ def restore_visibility(mesh_objects):
         obj.hide_render = False
         obj.hide_viewport = False
     remove_audit_helpers()
+
+
+def write_inventory(output_dir, inventory):
+    (output_dir / "inventory.json").write_text(
+        json.dumps(inventory, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+    md_lines = [
+        "# CAILLOU™ — Audit automatique du fichier Blender",
+        "",
+        f"- Source : `{inventory['source_blend']}`",
+        f"- Blender : `{inventory['blender_version']}`",
+        f"- Objets mesh détectés : **{inventory['mesh_object_count']}**",
+        "",
+        "| # | Objet | Triangles | Sommets | UV | Matériaux | Textures | Preview |",
+        "|---:|---|---:|---:|---:|---:|---:|---|",
+    ]
+
+    for entry in inventory["objects"]:
+        preview = f"[PNG]({entry['preview']})" if entry["preview"] else "en attente / échec"
+        md_lines.append(
+            f"| {entry['index']} | `{entry['name']}` | {entry['triangles']} | "
+            f"{entry['vertices']} | {len(entry['uv_layers'])} | {len(entry['materials'])} | "
+            f"{len(entry['image_paths'])} | {preview} |"
+        )
+
+    md_lines.extend(
+        [
+            "",
+            "## Interprétation",
+            "",
+            "Cet audit est volontairement descriptif. Il ne modifie pas le fichier `.blend` source et ne publie aucun asset final.",
+            "Les previews Workbench servent uniquement au casting mobile des futurs spécimens CAILLOU™.",
+            "",
+        ]
+    )
+
+    (output_dir / "inventory.md").write_text("\n".join(md_lines), encoding="utf-8")
 
 
 def main():
@@ -222,17 +246,13 @@ def main():
         "objects": [],
     }
 
+    # First write the full technical inventory before any rendering begins.
     for index, obj in enumerate(mesh_objects, start=1):
         bbox = world_bbox(obj)
         materials, image_paths = material_info(obj)
         triangles = object_triangle_count(obj)
+        uv_layers = [layer.name for layer in obj.data.uv_layers] if getattr(obj.data, "uv_layers", None) else []
         preview_name = f"{index:02d}-{safe_name(obj.name)}.png"
-        preview_path = previews_dir / preview_name
-        rendered, render_error = render_preview(obj, mesh_objects, preview_path)
-
-        uv_layers = []
-        if getattr(obj.data, "uv_layers", None):
-            uv_layers = [layer.name for layer in obj.data.uv_layers]
 
         inventory["objects"].append(
             {
@@ -246,54 +266,31 @@ def main():
                 "uv_layers": uv_layers,
                 "materials": materials,
                 "image_paths": image_paths,
-                "preview": f"previews/{preview_name}" if rendered else None,
-                "preview_error": render_error,
+                "preview": None,
+                "preview_error": None,
+                "preview_filename": preview_name,
             }
         )
 
         print(
-            f"[CAILLOU] {index:02d}/{len(mesh_objects):02d} "
+            f"[CAILLOU] inventory {index:02d}/{len(mesh_objects):02d} "
             f"{obj.name}: {triangles} tris, {len(uv_layers)} UV layer(s), "
             f"{len(materials)} material(s)"
         )
 
+    write_inventory(output_dir, inventory)
+
+    # Then produce fast textured casting previews.
+    for entry, obj in zip(inventory["objects"], mesh_objects):
+        preview_path = previews_dir / entry["preview_filename"]
+        rendered, render_error = render_preview(obj, mesh_objects, preview_path)
+        entry["preview"] = f"previews/{entry['preview_filename']}" if rendered else None
+        entry["preview_error"] = render_error
+        write_inventory(output_dir, inventory)
+        print(f"[CAILLOU] preview {entry['index']:02d}/{len(mesh_objects):02d} {obj.name}: {'ok' if rendered else 'failed'}")
+
     restore_visibility(mesh_objects)
-
-    (output_dir / "inventory.json").write_text(
-        json.dumps(inventory, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-
-    md_lines = [
-        "# CAILLOU™ — Audit automatique du fichier Blender",
-        "",
-        f"- Source : `{inventory['source_blend']}`",
-        f"- Blender : `{inventory['blender_version']}`",
-        f"- Objets mesh détectés : **{inventory['mesh_object_count']}**",
-        "",
-        "| # | Objet | Triangles | Sommets | UV | Matériaux | Textures | Preview |",
-        "|---:|---|---:|---:|---:|---:|---:|---|",
-    ]
-
-    for entry in inventory["objects"]:
-        preview = f"[PNG]({entry['preview']})" if entry["preview"] else "échec"
-        md_lines.append(
-            f"| {entry['index']} | `{entry['name']}` | {entry['triangles']} | "
-            f"{entry['vertices']} | {len(entry['uv_layers'])} | {len(entry['materials'])} | "
-            f"{len(entry['image_paths'])} | {preview} |"
-        )
-
-    md_lines.extend(
-        [
-            "",
-            "## Interprétation",
-            "",
-            "Cet audit est volontairement descriptif. Il ne modifie pas le fichier `.blend` source et ne publie aucun asset final.",
-            "Les previews servent au casting mobile des futurs spécimens CAILLOU™.",
-            "",
-        ]
-    )
-
-    (output_dir / "inventory.md").write_text("\n".join(md_lines), encoding="utf-8")
+    write_inventory(output_dir, inventory)
     print(f"[CAILLOU] Audit written to {output_dir}")
 
 
