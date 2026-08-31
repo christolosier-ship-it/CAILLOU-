@@ -1,47 +1,42 @@
-import { PRODUCT_NAME, PRODUCT_SIGNATURE } from '../domain/foundation'
-import { FoundationStatus } from '../features/foundation/FoundationStatus'
-import { FoundationScene } from '../scene/FoundationScene'
+import { AuthenticatedHome } from '../features/auth/AuthenticatedHome'
+import { AuthScreen } from '../features/auth/AuthScreen'
+import { useAuthSession } from '../features/auth/useAuthSession'
 
 export function App() {
-  return (
-    <div className="app-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">Fondation V1</p>
-          <h1>{PRODUCT_NAME}</h1>
-        </div>
-        <FoundationStatus />
-      </header>
+  const { state, refresh, signOut } = useAuthSession()
 
-      <main className="foundation-layout">
-        <section className="foundation-copy" aria-labelledby="foundation-title">
-          <p className="eyebrow">Une situation remarquablement stable</p>
-          <h2 id="foundation-title">{PRODUCT_SIGNATURE}</h2>
-          <p>
-            Le socle applicatif est en place. Cette vue valide uniquement le rendu 3D,
-            le responsive et la PWA, sans anticiper le showroom ni les fonctions métier.
-          </p>
-        </section>
-
-        <section className="foundation-scene" aria-labelledby="scene-title">
-          <div className="scene-heading">
-            <div>
-              <p className="eyebrow">Validation WebGL</p>
-              <h2 id="scene-title">Volume provisoire</h2>
-            </div>
-            <p>Glisser pour faire pivoter · Molette ou pincement pour zoomer</p>
-          </div>
-          <FoundationScene />
-          <p className="scene-note">
-            Aucun GLB de production n'est chargé à cette étape.
-          </p>
-        </section>
+  if (state.status === 'loading') {
+    return (
+      <main className="session-loading" aria-live="polite">
+        <p className="eyebrow">CAILLOU™</p>
+        <p>Retrouver votre session…</p>
       </main>
+    )
+  }
 
-      <footer className="app-footer">
-        <span>CAILLOU™ V1</span>
-        <span>État : minéral</span>
-      </footer>
-    </div>
+  if (state.status === 'signed-out') {
+    return <AuthScreen message={state.message} onAuthenticated={refresh} />
+  }
+
+  if (state.status === 'offline') {
+    return (
+      <main className="session-loading session-offline">
+        <p className="eyebrow">Session locale retrouvée</p>
+        <h1>{state.username ? `Bonjour ${state.username}.` : 'Connexion interrompue.'}</h1>
+        <p>Internet est nécessaire pour vérifier l’état canonique de votre caillou.</p>
+        <div className="session-actions">
+          <button type="button" onClick={() => void refresh()}>Réessayer</button>
+          <button type="button" onClick={() => void signOut()}>Déconnexion</button>
+        </div>
+      </main>
+    )
+  }
+
+  return (
+    <AuthenticatedHome
+      destination={state.destination}
+      username={state.username}
+      onSignOut={signOut}
+    />
   )
 }

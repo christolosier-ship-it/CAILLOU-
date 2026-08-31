@@ -17,4 +17,13 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
     },
   },
+  {
+    files: ['supabase/functions/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        Deno: 'readonly',
+      },
+    },
+  },
 )
