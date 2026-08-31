@@ -54,12 +54,6 @@ Deno.serve(async (req: Request) => {
     return json({ code: 'registration_failed', message: 'Impossible de créer le compte pour le moment.' }, 500)
   }
 
-  const { error: walletError } = await admin.from('wallets').insert({ user_id: userId })
-  if (walletError) {
-    await cleanup()
-    return json({ code: 'registration_failed', message: 'Impossible de créer le compte pour le moment.' }, 500)
-  }
-
   const { data: loginData, error: loginError } = await publicClient.auth.signInWithPassword({
     email: internalEmail,
     password: credentials.password,
