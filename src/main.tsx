@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './app/App'
 import { registerPwa } from './pwa/registerServiceWorker'
 import './styles/global.css'
+import './styles/rock-production.css'
 
 registerPwa()
 

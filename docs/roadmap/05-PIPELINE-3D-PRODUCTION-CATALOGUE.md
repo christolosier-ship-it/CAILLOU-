@@ -53,14 +53,14 @@ PR dédiée. Compléter compte rendu + index. Joindre les résultats de validati
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : En validation finale**
 
-- Date :
-- PR / commit :
-- Blender figé :
-- Rock 001/002 :
-- Batch 20 :
-- Poids moyen/max :
-- Licences :
-- Dette :
+- Date : 2026-08-31
+- PR / commit : PR #10 — catalogue généré par `031bbf2583e1d28d65f0e6b0a4e08ec85722604f`
+- Blender figé : 4.5.13 LTS, archive officielle vérifiée par SHA-256
+- Rock 001/002 : PASS structure glTF + PASS Three.js/WebGL réel
+- Batch 20 : 20/20 exportés et validés dans Three.js/WebGL, 10 000 triangles chacun
+- Poids moyen/max : 0,555 MiB / 0,780 MiB
+- Licences : Rocks - Pack 5, Loïc Norgeot, CC BY 4.0, attribution et provenance dans le rapport de production
+- Dette : activation Supabase et validation CDN Vercel à effectuer seulement après fusion/déploiement des assets afin d'éviter tout pointeur actif vers un fichier absent
 - Étape suivante recommandée : 06
