@@ -1,449 +1,338 @@
-# CAILLOU™ — Workflow 3D automatisé Blender + GitHub Actions
+# CAILLOU™ - Workflow 3D automatisé Blender + GitHub Actions
 
-> **Statut : workflow de référence pour la préparation des assets 3D**  
-> **Objectif : permettre de produire des cailloux GLB premium sans poste de travail local**  
-> **Principe : l’utilisateur peut travailler depuis un mobile ; le traitement 3D lourd est exécuté à distance par GitHub Actions avec Blender en mode headless.**
+> **Statut : workflow de référence pour les assets 3D V1**  
+> **Objectif : produire et valider les vingt GLB de CAILLOU™ sans dépendre d'un poste local**  
+> **Base V1 : vingt meshes LOD2 autour de 10 000 triangles avec textures source autour de 1024 x 1024**
 
 ---
 
 ## 1. Objet du document
 
-Ce document décrit le workflow cible pour transformer des modèles 3D source, notamment des scans photogrammétriques provenant de Sketchfab ou d’autres bibliothèques compatibles, en assets optimisés pour **CAILLOU™**.
+Ce document décrit le pipeline 3D de CAILLOU™ V1 depuis le fichier Blender source jusqu'aux assets GLB distribués par l'application.
 
 Il complète :
 
-- `CAHIER-DES-CHARGES-V1.md` pour le périmètre produit ;
-- `ARCHITECTURE-TECHNIQUE.md` pour la stack applicative ;
-- `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md` pour la qualité visuelle et les règles de rendu.
+- `CAHIER-DES-CHARGES-V1.md` ;
+- `ARCHITECTURE-TECHNIQUE.md` ;
+- `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`.
 
-Le workflow vise une contrainte assumée : **aucune dépendance à un ordinateur local n’est nécessaire pour préparer les modèles**.
+Le pipeline concerne les vingt spécimens fixes de la V1. L'ancienne logique de casting de six pierres n'est plus applicable.
 
 ---
 
-## 2. Décision de principe
+## 2. État actuel validé
 
-La chaîne de production retenue est :
+Le dépôt contient actuellement :
 
 ```text
-Source 3D légale et documentée
-        ↓
-Archive ou fichiers source placés dans le dépôt
-        ↓
+Ressource/
+├── rock_001.blend
+├── rock_001_LOD2.jpeg
+├── rock_001_LOD2_normal.jpeg
+├── ...
+├── rock_020_LOD2.jpeg
+└── rock_020_LOD2_normal.jpeg
+```
+
+Le fichier Blender contient vingt meshes LOD2 distincts.
+
+L'audit automatisé actuel a validé pour les vingt spécimens :
+
+- environ 10 000 triangles par mesh ;
+- UV présents ;
+- matériau individuel ;
+- texture couleur ;
+- normal map ;
+- génération de preview automatisable.
+
+Le workflow `.github/workflows/audit-rocks.yml` et le script `scripts/blender/audit_rocks.py` constituent la base opérationnelle actuelle.
+
+---
+
+## 3. Principe général
+
+```text
+Ressource/rock_001.blend
+          ↓
 GitHub Actions
-        ↓
-Runner Linux hébergé par GitHub
-        ↓
-Blender lancé en mode headless
-        ↓
-Script Python CAILLOU™
-        ↓
-Nettoyage / normalisation / optimisation / matériau
-        ↓
-Export GLB
-        ↓
-Contrôles automatiques
-        ↓
-Artifact de prévisualisation ou commit du résultat final
-        ↓
-Intégration dans l’application
+          ↓
+Blender headless
+          ↓
+audit_rocks.py
+          ↓
+inventaire + previews
+          ↓
+validation humaine
+          ↓
+export_rocks.py futur
+          ↓
+20 GLB individuels
+          ↓
+validation automatique
+          ↓
+public/assets/rocks/
+          ↓
+Vercel CDN
 ```
 
-Le téléphone ou la tablette sert à :
-
-- choisir le modèle source ;
-- téléverser l’archive ou les fichiers dans GitHub lorsque nécessaire ;
-- déclencher ou suivre le workflow ;
-- consulter les previews ;
-- valider ou refuser le résultat.
-
-Le téléphone n’exécute pas Blender.
+Le téléphone ou la tablette sert à piloter GitHub et consulter les artifacts. Le traitement Blender est exécuté sur le runner GitHub.
 
 ---
 
-## 3. Blender ne nécessite aucune clé API
+## 4. Source maître
 
-Blender est un logiciel local et scriptable. Il n’existe pas de « clé API Blender » nécessaire pour l’utiliser dans GitHub Actions.
+Le fichier `.blend` placé dans `Ressource/` est la source maître des vingt cailloux V1.
 
-Le workflow utilise directement l’exécutable Blender et son API Python `bpy`.
+Les textures sources associées restent dans `Ressource/` tant que le pipeline de production n'a pas extrait les assets web définitifs.
 
-Commande de référence :
-
-```bash
-blender --background --python scripts/3d/process-rock.py -- <arguments>
-```
-
-Le mode `--background` lance Blender sans interface graphique.
-
-### Authentifications possibles autour de Blender
-
-| Élément | Authentification requise ? | Remarque |
-|---|---:|---|
-| Blender | Non | logiciel exécuté localement sur le runner |
-| API Python `bpy` | Non | incluse avec Blender |
-| GitHub Actions | Automatique | GitHub fournit le contexte du workflow |
-| Écriture dans le dépôt | Oui, mais native | via `GITHUB_TOKEN` avec permission minimale `contents: write` |
-| Téléchargement Sketchfab automatisé | Éventuellement | dépend de l’API et du modèle ; hors cœur du workflow |
-| Archive Sketchfab fournie manuellement | Non | solution privilégiée en V1 |
-
-### Règle de sécurité
-
-Le workflow ne doit jamais demander :
-
-- de mot de passe Blender ;
-- de clé Blender ;
-- de token personnel GitHub si `GITHUB_TOKEN` suffit ;
-- de secret Sketchfab lorsque les fichiers source sont fournis manuellement.
+Les sources lourdes ne doivent jamais être servies par le bundle public.
 
 ---
 
-## 4. Stratégie d’acquisition des modèles source
+## 5. Identifiants de production
 
-### 4.1 Principe
-
-Le pipeline ne doit jamais contourner les conditions de téléchargement d’une plateforme.
-
-Chaque asset source doit disposer d’une licence clairement compatible avec CAILLOU™.
-
-Pour Sketchfab, privilégier :
-
-- modèles explicitement téléchargeables ;
-- licence CC BY ou licence plus permissive compatible ;
-- auteur et URL source conservés dans les métadonnées ;
-- exclusion des modèles NC si une utilisation commerciale future doit rester possible.
-
-### 4.2 Workflow mobile privilégié
-
-Lorsque Sketchfab exige une action utilisateur ou une session de compte :
+Les vingt sorties utilisent des identifiants stables :
 
 ```text
-iPhone / iPad
-   ↓
-Téléchargement légal du ZIP depuis Sketchfab
-   ↓
-Téléversement du ZIP ou des fichiers source vers GitHub
-   ↓
-GitHub Actions prend le relais
+rock-001
+rock-002
+...
+rock-020
 ```
 
-Cette méthode évite d’ajouter une authentification Sketchfab au projet.
+Chaque identifiant correspond à exactement un mesh LOD2 source.
 
-### 4.3 GLB Sketchfab déjà satisfaisant
-
-Le passage Blender n’est pas obligatoire par principe.
-
-Si le GLB fourni directement par Sketchfab :
-
-- est visuellement satisfaisant ;
-- respecte le budget de triangles ;
-- possède une matière correcte ;
-- possède une taille réseau acceptable ;
-- ne contient pas de scène ou de nœuds parasites ;
-
-alors le pipeline peut se limiter à une phase de validation et de copie vers les assets finaux.
-
-**Règle : ne pas retraiter Bernard pour le seul plaisir de retraiter Bernard.**
+Le mapping `mesh Blender -> rock-id` doit être déterministe et versionné dans le script ou une configuration dédiée existante lorsque l'export sera implémenté.
 
 ---
 
-## 5. Arborescence cible liée au pipeline
+## 6. Audit actuel
 
-Lorsque l’implémentation commencera, l’organisation recommandée est :
+Le script `scripts/blender/audit_rocks.py` doit rester descriptif et non destructif.
+
+Il collecte au minimum :
+
+- nom du mesh ;
+- nombre de triangles ;
+- nombre de sommets ;
+- UV ;
+- matériaux ;
+- chemins de textures ;
+- dimensions ;
+- bounding box ;
+- preview standardisée.
+
+Il produit :
 
 ```text
-CAILLOU-/
-├── assets-source/
-│   └── rocks/
-│       ├── river-pebble/
-│       │   ├── source/
-│       │   │   ├── model.obj | model.fbx | model.glb
-│       │   │   ├── albedo.*
-│       │   │   ├── normal.*
-│       │   │   ├── ao.*
-│       │   │   └── autres-textures.*
-│       │   └── source.json
-│       └── ...
-│
-├── public/
-│   └── assets/
-│       └── rocks/
-│           ├── river-pebble/
-│           │   ├── rock.glb
-│           │   └── preview.webp
-│           └── ...
-│
-├── scripts/
-│   └── 3d/
-│       ├── process-rock.py
-│       ├── validate-rock.mjs
-│       ├── generate-preview.py
-│       └── presets.json
-│
-└── .github/
-    └── workflows/
-        └── build-rock.yml
+audit/
+├── inventory.json
+├── inventory.md
+├── contact-sheet.png
+└── previews/
 ```
 
-Les sources brutes et les assets de production doivent rester séparés.
+Les previews Workbench sont destinées au contrôle rapide, pas au rendu final de l'application.
 
 ---
 
-## 6. Métadonnées obligatoires par source
+## 7. Blender dans GitHub Actions
 
-Chaque caillou source doit disposer d’un fichier `source.json` ou d’un enregistrement équivalent contenant au minimum :
-
-```json
-{
-  "name": "Rock Scan 13",
-  "author": "Loïc Norgeot",
-  "source": "https://sketchfab.com/...",
-  "license": "CC BY",
-  "downloadedAt": "YYYY-MM-DD",
-  "intendedRockId": "river-pebble",
-  "notes": "Scan photogrammétrique retenu pour casting CAILLOU™"
-}
-```
-
-Objectifs :
-
-- préserver l’attribution ;
-- pouvoir auditer la licence ;
-- distinguer l’asset source de l’asset transformé ;
-- faciliter la génération future des crédits de l’application.
-
----
-
-## 7. Runner GitHub Actions
-
-### 7.1 Runner recommandé
-
-Utiliser en priorité :
+### 7.1 Runner
 
 ```yaml
 runs-on: ubuntu-latest
 ```
 
-Les traitements Blender sont plus lourds qu’un simple lint ou build frontend. Le runner `ubuntu-slim` n’est pas recommandé pour le pipeline principal.
+Le pipeline ne doit pas supposer la présence d'un GPU.
 
-### 7.2 Ressources
+### 7.2 Version Blender
 
-Le pipeline doit rester compatible avec les runners standards GitHub hébergés.
+Le workflow d'audit actuel installe Blender depuis les paquets Ubuntu. Cette méthode est acceptable pour l'inventaire et les previews de casting.
 
-Conséquences :
+**Avant l'export de production des GLB, la version Blender doit être figée explicitement.**
 
-- ne pas supposer la présence d’un GPU ;
-- éviter les rendus Cycles lourds dans la CI courante ;
-- préférer les opérations mesh/material/export CPU ;
-- générer les previews avec Eevee lorsque possible ;
-- ne pas considérer le runner comme un poste Blender interactif.
-
-### 7.3 Installation de Blender
-
-Deux stratégies sont acceptables :
-
-#### A — Télécharger une version Blender officielle figée
-
-Recommandé pour la reproductibilité.
+Stratégie recommandée :
 
 ```text
-workflow
-  ↓
-télécharge Blender version X.Y.Z
-  ↓
-met en cache l’archive si pertinent
-  ↓
-utilise cette version pour tous les exports
+téléchargement d'une archive Blender officielle versionnée
+→ cache éventuel
+→ utilisation de cette version pour tous les exports de production
 ```
 
-#### B — Utiliser un conteneur ou une action tierce spécialisée
+L'objectif est la reproductibilité.
 
-Possible mais moins souhaitable pour la V1, car cela ajoute une dépendance extérieure supplémentaire.
+### 7.3 Aucun secret Blender
 
-**Préférence CAILLOU™ : téléchargement officiel + version verrouillée.**
+Blender et `bpy` ne nécessitent aucune clé API.
+
+Le pipeline ne doit jamais demander de clé Blender.
 
 ---
 
-## 8. Étapes Blender automatisées
+## 8. Cible géométrique V1
 
-Le script `process-rock.py` doit être déterministe et effectuer uniquement les opérations nécessaires.
+La géométrie source LOD2 autour de **10 000 triangles** est la cible V1 par défaut.
 
-### 8.1 Import
+Il n'existe plus de cible générale à 30 000, 40 000 ou 50 000 triangles.
 
-Formats sources prioritaires :
+Règle :
 
-1. GLB / glTF ;
-2. FBX ;
-3. OBJ + textures.
+> **Ne pas augmenter ou réduire la géométrie sans mesure réelle sur appareil cible.**
 
-Le script détecte le format à partir du preset ou de la configuration du spécimen.
+Une décimation supplémentaire n'est autorisée que si :
 
-### 8.2 Nettoyage de scène
+- la fluidité mobile l'exige ;
+- le poids réseau devient problématique ;
+- la silhouette reste visuellement inchangée.
 
-Supprimer :
+Une montée vers un LOD plus lourd n'est justifiée que si les 10k triangles produisent un défaut réellement visible.
 
-- caméras importées ;
-- lumières importées ;
-- objets inutiles ;
-- empties non nécessaires ;
-- géométries manifestement parasites ;
-- matériaux non utilisés.
+---
 
-Conserver uniquement le ou les meshes nécessaires au caillou.
+## 9. Textures V1
 
-### 8.3 Fusion
+Base actuelle : environ **1024 x 1024** pour la couleur et la normal map.
 
-Si le caillou est composé de plusieurs objets qui ne nécessitent pas de séparation au runtime, les réunir en un seul mesh.
+Cible runtime par défaut : **1K**.
 
-### 8.4 Transformations
+Une texture 2K n'est retenue que si les tests montrent une amélioration visible au zoom sur les appareils cibles.
 
-Appliquer :
+Cartes prioritaires :
 
-- rotation ;
-- échelle ;
-- position ;
-- transforms finales.
-
-Le modèle final doit :
-
-- être centré autour de l’origine selon une règle stable ;
-- être posé naturellement sur le plan `Y=0` ou l’axe retenu par Three.js ;
-- présenter son « beau côté » vers la caméra initiale ;
-- posséder une échelle cohérente avec les autres spécimens.
-
-### 8.5 Normales
-
-- recalculer les normales si nécessaire ;
-- supprimer les incohérences évidentes ;
-- préserver les détails du scan ;
-- ne pas lisser artificiellement une pierre qui doit rester brute.
-
-### 8.6 Réduction du maillage
-
-Budget cible initial pour le modèle principal :
-
-```text
-30 000 à 50 000 triangles
-```
-
-Ce budget est une cible, pas une religion.
-
-Le pipeline peut conserver davantage de triangles si :
-
-- la silhouette le justifie ;
-- le modèle reste fluide sur les appareils cibles ;
-- la taille du GLB reste conforme au budget.
-
-Inversement, un galet très lisse peut nécessiter beaucoup moins.
-
-### 8.7 UV
-
-Ne pas refaire les UV par défaut.
-
-Les scans photogrammétriques dépendent fortement de leurs UV d’origine.
-
-Une nouvelle UV map n’est créée que si la source est inutilisable ou si un rebake complet est explicitement prévu.
-
-### 8.8 Matériau PBR
-
-Le matériau cible doit être compatible avec le pipeline glTF / Three.js.
-
-Cartes utiles :
-
-- base color / albedo ;
+- base color ;
 - normal ;
-- roughness ;
-- ambient occlusion ;
-- éventuellement displacement utilisé uniquement lors de la préparation, pas nécessairement au runtime.
+- roughness calibrée lorsque nécessaire ;
+- AO uniquement si elle améliore réellement le rendu.
 
-Le workflow doit éviter les nodes Blender complexes impossibles à traduire correctement vers glTF.
+Ne jamais ajouter des textures plus lourdes par principe.
 
-### 8.9 Roughness
+---
 
-Lorsque la source ne fournit pas de roughness exploitable :
+## 10. Matériau PBR
 
-- utiliser une valeur physique plausible ;
-- éventuellement dériver une texture à partir de données existantes ;
-- ajuster par spécimen ;
-- ne jamais transformer toutes les pierres en plastique brillant.
+Le matériau final doit être compatible glTF / Three.js.
 
-### 8.10 Textures
+Principes :
 
-Cible V1 par défaut :
+- matériau physiquement crédible ;
+- roughness ajustée par spécimen si nécessaire ;
+- normales non exagérées ;
+- aucun node Blender propriétaire indispensable au rendu ;
+- aucune dépendance externe après export du GLB.
 
-```text
-2K pour le runtime mobile
-```
+La pierre ne doit jamais devenir brillante comme du plastique sauf si le scan le justifie réellement.
 
-Une version 4K peut être conservée comme master ou évaluée pour tablette/desktop, mais ne doit pas être chargée systématiquement sur smartphone.
+---
 
-Le pipeline doit pouvoir :
+## 11. Normalisation avant export
 
-- redimensionner ;
-- convertir ;
-- contrôler les dimensions ;
-- conserver un master séparé du runtime.
+Pour chaque mesh :
 
-### 8.11 Export GLB
+1. isoler le LOD2 attendu ;
+2. vérifier les textures ;
+3. appliquer les transforms nécessaires ;
+4. calculer la bounding box ;
+5. centrer selon la convention de scène ;
+6. déterminer une position de repos stable ;
+7. conserver les UV source ;
+8. vérifier les normales ;
+9. calibrer le matériau ;
+10. exporter un GLB individuel.
 
-Le format final principal est :
+Le modèle final doit pouvoir être chargé seul, sans dépendre du `.blend` ou d'un autre mesh.
+
+---
+
+## 12. Convention de repos et cadrage
+
+Chaque caillou doit posséder :
+
+- une base cohérente avec le plan du Socle ;
+- un centre exploitable par l'auto-fit caméra ;
+- une orientation initiale choisie pour sa lisibilité ;
+- une échelle relative cohérente.
+
+Le cadrage final est néanmoins calculé côté application à partir de la bounding box pour donner aux vingt spécimens une présence comparable.
+
+---
+
+## 13. Export GLB
+
+Format final :
 
 ```text
 .glb
 ```
 
-Raisons :
+Arborescence :
 
-- un seul fichier ;
-- support natif par Three.js / GLTFLoader ;
-- matériaux PBR standardisés ;
-- transport web simple ;
-- cache PWA plus facile.
+```text
+public/assets/rocks/
+├── rock-001/
+│   └── model.glb
+├── rock-002/
+│   └── model.glb
+├── ...
+└── rock-020/
+    └── model.glb
+```
 
----
+Les previews peuvent être placées dans :
 
-## 9. Optimisations post-export
+```text
+public/assets/rock-previews/
+```
 
-Après Blender, une étape dédiée peut utiliser des outils glTF pour :
-
-- vérifier le document ;
-- supprimer des données inutilisées ;
-- compresser la géométrie ;
-- optimiser les buffers ;
-- convertir les textures vers KTX2/Basis lorsque le gain est démontré ;
-- produire les statistiques finales.
-
-L’optimisation ne doit jamais être aveugle : une baisse de poids qui dégrade visiblement la matière n’est pas une amélioration pour CAILLOU™.
+Chaque GLB est autonome.
 
 ---
 
-## 10. Contrôles automatiques
+## 14. Budget par spécimen
 
-Chaque asset final doit être validé avant intégration.
+Valeurs de départ :
 
-### Contrôles minimaux
+- géométrie : ~10k triangles ;
+- textures : 1K par défaut ;
+- GLB : viser moins de 5 Mo lorsque possible ;
+- un matériau principal lorsque la source le permet ;
+- aucune caméra ou lumière importée ;
+- aucune dépendance externe.
 
-- fichier GLB lisible ;
-- présence d’au moins un mesh ;
-- absence de caméra inutile ;
-- absence de lumière importée ;
-- nombre de triangles connu ;
-- nombre de matériaux connu ;
-- textures référencées correctement ;
-- taille fichier sous le budget ;
+Le budget est validé par mesures réelles, pas par optimisation aveugle.
+
+---
+
+## 15. Validation automatique après export
+
+Chaque GLB final doit être contrôlé.
+
+Minimum :
+
+- fichier ouvrable ;
+- ID attendu ;
+- mesh présent ;
+- triangles connus ;
+- UV présents ;
+- texture couleur présente ;
+- normal map ou matériau final valide ;
+- taille connue ;
 - bounding box cohérente ;
-- aucune référence externe manquante.
+- aucune caméra ;
+- aucune lumière ;
+- aucune référence externe cassée ;
+- aucun mesh parasite.
 
-### Rapport recommandé
-
-Exemple :
+Rapport type :
 
 ```text
 CAILLOU 3D REPORT
 ────────────────────────
-rockId        river-pebble
-triangles     42 318
+rockId        rock-007
+triangles     10 000
 materials     1
-textures      3
-GLB size      5.8 MB
+textures      2
+GLB size      2.4 MB
 bounding box  OK
 external deps 0
 status        PASS
@@ -451,378 +340,224 @@ status        PASS
 
 ---
 
-## 11. Preview automatique
+## 16. Validation visuelle
 
-Le workflow doit générer une preview standardisée pour validation humaine.
+Chaque spécimen final reçoit une preview avec :
 
-### Preview minimale
+- même focale ;
+- même fond ;
+- même éclairage de contrôle ;
+- même résolution ;
+- cadrage comparable.
 
-- fond neutre ;
-- caméra fixe ;
-- même focale pour tous les candidats ;
-- même lumière studio ;
-- résolution modeste suffisante pour GitHub ;
-- idéalement trois vues : face, 3/4, profil.
-
-Cette preview permet de comparer les pierres sans lancer l’application complète.
-
-### Option avancée
-
-Générer un court turntable vidéo ou une séquence d’images uniquement si son coût CI reste raisonnable.
-
----
-
-## 12. Deux modes de sortie
-
-### Mode A — Artifact de validation
-
-Recommandé pendant le casting.
-
-```text
-Source
-  ↓
-Workflow
-  ↓
-rock.glb + preview + rapport
-  ↓
-GitHub Actions Artifact
-```
-
-Avantages :
-
-- aucun commit automatique ;
-- comparaison facile ;
-- les essais ratés ne polluent pas le repo ;
-- idéal pour tester 8 à 12 candidats.
-
-### Mode B — Publication dans le dépôt
-
-Après validation d’un spécimen :
-
-```text
-rock.glb
-preview.webp
-metadata
-   ↓
-public/assets/rocks/<rock-id>/
-```
-
-Le workflow peut alors créer un commit automatique.
-
-Permission minimale :
-
-```yaml
-permissions:
-  contents: write
-```
-
-GitHub fournit automatiquement `GITHUB_TOKEN` au job. Aucun Personal Access Token n’est nécessaire pour ce cas standard.
-
----
-
-## 13. Déclenchement du workflow
-
-### Phase de casting
-
-Déclenchement manuel recommandé :
-
-```yaml
-on:
-  workflow_dispatch:
-```
-
-Paramètres possibles :
-
-- `rock_id` ;
-- `source_path` ;
-- `target_triangles` ;
-- `texture_size` ;
-- `publish` oui/non.
-
-### Phase stabilisée
-
-Ajouter éventuellement :
-
-```yaml
-on:
-  push:
-    paths:
-      - "assets-source/rocks/**"
-```
-
-Mais uniquement lorsque le pipeline est suffisamment fiable pour ne pas lancer Blender à chaque modification secondaire.
-
----
-
-## 14. Esquisse du workflow GitHub Actions
-
-Cette section décrit l’intention, pas le fichier YAML final.
-
-```yaml
-name: Build CAILLOU 3D asset
-
-on:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-jobs:
-  build-rock:
-    runs-on: ubuntu-latest
-
-    steps:
-      - checkout
-      - download pinned Blender
-      - run Blender headless + process-rock.py
-      - validate generated GLB
-      - generate preview
-      - upload artifact
-```
-
-Lorsqu’un mode publication est ajouté, les permissions peuvent être élevées uniquement pour le job ou le workflow concerné :
-
-```yaml
-permissions:
-  contents: write
-```
-
-Le principe du moindre privilège doit être conservé.
-
----
-
-## 15. Pipeline de casting recommandé pour CAILLOU™
-
-Avant de produire les six spécimens définitifs :
-
-### Étape 1 — Sélection
-
-Identifier environ 8 à 12 scans Sketchfab potentiels.
-
-Pour chacun :
-
-- image ;
-- auteur ;
-- licence ;
-- forme ;
-- couleur ;
-- géométrie ;
-- textures ;
-- rôle CAILLOU™ possible.
-
-### Étape 2 — Import brut
-
-Tester d’abord le GLB direct lorsqu’il existe.
-
-### Étape 3 — Traitement uniforme
-
-Passer les candidats retenus par le pipeline Blender avec le même preset de base.
-
-### Étape 4 — Preview studio
-
-Générer la même vue pour chaque candidat.
-
-### Étape 5 — Casting humain
-
-Comparer :
+Puis contrôle humain :
 
 - silhouette ;
 - matière ;
-- crédibilité ;
-- personnalité ;
-- potentiel sous éclairage premium.
-
-### Étape 6 — Retenir six spécimens
-
-Les six pierres doivent être suffisamment différentes pour ne jamais donner l’impression d’un même mesh recoloré.
-
-### Étape 7 — Finition individuelle
-
-Chaque finaliste reçoit ensuite son preset spécifique :
-
+- normal map ;
 - roughness ;
-- exposition ;
-- correction colorimétrique éventuelle ;
-- cible triangles ;
-- résolution texture ;
-- orientation de présentation.
+- orientation ;
+- absence de défaut ;
+- lisibilité sur mobile.
 
 ---
 
-## 16. Presets par caillou
+## 17. Vertical slice avant export complet
 
-Le pipeline doit éviter les valeurs magiques codées dans le script.
+Ne pas commencer par publier les vingt GLB de production.
 
-Exemple de `presets.json` :
+Étape recommandée :
 
-```json
-{
-  "river-pebble": {
-    "targetTriangles": 40000,
-    "textureSize": 2048,
-    "roughness": 0.72,
-    "rotation": [0, 0, 0]
-  },
-  "black-pebble": {
-    "targetTriangles": 45000,
-    "textureSize": 2048,
-    "roughness": 0.48,
-    "rotation": [0, 0, 0]
-  }
-}
+```text
+Rock 001
+Rock 002
+    ↓
+export GLB
+    ↓
+intégration React Three Fiber
+    ↓
+showroom précédent/suivant
+    ↓
+disposal mémoire
+    ↓
+rotation tactile
+    ↓
+Socle
 ```
 
-Les valeurs finales seront déterminées après tests réels.
+Cette vertical slice valide le pipeline réel avant l'industrialisation des dix-huit autres.
 
 ---
 
-## 17. Reproductibilité
+## 18. Export complet des vingt roches
 
-Le pipeline doit produire le même résultat à source et configuration identiques.
+Après validation Rock 001 / Rock 002 :
 
-À verrouiller :
+1. exporter les vingt meshes ;
+2. valider chaque GLB ;
+3. produire une planche-contact finale ;
+4. vérifier les IDs `rock-001` à `rock-020` ;
+5. publier dans `public/assets/rocks/` ;
+6. synchroniser les métadonnées `rock_catalog` Supabase ;
+7. tester les vingt dans le même Studio web.
+
+Le catalogue Supabase contient les métadonnées et les chemins d'assets. Les fichiers lourds restent distribués comme assets statiques/CDN.
+
+---
+
+## 19. Relation avec Supabase
+
+Supabase ne stocke pas le `.blend` source.
+
+Supabase peut stocker pour chaque spécimen :
+
+- ID ;
+- index ;
+- label ;
+- description ;
+- chemin du GLB ;
+- chemin de preview ;
+- nombre de triangles ;
+- statut actif.
+
+Les fichiers GLB eux-mêmes peuvent rester dans le déploiement statique Vercel tant qu'aucun besoin de Storage séparé n'est démontré.
+
+---
+
+## 20. Accessoires 3D
+
+Les accessoires appartiennent à un pipeline distinct mais compatible avec les mêmes principes.
+
+Cible :
+
+- assets légers ;
+- géométrie très inférieure au caillou ;
+- textures modestes ;
+- point d'ancrage stable ;
+- aucune physique obligatoire ;
+- validation visuelle avec plusieurs formes de caillou.
+
+Ils sont placés dans :
+
+```text
+public/assets/accessories/
+```
+
+Les métadonnées et prix en Lithons sont stockés côté Supabase.
+
+---
+
+## 21. CI et déclenchements
+
+### Audit
+
+Le workflow actuel peut se déclencher sur modifications de :
+
+```text
+Ressource/**
+scripts/blender/audit_rocks.py
+.github/workflows/audit-rocks.yml
+```
+
+### Export de production
+
+Le futur export complet doit privilégier :
+
+```yaml
+workflow_dispatch:
+```
+
+puis, une fois stabilisé, éventuellement des triggers ciblés.
+
+Éviter de lancer Blender à chaque modification React, CSS ou documentation.
+
+---
+
+## 22. Permissions GitHub
+
+Audit :
+
+```yaml
+permissions:
+  contents: read
+```
+
+Publication automatique future, uniquement si réellement nécessaire :
+
+```yaml
+permissions:
+  contents: write
+```
+
+Préférer les artifacts de validation avant toute écriture automatique dans le dépôt.
+
+---
+
+## 23. Reproductibilité
+
+À verrouiller avant production :
 
 - version Blender ;
-- scripts Python ;
-- preset ;
-- version des outils glTF éventuels ;
-- options d’export ;
-- taille cible des textures.
+- script d'export ;
+- mapping des vingt meshes ;
+- options glTF ;
+- règles de texture ;
+- éventuels outils d'optimisation post-export.
 
-Éviter :
-
-- dépendre d’un Blender « latest » non contrôlé ;
-- opérations manuelles impossibles à reproduire ;
-- modification directe d’un GLB final sans conserver la source.
+Même source + même configuration doivent produire un résultat fonctionnellement équivalent.
 
 ---
 
-## 18. Gestion des licences
+## 24. Licences et provenance
 
-Une transformation Blender ne change pas la licence de l’asset source.
+La transformation Blender ne change pas la licence de la source.
 
-Pour un modèle CC BY :
+Pour chaque asset, conserver :
 
-- conserver l’auteur ;
-- conserver la source ;
-- conserver la mention de licence ;
-- indiquer que le modèle a été modifié/optimisé lorsque pertinent ;
-- prévoir une page de crédits dans l’application finale.
+- auteur ;
+- source ;
+- licence ;
+- éventuelle mention de modification ;
+- informations nécessaires aux crédits de l'application.
 
-Le pipeline doit privilégier la traçabilité plutôt que tenter de « nettoyer » les références d’origine.
-
----
-
-## 19. Ce que le workflow ne doit pas faire
-
-Interdits ou hors périmètre V1 :
-
-- scraper automatiquement Sketchfab ;
-- contourner une authentification ou une licence ;
-- télécharger des assets non explicitement téléchargeables ;
-- dépendre d’un service Blender Cloud ;
-- exiger une clé API Blender ;
-- lancer un rendu photoréaliste Cycles de plusieurs heures ;
-- pousser automatiquement chaque essai raté dans `main` ;
-- écraser les sources originales ;
-- convertir un modèle correct uniquement parce qu’un pipeline existe.
+Aucune étape du pipeline ne doit supprimer la traçabilité.
 
 ---
 
-## 20. Critères de réussite du pipeline
+## 25. Ce que le pipeline ne doit pas faire
 
-Le workflow est considéré comme opérationnel lorsque :
-
-1. un fichier source peut être ajouté depuis un mobile ;
-2. GitHub Actions peut lancer Blender sans interaction humaine ;
-3. Blender importe la source et produit un GLB valide ;
-4. le GLB respecte la structure attendue par Three.js ;
-5. le pipeline génère un rapport technique ;
-6. une preview standard permet une validation visuelle ;
-7. le résultat peut être téléchargé comme artifact ;
-8. une variante validée peut être publiée dans les assets finaux ;
-9. aucune clé Blender ni machine locale n’est requise ;
-10. la provenance et la licence restent traçables.
+- conserver l'ancienne logique de six finalistes ;
+- remonter systématiquement à 30-50k triangles ;
+- passer systématiquement en 2K/4K ;
+- scraper une plateforme ;
+- contourner une licence ;
+- exiger un GPU ;
+- lancer des rendus Cycles lourds en CI ordinaire ;
+- modifier la source maître sans nécessité ;
+- publier automatiquement un export non contrôlé ;
+- servir le `.blend` dans le bundle web.
 
 ---
 
-## 21. Stratégie de mise en œuvre recommandée
+## 26. Critères de réussite
 
-Ne pas construire immédiatement le pipeline complet pour les six pierres.
+Le pipeline 3D V1 est terminé lorsque :
 
-### Prototype P0
-
-Un seul modèle Sketchfab.
-
-Objectif :
-
-```text
-source GLB/OBJ
-   ↓
-GitHub Actions
-   ↓
-Blender headless
-   ↓
-GLB normalisé
-   ↓
-preview
-   ↓
-artifact téléchargeable
-```
-
-### P1
-
-Ajouter :
-
-- décimation paramétrable ;
-- gestion PBR ;
-- redimensionnement textures ;
-- rapport automatique.
-
-### P2
-
-Ajouter :
-
-- presets par spécimen ;
-- optimisation glTF ;
-- publication optionnelle ;
-- contrôles de budget.
-
-### P3
-
-Traiter les six spécimens définitifs.
+1. les vingt meshes LOD2 sont mappés à `rock-001` ... `rock-020` ;
+2. Rock 001 et Rock 002 ont validé la vertical slice web ;
+3. les vingt GLB sont exportables de manière déterministe ;
+4. les vingt passent la validation automatique ;
+5. les vingt possèdent une preview ;
+6. les vingt chargent dans React Three Fiber ;
+7. aucun GLB ne possède de dépendance externe cassée ;
+8. le tour complet du showroom ne produit pas de fuite GPU ;
+9. provenance et licence sont conservées ;
+10. la version Blender de production est figée.
 
 ---
 
-## 22. Références officielles
+## 27. Règle finale
 
-Les décisions de ce workflow s’appuient notamment sur :
+> **Le pipeline doit préserver ce qui rend chaque pierre crédible, puis s'arrêter.**
 
-- Blender Python API, exécution sans interface : `https://docs.blender.org/api/main/info_tips_and_tricks.html` ;
-- GitHub Actions, runners hébergés : `https://docs.github.com/actions/reference/runners/github-hosted-runners` ;
-- GitHub `GITHUB_TOKEN` : `https://docs.github.com/actions/concepts/security/github_token` ;
-- utilisation et permissions de `GITHUB_TOKEN` : `https://docs.github.com/actions/tutorials/authenticate-with-github_token`.
-
----
-
-## 23. Résumé décisionnel
-
-```text
-L’utilisateur choisit depuis son mobile
-             ↓
-La source est déposée légalement dans GitHub
-             ↓
-GitHub fournit la puissance de calcul
-             ↓
-Blender travaille sans interface ni clé API
-             ↓
-Le script CAILLOU™ normalise la pierre
-             ↓
-Un GLB + preview + rapport sont produits
-             ↓
-Validation humaine
-             ↓
-Publication seulement si le caillou mérite son socle
-```
-
-Le pipeline doit rester **automatique, reproductible, traçable et facultatif**. Son rôle n’est pas de compliquer la 3D ; son rôle est de permettre de produire des assets premium sans dépendre d’un ordinateur local.
+Pour CAILLOU™ V1, dix mille triangles bien éclairés valent mieux que cinquante mille triangles chargés par habitude.

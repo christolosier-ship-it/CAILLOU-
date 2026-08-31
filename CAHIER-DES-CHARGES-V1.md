@@ -1,19 +1,17 @@
-# CAILLOU™ — Cahier des charges produit V1
+# CAILLOU™ - Cahier des charges produit V1
 
 > **Statut : document de référence V1**  
 > **Produit : CAILLOU™**  
-> **Nature : compagnon minéral numérique contemplatif**  
+> **Nature : compagnon minéral numérique persistant, contemplatif et absurdement sérieux**  
 > **Principe directeur : faire très peu de choses, mais les faire avec un niveau de finition disproportionné.**
 
 ---
 
 ## 1. Objet du document
 
-Ce document définit le périmètre fonctionnel, les règles produit, les parcours utilisateurs, les contenus et les critères d’acceptation de **CAILLOU™ V1**.
+Ce document définit le périmètre fonctionnel, les règles produit, les parcours utilisateurs, l'économie, les interactions et les critères d'acceptation de **CAILLOU™ V1**.
 
-Il constitue la référence pour toute décision fonctionnelle concernant la V1. Lorsqu’une idée, une fonctionnalité ou une optimisation entre en conflit avec ce document, la priorité va au principe fondateur du produit : **CAILLOU™ est un compagnon numérique sans besoins, sans pression et sans objectif obligatoire**.
-
-L’architecture technique est décrite dans `ARCHITECTURE-TECHNIQUE.md`. L’identité visuelle, le rendu 3D, le mouvement, le son et le ton éditorial sont décrits dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`.
+Il constitue la source de vérité fonctionnelle de la V1. L'architecture technique et la persistance Supabase sont décrites dans `ARCHITECTURE-TECHNIQUE.md`. L'identité visuelle, le rendu 3D, les interactions tactiles et le ton éditorial sont décrits dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`. Le pipeline des assets 3D est décrit dans `WORKFLOW-3D-BLENDER-GITHUB.md`.
 
 ---
 
@@ -21,21 +19,31 @@ L’architecture technique est décrite dans `ARCHITECTURE-TECHNIQUE.md`. L’id
 
 ### 2.1 Concept
 
-CAILLOU™ est une application installable dans laquelle l’utilisateur choisit puis adopte un véritable caillou numérisé en 3D, lui donne un nom, le contemple, le manipule légèrement, change son environnement et consulte des informations volontairement disproportionnées sur sa remarquable stabilité minérale.
+CAILLOU™ est une application installable dans laquelle un utilisateur :
 
-Le produit détourne les codes du compagnon virtuel en supprimant précisément ce qui crée de la contrainte :
+1. crée un compte avec un **pseudo** et un **mot de passe** ;
+2. parcourt vingt véritables cailloux numérisés en 3D ;
+3. consulte pour chacun une description traitée avec un sérieux volontairement disproportionné ;
+4. choisit un spécimen ;
+5. lui donne un nom ;
+6. retrouve ensuite son caillou sur un écran principal extrêmement sobre ;
+7. peut le manipuler, le caresser, le nettoyer, lui acheter des accessoires et, s'il le souhaite, le jeter.
 
-- aucun besoin vital ;
-- aucune faim ;
-- aucune maladie ;
-- aucune fatigue ;
-- aucune mort ;
-- aucun abandon ;
-- aucune punition liée à l’absence ;
-- aucune série à maintenir ;
-- aucune obligation quotidienne.
+CAILLOU™ détourne les codes du compagnon virtuel. Le caillou ne possède aucun besoin vital et ne sanctionne jamais l'absence de l'utilisateur.
 
-Le caillou reste parfaitement caillou, que l’utilisateur revienne cinq minutes ou six mois plus tard.
+Il n'a :
+
+- ni faim ;
+- ni soif ;
+- ni maladie ;
+- ni fatigue ;
+- ni humeur punitive ;
+- ni jauge de bonheur ;
+- ni série quotidienne ;
+- ni obligation de connexion ;
+- ni mort naturelle.
+
+L'utilisateur peut cependant choisir d'interagir avec lui. Ces interactions construisent un historique, des statistiques et une petite économie cosmétique.
 
 ### 2.2 Promesse
 
@@ -43,103 +51,76 @@ Le caillou reste parfaitement caillou, que l’utilisateur revienne cinq minutes
 
 ### 2.3 Proposition de valeur
 
-CAILLOU™ doit simultanément procurer :
+CAILLOU™ doit procurer simultanément :
 
-1. **un plaisir visuel** grâce à un objet 3D premium issu d’un vrai scan ;
-2. **une respiration** grâce à une expérience calme et sans enjeu ;
-3. **un humour de décalage** né du sérieux avec lequel l’application traite un caillou ;
-4. **un attachement léger** créé par le choix, le nom, la permanence et les micro-événements ;
-5. **une expérience tactile** satisfaisante sur téléphone et tablette ;
-6. **le plaisir du choix** face à vingt pierres ordinaires présentées avec un sérieux déraisonnable.
-
-### 2.4 Positionnement
-
-CAILLOU™ n’est pas :
-
-- un Tamagotchi ;
-- un idle game ;
-- un jeu de collection agressif ;
-- un simulateur géologique ;
-- une application de méditation ;
-- un chatbot ;
-- un réseau social ;
-- un gestionnaire de tâches ;
-- une application de bien-être qui mesure l’utilisateur.
-
-CAILLOU™ est un **objet numérique de compagnie contemplatif et absurde**.
+1. un plaisir visuel grâce à un vrai scan 3D traité comme un objet de collection ;
+2. une interaction tactile satisfaisante ;
+3. un humour sec né du sérieux excessif accordé à un simple caillou ;
+4. un attachement léger créé par le choix, le nom et l'historique ;
+5. une progression simple et non anxiogène ;
+6. une personnalisation cosmétique par accessoires ;
+7. le plaisir de constater que le caillou reste remarquablement caillou.
 
 ---
 
 ## 3. Principes produit non négociables
 
-### P1 — Le caillou n’a besoin de rien
+### P1 - Le caillou n'a besoin de rien
 
-Aucune mécanique ne doit créer de dette envers le caillou.
+Caresser et nettoyer sont des actions volontaires de l'utilisateur. Leur absence ne provoque jamais de sanction.
 
-Interdits : faim, soif, hygiène, santé, sommeil, humeur négative causée par l’absence, entretien obligatoire.
+Le nettoyage est cosmétique. Un caillou poussiéreux n'est ni malade, ni triste, ni moins performant.
 
-### P2 — L’absence n’est jamais punie
+### P2 - L'absence n'est jamais punie
 
-Revenir après une longue période doit provoquer une sensation de continuité, jamais de culpabilité.
+Aucun streak, aucune récompense quotidienne obligatoire, aucune perte de monnaie et aucun message culpabilisant.
 
-Formulation correcte :
+Formulation conforme :
 
-> « Bernard poursuit une période de stabilité remarquable. »
+> « Aucun changement préoccupant n'a été constaté durant votre absence. »
 
 Formulation interdite :
 
 > « Bernard vous a attendu pendant 34 jours. »
 
-### P3 — Le premium fait partie de la blague
+### P3 - Le premium fait partie de la blague
 
-Le rendu visuel ne doit jamais être volontairement médiocre sous prétexte que le concept est absurde. Le caillou doit être traité comme une sculpture, une montre ou un objet de design haut de gamme.
+Le rendu visuel doit être traité comme de la photographie produit ou une présentation muséale haut de gamme.
 
-### P4 — L’humour reste sec
+### P4 - L'humour reste sec
 
-Le produit ne doit pas enchaîner les blagues. Une phrase très sérieuse au sujet d’un caillou suffit souvent.
+L'application ne cherche pas la punchline permanente. Le décalage entre le sujet et son traitement suffit.
 
-### P5 — La V1 reste petite
+### P5 - Une seule économie simple
 
-Toute fonctionnalité doit répondre à au moins une question :
+La V1 contient une seule monnaie fictive : le **Lithon**.
 
-- rend-elle le caillou plus beau ?
-- renforce-t-elle l’attachement ?
-- renforce-t-elle l’absurde ?
-- améliore-t-elle la contemplation ?
+- singulier : `1 Lithon` ;
+- pluriel : `Lithons` ;
+- aucune valeur monétaire réelle ;
+- aucun achat de Lithons en euros ;
+- aucun transfert entre utilisateurs ;
+- aucune conversion ;
+- aucun loot aléatoire ;
+- aucune monnaie secondaire.
 
-Si la réponse est non aux quatre questions, elle n’appartient probablement pas à CAILLOU™ V1.
+### P6 - Aucun dark pattern
 
-### P6 — Aucun dark pattern
+Pas de publicité, pas de compte à rebours commercial, pas de gacha, pas de coffre, pas de rareté artificielle, pas de notification insistante.
 
-Pas de monnaie premium, pas de publicité, pas de compteur anxiogène, pas de notification insistante, pas de récompense conditionnée à une présence quotidienne.
+### P7 - L'avancement est persistant
 
-### P7 — Le produit fonctionne sans compte
+Le compte, le caillou actif, son historique, ses statistiques, les Lithons, les achats et les accessoires possédés sont persistés côté serveur dans Supabase.
 
-La V1 est locale, installable et utilisable sans inscription ni backend applicatif.
+Le stockage local peut accélérer l'interface ou permettre une reprise temporaire, mais **Supabase reste la source de vérité**.
 
-### P8 — Les vingt cailloux sont égaux
+### P8 - Les vingt cailloux sont égaux
 
-Les vingt spécimens V1 sont des cailloux quelconques issus de scans réels. Aucun n’est présenté comme supérieur, rare, légendaire ou premium par rapport aux autres.
-
-Le choix doit reposer sur une préférence personnelle de forme, matière et présence, pas sur une hiérarchie artificielle.
-
----
-
-## 4. Public cible
-
-La V1 ne cherche pas un segment démographique précis. Elle cible surtout des comportements :
-
-- personnes sensibles aux objets numériques singuliers ;
-- amateurs d’humour absurde et discret ;
-- utilisateurs appréciant les expériences contemplatives ;
-- personnes qui aiment personnaliser un petit objet sans devoir l’entretenir ;
-- utilisateurs souhaitant une application amusante à montrer ou partager en quelques secondes.
-
-Le produit doit être immédiatement compréhensible sans connaissance préalable des jeux de compagnie virtuelle.
+Aucun spécimen n'est rare, légendaire, supérieur ou recommandé par algorithme.
 
 ---
 
-## 5. Plateformes cibles
+## 4. Plateformes cibles
 
 Priorité V1 :
 
@@ -147,747 +128,638 @@ Priorité V1 :
 2. tablette tactile ;
 3. ordinateur avec souris ou trackpad.
 
-L’application doit être installable en PWA lorsque le navigateur le permet et rester utilisable dans un navigateur classique.
-
-Le mode portrait est prioritaire sur téléphone. Le paysage doit rester fonctionnel et peut devenir particulièrement intéressant sur tablette.
+L'application est une PWA installable lorsque la plateforme le permet. Le mode portrait est prioritaire sur téléphone. Le paysage doit être réellement travaillé sur tablette.
 
 ---
 
-## 6. Contenu V1
+## 5. Compte utilisateur
 
-### 6.1 Catalogue des cailloux
+### 5.1 Inscription
 
-La V1 contient **20 spécimens 3D** issus du pack de scans retenu et du pipeline Blender CAILLOU™.
+Un nouvel utilisateur crée :
 
-Le catalogue V1 est volontairement non thématique : il ne cherche plus à représenter six archétypes comme « quartz », « volcanique » ou « galet noir premium ». Il présente **vingt pierres réelles différentes**, avec leurs silhouettes, couleurs et imperfections naturelles.
+- un pseudo unique ;
+- un mot de passe.
 
-Identifiants de référence :
+Aucune adresse email n'est demandée dans l'expérience V1.
+
+Le pseudo est l'identité visible de l'utilisateur. Il n'existe pas de profil social public en V1.
+
+### 5.2 Connexion
+
+Un utilisateur existant peut se reconnecter avec :
+
+- son pseudo ;
+- son mot de passe.
+
+Une session valide peut être conservée afin d'éviter une reconnexion à chaque ouverture.
+
+### 5.3 Mot de passe perdu
+
+La V1 n'impose pas de flux email puisqu'aucune adresse email n'est demandée. La stratégie de récupération devra être explicitement conçue avant publication publique si une récupération autonome devient obligatoire.
+
+### 5.4 Après authentification
+
+- compte sans caillou actif : ouverture du showroom d'adoption ;
+- compte avec caillou actif : ouverture directe du Socle ;
+- compte dont le dernier caillou a été jeté : écran vide avec proposition d'adopter un nouveau spécimen.
+
+---
+
+## 6. Catalogue des vingt spécimens
+
+### 6.1 Catalogue V1
+
+La V1 contient vingt véritables scans 3D :
 
 ```text
 rock-001
 rock-002
-rock-003
 ...
 rock-020
 ```
 
-Les identifiants techniques ne constituent pas nécessairement les noms visibles après adoption. Avant adoption, l’interface peut utiliser une désignation sobre du type **Spécimen 01**, **Spécimen 02**, etc.
+Base validée :
 
-Chaque spécimen doit posséder :
+- vingt meshes LOD2 ;
+- environ 10 000 triangles par mesh ;
+- UV présents ;
+- texture couleur ;
+- normal map ;
+- textures source autour de 1024 x 1024 ;
+- matériau web calibré individuellement.
 
-- une géométrie 3D indépendante ;
-- ses UV ;
-- sa texture couleur ;
-- sa normal map lorsque disponible ;
-- un matériau web calibré ;
-- des métadonnées de provenance et licence ;
-- un identifiant stable ;
-- une présentation visuelle équivalente aux dix-neuf autres.
+### 6.2 Désignation avant adoption
 
-### 6.2 Source V1
+Avant adoption :
 
-La base de production validée est constituée de vingt meshes LOD2 détectés dans le fichier Blender source, chacun autour de **10 000 triangles**, avec textures associées d’environ **1024 × 1024**.
+```text
+Spécimen 01
+Spécimen 02
+...
+Spécimen 20
+```
 
-Le LOD2 est considéré comme une cible V1 légitime tant que les tests sur appareils physiques confirment :
+Après adoption, le nom choisi par l'utilisateur devient l'identité principale du caillou.
 
-- silhouette suffisamment détaillée ;
-- zoom satisfaisant ;
-- normal map lisible ;
-- fluidité tactile ;
-- poids de fichier compatible avec la PWA.
+### 6.3 Description sérieuse obligatoire
 
-Aucune montée systématique vers un LOD plus lourd n’est requise si le résultat est déjà convaincant.
+Chaque spécimen possède une description dédiée, factuelle dans sa forme et absurdement institutionnelle dans son ton.
 
-### 6.3 Ambiances V1
+Exemple :
 
-La V1 contient **5 ambiances principales** :
+> « Masse minérale compacte présentant une silhouette asymétrique et une surface modérément irrégulière. Son centre de gravité relativement bas lui confère une aptitude particulièrement convaincante à rester exactement là où on le pose. »
 
-1. **Studio minéral** — fond clair ou anthracite, lumière produit haut de gamme ;
-2. **Jardin zen** — sable fin, quelques éléments sobres, lumière naturelle douce ;
-3. **Mousse** — tapis végétal humide et profondeur de champ délicate ;
-4. **Bois noble** — plateau en bois sombre ou chaud, ambiance galerie domestique ;
-5. **Vitrine muséale** — socle minéral ou textile, lumière de galerie, présentation quasi institutionnelle.
+Des attributs éditoriaux peuvent compléter la description :
 
-Les ambiances ne sont pas des mini-jeux. Elles servent uniquement à modifier la mise en scène et la lumière.
+- régularité de surface ;
+- masse visuelle ;
+- stabilité apparente ;
+- orientation recommandée ;
+- potentiel de déplacement spontané ;
+- conformité générale.
 
-### 6.4 Corpus éditorial minimal
-
-La V1 doit contenir au minimum :
-
-- **60 statuts courts** ;
-- **20 observations contextuelles** liées aux interactions ;
-- **12 distinctions/titres** ;
-- **10 micro-événements rares** ;
-- **20 descriptions courtes de spécimens**, facultativement très sobres ;
-- **5 descriptions d’ambiances**.
-
-Les descriptions des vingt spécimens ne doivent pas inventer de rareté ou de valeur géologique. Elles peuvent simplement décrire une forme, une surface ou une impression avec le ton CAILLOU™.
+Ces textes ne doivent pas inventer une classification géologique non vérifiée.
 
 ---
 
-## 7. Parcours de premier lancement
+## 7. Premier parcours utilisateur
 
-### 7.1 Objectif
+### Écran 1 - Authentification
 
-Faire adopter un caillou en quelques minutes tout en transformant le choix lui-même en première expérience premium de CAILLOU™.
+Nouvel utilisateur :
 
-Le choix ne doit pas ressembler à une liste de produits. L’utilisateur doit avoir le temps de **regarder chaque pierre en trois dimensions**.
+```text
+CAILLOU™
 
-### 7.2 Étapes
+Pseudo
+Mot de passe
 
-#### Écran 1 — Introduction
+Créer mon compte
+```
 
-Titre : **CAILLOU™**
+Un accès « J'ai déjà un compte » permet la connexion.
 
-Promesse courte :
+### Écran 2 - Showroom 3D
 
-> « Une présence minérale de qualité. »
-
-Action principale : **Commencer l’adoption**.
-
-#### Écran 2 — Showroom 3D de sélection
-
-La sélection des vingt spécimens se fait dans un **showroom 3D plein écran**.
+Après création du compte, l'utilisateur arrive directement dans le showroom.
 
 Règles :
 
-- un seul caillou 3D est visible à la fois ;
-- un seul modèle 3D est chargé et vivant en mémoire GPU à la fois ;
-- navigation séquentielle de `01 / 20` à `20 / 20` ;
-- boutons gauche et droite visibles, discrets et accessibles ;
-- navigation tactile horizontale possible lorsqu’elle ne concurrence pas la manipulation du modèle ;
-- le caillou visible peut être tourné au doigt ou à la souris ;
-- le zoom peut être proposé s’il ne complexifie pas les gestes ;
-- le fond et l’éclairage restent identiques entre les candidats afin de comparer honnêtement leur matière ;
-- aucun système de rareté, score ou recommandation algorithmique.
+- un seul caillou 3D actif à la fois ;
+- navigation séquentielle `01 / 20` à `20 / 20` ;
+- flèches gauche et droite toujours disponibles ;
+- rotation du spécimen au doigt ou à la souris ;
+- zoom borné si retenu ;
+- même lumière et même fond pour les vingt candidats ;
+- description sérieuse du spécimen visible ;
+- CTA : **Adopter ce caillou** ;
+- aucun score ou indice de rareté.
 
-Composition indicative :
+Le drag commencé sur le modèle sert à la rotation. La navigation par flèches reste la référence afin d'éviter les conflits gestuels.
 
-```text
-┌──────────────────────────────┐
-│           CAILLOU™           │
-│                              │
-│    ‹      [ROCHE 3D]      ›  │
-│                              │
-│          07 / 20             │
-│        Spécimen 07           │
-│                              │
-│   Une stabilité prometteuse. │
-│                              │
-│     Adopter ce caillou       │
-└──────────────────────────────┘
-```
+### Écran 3 - Nommage
 
-#### Gestes de sélection
+Après sélection :
 
-Pour éviter le conflit entre rotation et changement de spécimen :
-
-- un drag qui commence **sur le modèle 3D** sert à faire tourner le caillou ;
-- les boutons gauche/droite constituent la navigation de référence ;
-- un swipe de navigation peut être accepté dans des zones hors modèle si les tests tactiles montrent qu’il reste clair ;
-- aucune navigation ne doit être déclenchée accidentellement pendant une rotation.
-
-#### Changement de spécimen
-
-Lorsque l’utilisateur demande le précédent ou le suivant :
-
-1. le spécimen courant se retire visuellement avec une transition courte ;
-2. ses géométries, matériaux et textures GPU sont libérés ;
-3. le nouveau GLB est chargé ;
-4. une représentation 2D ou silhouette premium peut occuper brièvement la scène ;
-5. le nouveau spécimen apparaît en douceur ;
-6. la scène ne conserve jamais deux cailloux 3D complets simultanément en mémoire pour produire la transition.
-
-Le cache HTTP/PWA peut conserver un fichier déjà téléchargé sur disque. La règle « un seul caillou chargé » concerne le modèle actif en mémoire et dans la scène 3D.
-
-#### Écran 3 — Nom
-
-L’utilisateur saisit librement un nom.
-
-Contraintes :
-
-- champ obligatoire ;
+- nom obligatoire ;
 - longueur raisonnable ;
-- aucun besoin de filtrage complexe en V1 puisque les données restent locales ;
-- quelques suggestions peuvent être proposées à titre humoristique ;
-- le spécimen choisi reste visible si cela ne provoque aucun rechargement inutile.
+- validation explicite ;
+- création du caillou utilisateur dans Supabase.
 
-#### Écran 4 — Confirmation
+### Écran 4 - Entrée dans le jeu
 
-Le caillou apparaît seul sur son socle.
-
-Message :
+Le caillou apparaît sur le Socle.
 
 > « Votre caillou est prêt à ne rien faire à vos côtés. »
 
-Action : **Rencontrer [nom]**.
-
-### 7.3 Critères d’acceptation
-
-- l’onboarding n’est affiché que tant qu’aucun caillou principal n’a été adopté ;
-- les 20 spécimens sont accessibles depuis le showroom ;
-- un seul modèle 3D est actif à la fois ;
-- la navigation précédent/suivant fonctionne au tactile, à la souris et au clavier ;
-- rotation et navigation ne se déclenchent pas simultanément ;
-- un abandon du parcours ne crée pas d’état incohérent ;
-- la sélection et le nom sont persistés localement après validation ;
-- un asset lent ou indisponible n’empêche pas de revenir au candidat précédent ;
-- le chargement est masqué par une transition visuelle sobre, jamais par un faux délai humoristique.
-
 ---
 
-## 8. Écran principal — Le Socle
+## 8. Écran principal - Le Socle
 
 ### 8.1 Rôle
 
-Le Socle est le produit. Tout le reste est secondaire.
+Le Socle est l'écran principal et le cœur de CAILLOU™.
 
-À l’ouverture après onboarding, l’utilisateur doit retrouver immédiatement son caillou en grand, sans dashboard préalable.
+Il doit rester extrêmement sobre.
 
 ### 8.2 Composition
 
-L’écran comprend :
-
-- le caillou 3D au centre ;
-- le décor actif ;
-- le nom du caillou ;
-- un statut court ;
-- une interface minimale et discrète ;
-- accès aux quatre zones secondaires : **Fiche**, **Ambiances**, **Collection**, **Instantané** ;
-- accès secondaire aux réglages.
-
-### 8.3 Interactions 3D
-
-#### Rotation
-
-Glissement horizontal et vertical pour faire tourner le caillou.
-
-Comportement attendu :
-
-- inertie légère ;
-- freinage doux ;
-- aucun mouvement brusque ;
-- retour automatique facultatif vers une pose naturelle après une longue inactivité, sans annuler immédiatement la manipulation.
-
-#### Zoom
-
-Pincement tactile ou molette/trackpad.
-
-Le zoom est borné afin d’éviter de traverser la géométrie ou de perdre totalement le caillou.
-
-#### Tap / clic court
-
-Déclenche une micro-réaction :
-
-- léger son minéral ;
-- éventuellement une vibration courte si supportée et autorisée ;
-- micro-mouvement ou variation lumineuse ;
-- petite observation éditoriale occasionnelle.
-
-Exemples :
-
-> « Contact enregistré. »
-
-> « Stabilité maintenue. »
-
-> « Réaction mesurée. »
-
-#### Appui long
-
-Déclenche le **Mode Observation**.
-
-### 8.4 Mode Observation
-
-Le Mode Observation masque la majorité de l’interface et laisse uniquement :
-
-- le caillou ;
-- l’ambiance ;
-- le son environnemental éventuel ;
-- une action discrète pour quitter le mode.
-
-Il ne contient ni minuterie ni exercice guidé. Ce n’est pas un mode méditation.
-
-### 8.5 Critères d’acceptation
-
-- le caillou reste interactif à 60 fps lorsque le matériel le permet ;
-- une stratégie de qualité dégradée maintient une expérience fluide sur appareils modestes ;
-- aucune navigation involontaire n’est déclenchée pendant une rotation ;
-- l’interface reste utilisable au clavier sur ordinateur pour les fonctions non gestuelles essentielles ;
-- `prefers-reduced-motion` est respecté.
-
----
-
-## 9. Fiche minérale
-
-### 9.1 Rôle
-
-Donner au caillou une identité et matérialiser l’absurde avec un vocabulaire pseudo-institutionnel.
-
-### 9.2 Informations V1
-
-La fiche affiche notamment :
-
-- nom personnalisé ;
-- identifiant de spécimen ;
-- date d’adoption ;
-- ancienneté ;
-- nombre d’ouvertures de l’application ;
-- temps cumulé d’observation si techniquement fiable ;
-- nombre de contacts/taps ;
-- ambiance favorite selon l’usage local ;
-- titre actuel ;
-- statistiques absurdes dérivées.
-
-La V1 n’a pas besoin d’attribuer une espèce géologique fictive à chaque pierre.
-
-### 9.3 Statistiques absurdes
-
-Exemples :
-
-- mobilité moyenne : `0,00 m/jour` ;
-- niveau d’ambition : `stable` ;
-- indice de présence : `excellent` ;
-- taux de comportement rocheux : `99,8 %` ;
-- incidents diplomatiques : `0` ;
-- capacité de fuite : `non observée`.
-
-Les statistiques fantaisistes doivent être clairement humoristiques et ne pas prétendre mesurer une réalité scientifique.
-
-### 9.4 Titres
-
-Exemples de progression éditoriale :
-
-1. Caillou nouvellement reconnu
-2. Galet approuvé
-3. Roche familière
-4. Minéral confirmé
-5. Pierre de confiance
-6. Masse noble
-7. Objet lithique distingué
-8. Entité minérale senior
-9. Monument de poche
-10. Référence minérale
-11. Présence géologique majeure
-12. Grand Caillou™
-
-Les titres peuvent se débloquer par ancienneté et usage cumulés, mais jamais par série quotidienne.
-
----
-
-## 10. Ambiances
-
-### 10.1 Fonction
-
-Changer l’univers visuel sans modifier le comportement fondamental du caillou.
-
-### 10.2 Fonctionnalités
-
-- aperçu des cinq ambiances ;
-- sélection immédiate ;
-- persistance du choix ;
-- adaptation de la lumière, du fond, du sol et du sound design ;
-- aucune modification de la personnalité du caillou nécessaire.
-
-### 10.3 Déblocage
-
-Option V1 recommandée : **toutes les ambiances sont disponibles dès le départ**.
-
-Une progression ultérieure peut éventuellement révéler des présentations alternatives, mais aucune monnaie et aucun achat ne sont nécessaires.
-
----
-
-## 11. Collection et changement de compagnon
-
-### 11.1 Rôle
-
-Permettre de revoir les vingt spécimens sans transformer CAILLOU™ en jeu de collection.
-
-### 11.2 Règles V1
-
-- les 20 spécimens sont connus et accessibles ;
-- un caillou est désigné comme **compagnon principal** ;
-- l’interface de consultation réutilise autant que possible le showroom 3D séquentiel ;
-- un seul modèle 3D est chargé à la fois ;
-- changer de compagnon principal est libre ;
-- aucun niveau de rareté ;
-- aucun doublon aléatoire ;
-- aucune mécanique de coffre ou tirage ;
-- aucune grille obligatoire de vingt modèles 3D simultanés.
-
-### 11.3 Adoption multiple
-
-La V1 peut conserver le nom et la date d’adoption des spécimens déjà adoptés afin que l’utilisateur puisse revenir vers eux plus tard.
-
-Un spécimen non adopté reste simplement consultable dans le showroom.
-
-Aucune mécanique ne pousse à « tous les collectionner ».
-
----
-
-## 12. Instantané
-
-### 12.1 Objectif
-
-Permettre de partager ou conserver une belle image du caillou sans intégrer de réseau social.
-
-### 12.2 Fonctionnalités
-
-- cadrage propre de la scène 3D ;
-- capture du rendu ;
-- option d’inclure ou masquer le nom ;
-- option d’ajouter une légende CAILLOU™ parmi une courte sélection ;
-- téléchargement local de l’image ;
-- partage via l’API native du navigateur lorsque disponible.
-
-Exemples de légendes :
-
-- « Présence minérale de haute tenue. »
-- « [Nom], dans son état naturel. »
-- « Activité faible. Dignité intacte. »
-
-### 12.3 Confidentialité
-
-Aucune image n’est envoyée vers un serveur CAILLOU™ en V1.
-
----
-
-## 13. Micro-événements rares
-
-### 13.1 But
-
-Créer une impression de monde vivant sans donner de besoins au caillou.
-
-### 13.2 Règles
-
-- événements non essentiels ;
-- aucun événement ne peut être « raté » au sens punitif ;
-- aucune récompense exclusive conditionnée à une heure précise ;
-- fréquence suffisamment faible pour conserver l’effet de surprise ;
-- déclenchement local déterministe ou pseudo-aléatoire ;
-- pas de serveur nécessaire.
-
-### 13.3 Catalogue V1 proposé
-
-1. une feuille tombe doucement dans la scène ;
-2. un insecte traverse brièvement l’arrière-plan ;
-3. un rayon lumineux se déplace ;
-4. une poussière minérale apparaît dans la lumière ;
-5. le caillou démarre la session orienté de quelques degrés différemment ;
-6. une goutte d’eau glisse sur le galet dans l’ambiance mousse ;
-7. un minuscule grain de sable roule à proximité ;
-8. la vitrine muséale passe exceptionnellement en éclairage nocturne ;
-9. le statut annonce : « Aujourd’hui, [nom] semble particulièrement caillou. » ;
-10. une plaque muséale spéciale apparaît : « Aucun événement notable. »
-
----
-
-## 14. Progression douce
-
-### 14.1 Principe
-
-La progression récompense la durée de la relation sans jamais transformer l’usage en devoir.
-
-### 14.2 Signaux utilisables
-
-- date d’adoption ;
-- nombre total d’ouvertures ;
-- durée totale d’observation ;
-- nombre total d’interactions ;
-- nombre d’ambiances explorées.
-
-### 14.3 Signaux interdits
-
-- nombre de jours consécutifs ;
-- absence sanctionnée ;
-- compte à rebours anxiogène ;
-- obligation de connexion ;
-- énergie à régénérer.
-
-### 14.4 Récompenses autorisées
-
-- titres ;
-- textes supplémentaires ;
-- présentation alternative de socle ;
-- petites variations visuelles.
-
-Les vingt spécimens eux-mêmes ne sont pas des récompenses : ils sont disponibles pour être regardés et choisis.
-
----
-
-## 15. Réglages
-
-La V1 contient uniquement les réglages utiles :
-
-- son activé/désactivé ;
-- haptique activé/désactivé lorsque disponible ;
-- qualité graphique `Auto / Élevée / Économie` ;
-- réduction des effets, en complément du réglage système ;
-- thème d’interface `Système / Clair / Sombre` si pertinent avec la direction artistique ;
-- export de sauvegarde ;
-- import de sauvegarde ;
-- réinitialisation complète avec confirmation forte ;
-- informations de version et crédits.
-
-Les crédits doivent conserver la provenance et l’attribution des assets tiers conformément à leur licence.
-
-Pas de compte, profil social ni paramètres de notification en V1.
-
----
-
-## 16. Données et persistance
-
-Les données personnelles restent locales.
-
-La V1 doit conserver :
-
-- spécimens adoptés ;
-- noms ;
-- compagnon principal ;
-- ambiance active ;
-- préférences ;
-- statistiques locales ;
-- dates et compteurs nécessaires aux titres ;
-- micro-événements déjà montrés si nécessaire pour éviter les répétitions ;
-- version de schéma.
-
-Le catalogue des vingt spécimens appartient à l’application et n’est pas dupliqué dans la sauvegarde utilisateur.
-
-Une sauvegarde exportable permet de transférer ou restaurer les données.
-
-Aucune télémétrie n’est requise pour le fonctionnement du produit.
-
----
-
-## 17. PWA et hors ligne
-
-La V1 doit :
-
-- être installable lorsque la plateforme le permet ;
-- fonctionner après le premier chargement sans connexion réseau pour le compagnon adopté et le parcours principal ;
-- mettre en cache le shell et les ressources essentielles ;
-- mettre en cache durablement le modèle du compagnon principal ;
-- utiliser un cache runtime pour les autres spécimens lorsqu’ils sont visités ;
-- ne pas précacher aveuglément les vingt GLB au premier lancement ;
-- gérer proprement une mise à jour de version ;
-- ne pas casser une session en cours par un rechargement forcé.
-
-La présence de vingt spécimens ne doit pas transformer l’installation initiale en téléchargement massif.
-
----
-
-## 18. Accessibilité
-
-Le caractère visuel de CAILLOU™ ne dispense pas d’une interface accessible.
-
-Exigences V1 :
-
-- contrastes suffisants ;
-- tailles tactiles confortables ;
-- navigation clavier pour les contrôles d’interface ;
-- boutons précédent/suivant accessibles et libellés ;
-- compteur de position compréhensible hors Canvas ;
-- pas d’information transmise uniquement par la couleur ;
-- respect de `prefers-reduced-motion` ;
-- solution alternative aux gestes essentiels ;
-- sons non nécessaires à la compréhension ;
-- textes lisibles sans dépendre du décor 3D.
-
-La manipulation fine du modèle 3D peut rester une expérience enrichie et non une condition d’accès aux fonctions principales.
-
----
-
-## 19. Performance et qualité perçue
-
-CAILLOU™ doit sembler instantané et calme.
-
-Priorités :
-
-1. affichage rapide du shell ;
-2. chargement progressif élégant du caillou ;
-3. **un seul spécimen 3D actif en mémoire à la fois dans le showroom** ;
-4. libération explicite des ressources GPU lors d’un changement ;
-5. absence de saut visuel brutal ;
-6. interaction tactile fluide ;
-7. adaptation automatique de la qualité 3D ;
-8. poids d’assets maîtrisé ;
-9. absence de spinner agressif ou de faux temps d’attente humoristique.
-
-Si un arbitrage est nécessaire, une texture légèrement moins détaillée sur appareil modeste vaut mieux qu’un rendu premium à 15 fps.
-
----
-
-## 20. Ton éditorial
-
-Le ton de CAILLOU™ est :
-
-- sérieux ;
-- calme ;
-- sec ;
-- précis ;
-- légèrement institutionnel ;
-- jamais hystérique.
-
-### Exemples conformes
-
-> « Aucun changement significatif. »
-
-> « Votre spécimen conserve un excellent niveau de roche. »
-
-> « Activité mesurée : négligeable. »
-
-> « [Nom] poursuit une carrière exemplaire dans l’immobilité. »
-
-> « Présence stable. Dignité intacte. »
-
-### Exemples non conformes
-
-- avalanche d’emojis dans l’application ;
-- blagues à chaque bouton ;
-- voix enfantine ;
-- discours pseudo-thérapeutique ;
-- insultes ou sarcasme agressif ;
-- personnification permanente du caillou comme s’il parlait réellement.
-
-Le caillou peut être anthropomorphisé par le texte, mais il ne devient pas un personnage bavard.
-
----
-
-## 21. Navigation V1
-
-La navigation doit rester courte.
-
-Structure recommandée :
-
 ```text
-Onboarding
-   ↓
-Showroom 3D des 20 spécimens
-   ↓
-Nommage
-   ↓
-Le Socle
- ├─ Fiche minérale
- ├─ Ambiances
- ├─ Collection / Showroom
- ├─ Instantané
- └─ Réglages
+┌──────────────────────────────┐
+│ [Bio / Stats]           [ · ]│
+│                              │
+│                              │
+│          CAILLOU 3D          │
+│                              │
+│                              │
+│                              │
+│ Caresser Nettoyer Accessoire │
+│             Jeter            │
+└──────────────────────────────┘
 ```
 
-Aucun écran « Dashboard » n’est nécessaire.
+Le placement final des quatre commandes peut être adapté au responsive, mais elles constituent la barre d'action principale.
 
-Le retour au Socle doit toujours être immédiat.
+### 8.3 Manipulation libre
+
+Hors mode spécifique :
+
+- drag : rotation horizontale et verticale bornée ;
+- pinch / molette : zoom borné ;
+- inertie légère ;
+- aucune rotation automatique permanente ;
+- le caillou reste l'élément visuel dominant.
+
+### 8.4 Bouton supérieur gauche
+
+Ouvre **Bio / Stats**.
+
+### 8.5 Bouton supérieur droit
+
+Un emplacement visuel est réservé à une fonctionnalité future.
+
+En V1 :
+
+- il ne modifie aucun état produit ;
+- aucune fonctionnalité métier n'y est attachée ;
+- il doit rester graphiquement discret ;
+- son implémentation ne doit pas bloquer l'évolution future de la navigation.
 
 ---
 
-## 22. Hors périmètre V1
+## 9. Action 1 - Caresser
 
-Sont explicitement exclus :
+### 9.1 Principe
 
-- compte utilisateur ;
-- backend Supabase ou autre ;
-- synchronisation cloud ;
+Le bouton **Caresser** active un mode tactile dédié.
+
+Une rotation normale du caillou ne doit jamais être confondue avec une caresse.
+
+### 9.2 Caresse valide
+
+Une caresse valide correspond à un mouvement continu réellement effectué sur la surface interactive du caillou, avec des seuils minimaux de durée et de déplacement définis techniquement.
+
+Un simple tap ne constitue pas une caresse.
+
+### 9.3 Récompense
+
+**1 caresse valide = +1 Lithon.**
+
+Aucun multiplicateur quotidien, aucune série et aucun bonus conditionné à une heure précise.
+
+### 9.4 Persistance
+
+Chaque caresse validée incrémente côté serveur :
+
+- le nombre total de caresses du caillou ;
+- le nombre total de Lithons gagnés ;
+- le solde courant de Lithons ;
+- les statistiques nécessaires à la bio.
+
+L'attribution est idempotente afin qu'un même événement ne puisse pas être compté plusieurs fois par accident réseau.
+
+### 9.5 Feedback
+
+Feedback court et sobre :
+
+> `+1 Lithon`
+
+Une micro-variation lumineuse ou haptique peut accompagner la validation, sans animation arcade.
+
+---
+
+## 10. Les Lithons
+
+### 10.1 Définition
+
+Le **Lithon** est la monnaie fictive interne de CAILLOU™.
+
+Il existe uniquement pour transformer les caresses en possibilité de personnalisation cosmétique.
+
+### 10.2 Acquisition
+
+En V1, les Lithons sont obtenus uniquement par les caresses validées.
+
+Aucun Lithon n'est :
+
+- vendu contre de l'argent réel ;
+- gagné par publicité ;
+- offert pour une connexion quotidienne ;
+- retiré pour absence ;
+- transférable entre comptes.
+
+### 10.3 Dépense
+
+Les Lithons servent uniquement à acheter des accessoires dans le catalogue CAILLOU™.
+
+### 10.4 Source de vérité
+
+Le solde affiché peut être optimiste pendant une interaction, mais le solde autoritaire est stocké dans Supabase.
+
+Chaque gain et chaque dépense doit être traçable dans un historique transactionnel interne.
+
+---
+
+## 11. Action 2 - Nettoyer
+
+### 11.1 Principe
+
+Le bouton **Nettoyer** active un mode de nettoyage tactile.
+
+La poussière est une couche visuelle progressive calculée à partir du dernier nettoyage connu.
+
+### 11.2 Règles
+
+- la poussière est purement cosmétique ;
+- aucune pénalité ;
+- aucune perte de Lithons ;
+- aucune baisse de statistique ;
+- aucun message culpabilisant ;
+- le nettoyage ne rapporte aucun Lithon.
+
+### 11.3 Interaction
+
+Le doigt ou la souris retire progressivement la poussière sur les zones parcourues.
+
+Lorsque le nettoyage est considéré comme terminé, l'application enregistre :
+
+- `last_cleaned_at` ;
+- le nombre total de nettoyages.
+
+### 11.4 Ton
+
+Exemples :
+
+> « Surface remise dans un état réglementaire. »
+
+> « Opération d'entretien minéral terminée. »
+
+---
+
+## 12. Action 3 - Accessoires
+
+### 12.1 Principe
+
+Le bouton **Accessoire** ouvre le catalogue d'accessoires.
+
+### 12.2 Achat
+
+Chaque accessoire possède :
+
+- un identifiant stable ;
+- un nom ;
+- une description ;
+- un prix en Lithons ;
+- un asset visuel ;
+- un état actif/inactif dans le catalogue.
+
+L'achat :
+
+1. vérifie le solde autoritaire ;
+2. débite les Lithons ;
+3. ajoute l'accessoire à l'inventaire ;
+4. enregistre la transaction ;
+5. permet d'équiper ou retirer l'accessoire.
+
+La transaction est atomique côté Supabase.
+
+### 12.3 Propriété
+
+Les accessoires achetés appartiennent au compte utilisateur, pas définitivement à un caillou particulier.
+
+Ils peuvent être équipés sur le caillou actif. Jeter un caillou ne détruit donc pas les accessoires déjà achetés.
+
+### 12.4 Direction produit
+
+Les accessoires sont cosmétiques. Ils ne donnent :
+
+- aucun bonus de gain ;
+- aucun multiplicateur ;
+- aucune statistique de puissance ;
+- aucun avantage compétitif.
+
+Le catalogue doit rester cohérent avec la direction CAILLOU™ : socles, coussins, plaques, vitrines, petits objets de présentation et absurdités sobres.
+
+---
+
+## 13. Action 4 - Jeter
+
+### 13.1 Principe
+
+Le bouton **Jeter** permet de se séparer du caillou actif.
+
+### 13.2 Confirmation
+
+Exemple :
+
+> **Jeter Bernard ?**
+>
+> Cette opération mettra fin à une relation minérale jusque-là correctement documentée.
+
+Actions :
+
+- **Conserver Bernard** ;
+- **Jeter Bernard**.
+
+### 13.3 Résultat
+
+Après confirmation :
+
+- le caillou disparaît immédiatement ;
+- aucune animation de lancer n'est jouée ;
+- aucun effet dramatique ;
+- `discarded_at` est enregistré ;
+- le compte n'a plus de caillou actif ;
+- les Lithons du compte sont conservés ;
+- les accessoires possédés sont conservés ;
+- l'historique du caillou est conservé.
+
+Écran suivant :
+
+> **Aucun caillou actuellement sous votre responsabilité.**
+
+CTA : **Adopter un nouveau caillou**.
+
+---
+
+## 14. Bio et statistiques
+
+### 14.1 Rôle
+
+Le bouton en haut à gauche ouvre une fiche traitée comme un dossier institutionnel.
+
+### 14.2 Informations minimales
+
+- nom du caillou ;
+- numéro de spécimen ;
+- date d'adoption ;
+- ancienneté ;
+- nombre de caresses ;
+- nombre de nettoyages ;
+- Lithons générés par ce caillou ;
+- temps cumulé de présence/observation si fiable ;
+- accessoires actuellement équipés ;
+- nombre d'interactions ;
+- statut éditorial.
+
+### 14.3 Statistiques absurdes
+
+Exemples :
+
+- déplacement spontané : `0 m` ;
+- incidents diplomatiques : `0` ;
+- aptitude à rester posé : `excellente` ;
+- comportement rocheux : `99,8 %` ;
+- initiatives recensées : `aucune`.
+
+Ces données fantaisistes restent clairement humoristiques et ne prétendent pas constituer des mesures scientifiques.
+
+---
+
+## 15. Progression
+
+La progression V1 repose exclusivement sur :
+
+- historique de caresses ;
+- Lithons gagnés ;
+- Lithons dépensés ;
+- accessoires possédés ;
+- nettoyages ;
+- ancienneté du caillou ;
+- statistiques d'usage non anxiogènes.
+
+Interdits :
+
+- streak quotidien ;
+- énergie ;
+- faim ;
+- niveau de bonheur ;
+- dette d'entretien ;
+- expiration des Lithons ;
+- perte de monnaie à l'absence.
+
+---
+
+## 16. Données persistantes
+
+Supabase doit conserver au minimum :
+
+### Compte
+
+- identifiant utilisateur ;
+- pseudo unique ;
+- dates de création et mise à jour.
+
+### Cailloux utilisateur
+
+- identifiant ;
+- utilisateur propriétaire ;
+- spécimen ;
+- nom ;
+- date d'adoption ;
+- date de jet éventuelle ;
+- statut actif ;
+- dernier nettoyage.
+
+### Progression
+
+- caresses ;
+- nettoyages ;
+- interactions ;
+- temps d'observation si retenu ;
+- Lithons générés ;
+- autres compteurs utiles à la bio.
+
+### Économie
+
+- solde de Lithons ;
+- total gagné ;
+- total dépensé ;
+- journal transactionnel.
+
+### Accessoires
+
+- catalogue ;
+- prix ;
+- inventaire utilisateur ;
+- équipement actuel.
+
+---
+
+## 17. PWA et continuité
+
+L'application doit :
+
+- être installable ;
+- mettre en cache le shell et les ressources statiques essentielles ;
+- charger les modèles 3D à la demande ;
+- ne jamais précacher les vingt GLB au premier lancement ;
+- conserver localement un cache non autoritaire pour une reprise rapide ;
+- resynchroniser les mutations avec Supabase lorsque nécessaire.
+
+Supabase reste l'état canonique pour toute progression et toute économie.
+
+---
+
+## 18. Hors périmètre V1
+
+Sont exclus :
+
 - réseau social ;
-- commentaires ;
+- amis ;
 - messagerie ;
 - classement ;
-- marketplace ;
-- monnaie virtuelle ;
-- rareté artificielle ;
-- loot boxes ;
-- achat in-app ;
+- échanges d'accessoires ;
+- transfert de Lithons ;
+- argent réel ;
+- paiement ;
 - publicité ;
+- achat in-app ;
+- NFT ou blockchain ;
+- gacha ;
+- loot boxes ;
+- combats ;
+- mini-jeux obligatoires ;
 - IA générative ;
 - chatbot ;
 - géolocalisation ;
 - réalité augmentée ;
-- besoins du caillou ;
+- besoins vitaux ;
 - mort ou maladie ;
-- élevage / reproduction ;
-- combats ;
-- mini-jeux obligatoires ;
-- notifications de rappel ;
-- streaks ;
 - quêtes quotidiennes ;
-- NFT, blockchain ou propriété spéculative.
-
-Toute réintroduction future de l’un de ces éléments doit être évaluée contre les principes non négociables de la section 3.
+- notifications culpabilisantes.
 
 ---
 
-## 23. Critères de réussite de la V1
+## 19. Critères de réussite V1
 
-La V1 est considérée comme réussie si :
+La V1 est considérée comme fonctionnellement réussie si :
 
-1. un nouvel utilisateur comprend le concept sans tutoriel long ;
-2. les vingt cailloux peuvent être parcourus naturellement en 3D ;
-3. l’utilisateur peut inspecter un spécimen avant de l’adopter ;
-4. un seul GLB actif est conservé en mémoire pendant le showroom ;
-5. le caillou 3D constitue clairement le centre de l’expérience ;
-6. les gestes de rotation et zoom sont agréables sur téléphone ;
-7. navigation et rotation ne se confondent pas ;
-8. le produit reste amusant sans transformer le caillou en personnage bavard ;
-9. aucune absence n’entraîne de sanction ;
-10. le compagnon adopté reste disponible hors ligne après mise en cache ;
-11. la sauvegarde locale résiste aux mises à jour normales de l’application ;
-12. une capture partagée reste identifiable comme issue de CAILLOU™ sans branding envahissant ;
-13. le périmètre reste suffisamment petit pour que chaque écran atteigne un niveau de finition élevé.
+1. un nouvel utilisateur crée un compte uniquement avec pseudo et mot de passe ;
+2. il peut parcourir les vingt cailloux en 3D ;
+3. chaque caillou possède une description sérieuse dédiée ;
+4. il choisit un spécimen et lui donne un nom ;
+5. cet état est retrouvé sur un autre lancement après authentification ;
+6. le Socle affiche le caillou comme élément dominant ;
+7. le caillou peut être tourné et zoomé sans conflit gestuel ;
+8. le mode Caresser attribue exactement les Lithons attendus ;
+9. le solde serveur ne peut pas devenir négatif ;
+10. le nettoyage reste cosmétique ;
+11. l'achat d'un accessoire est atomique et persistant ;
+12. les accessoires achetés peuvent être équipés et retirés ;
+13. Bio / Stats reflète les données Supabase ;
+14. Jeter fait disparaître immédiatement le caillou après confirmation, sans animation ;
+15. jeter conserve Lithons, inventaire et historique ;
+16. aucune absence n'entraîne de sanction ;
+17. les vingt modèles ne sont jamais simultanément actifs en mémoire GPU.
 
 ---
 
-## 24. Définition de « terminé » pour V1.0
+## 20. Définition de terminé pour V1.0
 
-La version 1.0 peut être déclarée terminée lorsque les éléments suivants sont présents et validés :
+### Authentification
 
-### Produit
+- [ ] création pseudo + mot de passe ;
+- [ ] connexion ;
+- [ ] persistance de session ;
+- [ ] pseudo unique ;
+- [ ] stratégie de récupération explicitement décidée avant publication publique.
 
-- [ ] onboarding complet ;
-- [ ] showroom 3D précédent/suivant ;
-- [ ] navigation des 20 spécimens ;
-- [ ] rotation 3D pendant la sélection ;
-- [ ] un seul modèle actif en mémoire ;
-- [ ] adoption et nommage ;
-- [ ] 20 cailloux finalisés ;
-- [ ] Socle 3D ;
-- [ ] rotation, zoom, tap et Mode Observation ;
-- [ ] fiche minérale ;
-- [ ] statistiques absurdes ;
-- [ ] 12 titres ;
-- [ ] 5 ambiances ;
-- [ ] collection / retour au showroom ;
-- [ ] Instantané et export/partage ;
-- [ ] 10 micro-événements ;
-- [ ] réglages ;
-- [ ] crédits et attribution des assets ;
-- [ ] export/import de sauvegarde ;
-- [ ] PWA hors ligne pour le parcours principal.
+### Adoption
 
-### Contenu
+- [ ] showroom 20 spécimens ;
+- [ ] description dédiée des 20 ;
+- [ ] rotation 3D ;
+- [ ] navigation précédent/suivant ;
+- [ ] un seul modèle actif ;
+- [ ] adoption ;
+- [ ] nommage ;
+- [ ] persistance Supabase.
 
-- [ ] minimum 60 statuts ;
-- [ ] minimum 20 réactions contextuelles ;
-- [ ] métadonnées des 20 spécimens ;
-- [ ] textes courts des 20 spécimens si retenus ;
-- [ ] textes des 5 ambiances ;
-- [ ] cohérence éditoriale vérifiée.
+### Socle
+
+- [ ] manipulation 3D ;
+- [ ] Caresser ;
+- [ ] Nettoyer ;
+- [ ] Accessoires ;
+- [ ] Jeter ;
+- [ ] Bio / Stats ;
+- [ ] emplacement supérieur droit réservé.
+
+### Économie
+
+- [ ] Lithons ;
+- [ ] 1 caresse valide = 1 Lithon ;
+- [ ] portefeuille serveur ;
+- [ ] historique des mouvements ;
+- [ ] achat atomique ;
+- [ ] impossibilité de solde négatif ;
+- [ ] aucune monnaie réelle.
+
+### Backend
+
+- [ ] Supabase Auth ;
+- [ ] schéma Postgres versionné ;
+- [ ] RLS ;
+- [ ] fonctions transactionnelles ;
+- [ ] tests de sécurité ;
+- [ ] sauvegarde et reprise multi-session.
 
 ### Qualité
 
 - [ ] responsive téléphone/tablette/desktop ;
-- [ ] test tactile réel iPhone/iPad/Android si disponibles ;
-- [ ] navigation clavier essentielle ;
-- [ ] contrôle des conflits swipe/rotation ;
+- [ ] tests tactiles physiques ;
 - [ ] reduced motion ;
 - [ ] qualité graphique adaptative ;
-- [ ] fonctionnement hors ligne du compagnon adopté ;
-- [ ] migration/persistance testée ;
-- [ ] aucun blocage réseau requis pour le parcours principal après cache ;
-- [ ] aucune fuite GPU lors de la navigation répétée entre les 20 spécimens ;
-- [ ] aucune fonctionnalité hors périmètre introduite par opportunisme.
+- [ ] cache PWA ;
+- [ ] aucun conflit rotation/caresse/nettoyage ;
+- [ ] aucune fuite GPU après navigation répétée.
 
 ---
 
-## 25. Principe final
+## 21. Règle finale
 
-Lorsqu’un choix produit est difficile, utiliser cette règle :
+> **CAILLOU™ peut récompenser l'attention, mais ne doit jamais réclamer l'attention.**
 
-> **Si la fonctionnalité rend CAILLOU™ plus compliqué à posséder que le caillou lui-même, elle est probablement mauvaise.**
+Et son utilisateur doit toujours pouvoir constater, avec satisfaction, que la situation reste profondément minérale.
