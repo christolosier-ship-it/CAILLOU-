@@ -1,6 +1,5 @@
 import argparse
 import json
-import math
 import os
 import sys
 from pathlib import Path
@@ -91,13 +90,15 @@ def world_bbox(obj):
     }
 
 
-def add_camera_and_lights(target_obj, bbox):
-    scene = bpy.context.scene
-
-    # Remove only helper cameras/lights created by previous preview pass.
+def remove_audit_helpers():
     for obj in list(bpy.data.objects):
         if obj.get("caillou_audit_helper"):
             bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def add_camera_and_lights(bbox):
+    scene = bpy.context.scene
+    remove_audit_helpers()
 
     center = Vector(bbox["center"])
     size = Vector(bbox["size"])
@@ -110,8 +111,7 @@ def add_camera_and_lights(target_obj, bbox):
     scene.camera = camera
 
     camera.location = center + Vector((radius * 1.8, -radius * 2.4, radius * 1.35))
-    direction = center - camera.location
-    camera.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+    camera.rotation_euler = (center - camera.location).to_track_quat("-Z", "Y").to_euler()
     camera_data.lens = 58
 
     def add_area(name, location, energy, size_scale):
@@ -123,13 +123,11 @@ def add_camera_and_lights(target_obj, bbox):
         scene.collection.objects.link(light)
         light.location = center + Vector(location) * radius
         light.rotation_euler = (center - light.location).to_track_quat("-Z", "Y").to_euler()
-        return light
 
     add_area("CAILLOU_Key", (2.2, -2.5, 3.0), 900, 3.0)
     add_area("CAILLOU_Fill", (-2.5, -0.8, 1.5), 450, 3.8)
     add_area("CAILLOU_Rim", (0.6, 2.5, 2.7), 700, 2.2)
 
-    # Neutral floor, useful for grounding the object and reading silhouette.
     floor_mesh = bpy.data.meshes.new("CAILLOU_Audit_Floor_Mesh")
     floor = bpy.data.objects.new("CAILLOU_Audit_Floor", floor_mesh)
     floor["caillou_audit_helper"] = True
@@ -138,8 +136,7 @@ def add_camera_and_lights(target_obj, bbox):
     half = radius * 5
     z = bbox["min"][2] - radius * 0.025
     verts = [(-half, -half, z), (half, -half, z), (half, half, z), (-half, half, z)]
-    faces = [(0, 1, 2, 3)]
-    floor_mesh.from_pydata(verts, [], faces)
+    floor_mesh.from_pydata(verts, [], [(0, 1, 2, 3)])
     floor_mesh.update()
 
     mat = bpy.data.materials.new("CAILLOU_Audit_Floor_Material")
@@ -155,9 +152,7 @@ def add_camera_and_lights(target_obj, bbox):
 def configure_render(output_path: Path):
     scene = bpy.context.scene
 
-    # Use Eevee where available for fast CPU/headless previews.
-    engine_candidates = ["BLENDER_EEVEE_NEXT", "BLENDER_EEVEE", "BLENDER_WORKBENCH"]
-    for candidate in engine_candidates:
+    for candidate in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE", "BLENDER_WORKBENCH"):
         try:
             scene.render.engine = candidate
             break
@@ -168,14 +163,9 @@ def configure_render(output_path: Path):
     scene.render.resolution_y = 640
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
+    scene.render.image_settings.color_mode = "RGBA"
     scene.render.film_transparent = False
     scene.render.filepath = str(output_path)
-
-    scene.render.image_settings.color_mode = "RGBA"
-    scene.view_settings.look = "Medium High Contrast" if "Medium High Contrast" in {
-        item.name for item in bpy.context.scene.bl_rna.properties["view_settings"].fixed_type.properties
-        if False
-    } else scene.view_settings.look
 
     world = scene.world or bpy.data.worlds.new("World")
     scene.world = world
@@ -195,7 +185,7 @@ def render_preview(obj, all_mesh_objects, output_path):
     obj.hide_viewport = False
 
     bbox = world_bbox(obj)
-    add_camera_and_lights(obj, bbox)
+    add_camera_and_lights(bbox)
     configure_render(output_path)
 
     try:
@@ -209,6 +199,7 @@ def restore_visibility(mesh_objects):
     for obj in mesh_objects:
         obj.hide_render = False
         obj.hide_viewport = False
+    remove_audit_helpers()
 
 
 def main():
@@ -218,7 +209,11 @@ def main():
     ensure_dir(previews_dir)
 
     source_blend = Path(bpy.data.filepath).resolve() if bpy.data.filepath else None
-    mesh_objects = [obj for obj in bpy.data.objects if obj.type == "MESH"]
+    mesh_objects = [
+        obj
+        for obj in bpy.data.objects
+        if obj.type == "MESH" and not obj.get("caillou_audit_helper")
+    ]
 
     inventory = {
         "source_blend": str(source_blend) if source_blend else None,
@@ -264,8 +259,9 @@ def main():
 
     restore_visibility(mesh_objects)
 
-    json_path = output_dir / "inventory.json"
-    json_path.write_text(json.dumps(inventory, indent=2, ensure_ascii=False), encoding="utf-8")
+    (output_dir / "inventory.json").write_text(
+        json.dumps(inventory, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
     md_lines = [
         "# CAILLOU™ — Audit automatique du fichier Blender",
@@ -274,15 +270,16 @@ def main():
         f"- Blender : `{inventory['blender_version']}`",
         f"- Objets mesh détectés : **{inventory['mesh_object_count']}**",
         "",
-        "| # | Objet | Triangles | Sommets | UV | Matériaux | Preview |",
-        "|---:|---|---:|---:|---:|---:|---|",
+        "| # | Objet | Triangles | Sommets | UV | Matériaux | Textures | Preview |",
+        "|---:|---|---:|---:|---:|---:|---:|---|",
     ]
 
     for entry in inventory["objects"]:
         preview = f"[PNG]({entry['preview']})" if entry["preview"] else "échec"
         md_lines.append(
             f"| {entry['index']} | `{entry['name']}` | {entry['triangles']} | "
-            f"{entry['vertices']} | {len(entry['uv_layers'])} | {len(entry['materials'])} | {preview} |"
+            f"{entry['vertices']} | {len(entry['uv_layers'])} | {len(entry['materials'])} | "
+            f"{len(entry['image_paths'])} | {preview} |"
         )
 
     md_lines.extend(
