@@ -67,7 +67,7 @@ export function useAuthSession() {
 
   const signOut = useCallback(async () => {
     explicitSignOut.current = true
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: 'local' })
     localStorage.removeItem(USERNAME_CACHE)
     localStorage.removeItem(SESSION_SEEN)
     setState({ status: 'signed-out' })
