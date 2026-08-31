@@ -83,5 +83,10 @@ jobs:
           rocks="$(curl -fsS "$SUPABASE_URL/rest/v1/user_rocks?select=id&discarded_at=is.null" -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $token_a")"
           test "$(printf '%s' "$rocks" | jq 'length')" = '0'
 
-          anonymous_profiles="$(curl -fsS "$SUPABASE_URL/rest/v1/profiles?select=id" -H "apikey: $SUPABASE_KEY")"
-          test "$(printf '%s' "$anonymous_profiles" | jq 'length')" = '0'
+          anonymous_response="$(curl -sS -w '\n%{http_code}' "$SUPABASE_URL/rest/v1/profiles?select=id" -H "apikey: $SUPABASE_KEY")"
+          split_response "$anonymous_response"
+          if test "$status" = '200'; then
+            test "$(printf '%s' "$body" | jq 'length')" = '0'
+          else
+            test "$status" = '401' -o "$status" = '403'
+          fi
