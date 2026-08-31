@@ -8,7 +8,7 @@ const VERTICAL_SLICE = [getRockCatalogEntry(1), getRockCatalogEntry(2)] as const
 
 export function FoundationScene() {
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const selectedRock = VERTICAL_SLICE[selectedIndex]
+  const selectedRock = VERTICAL_SLICE[selectedIndex] ?? VERTICAL_SLICE[0]
 
   function selectRelative(delta: number) {
     setSelectedIndex((current) => (current + delta + VERTICAL_SLICE.length) % VERTICAL_SLICE.length)
