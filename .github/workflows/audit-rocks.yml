@@ -9,6 +9,13 @@ on:
       - 'Ressource/**'
       - 'scripts/blender/audit_rocks.py'
       - '.github/workflows/audit-rocks.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Ressource/**'
+      - 'scripts/blender/audit_rocks.py'
+      - '.github/workflows/audit-rocks.yml'
 
 permissions:
   contents: read
@@ -59,10 +66,13 @@ jobs:
           if [ ${#previews[@]} -gt 0 ]; then
             montage "${previews[@]}" \
               -thumbnail '360x360>' \
+              -label '%t' \
+              -font DejaVu-Sans \
+              -pointsize 18 \
               -background '#181817' \
               -fill '#F2EFE9' \
               -tile 4x \
-              -geometry '+12+12' \
+              -geometry '+12+28' \
               audit/contact-sheet.png
           else
             echo "No previews were generated" >&2
