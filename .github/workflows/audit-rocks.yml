@@ -1,0 +1,82 @@
+name: Audit Blender rocks
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/blender-rock-audit
+    paths:
+      - 'Ressource/**'
+      - 'scripts/blender/audit_rocks.py'
+      - '.github/workflows/audit-rocks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit rocks from Blender source
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Blender and ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender imagemagick
+          blender --version
+
+      - name: Locate Blender source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          BLEND_FILE="$(find Ressource -maxdepth 1 -type f -name '*.blend' | sort | head -n 1)"
+          if [ -z "$BLEND_FILE" ]; then
+            echo "No .blend file found in Ressource/" >&2
+            exit 1
+          fi
+          echo "blend_file=$BLEND_FILE" >> "$GITHUB_OUTPUT"
+          echo "Using $BLEND_FILE"
+
+      - name: Audit Blender scene and render previews
+        run: |
+          set -euo pipefail
+          rm -rf audit
+          blender -b "${{ steps.source.outputs.blend_file }}" \
+            --python scripts/blender/audit_rocks.py \
+            -- --output audit
+
+      - name: Build mobile contact sheet
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          previews=(audit/previews/*.png)
+          if [ ${#previews[@]} -gt 0 ]; then
+            montage "${previews[@]}" \
+              -thumbnail '360x360>' \
+              -background '#181817' \
+              -fill '#F2EFE9' \
+              -tile 4x \
+              -geometry '+12+12' \
+              audit/contact-sheet.png
+          else
+            echo "No previews were generated" >&2
+            exit 1
+          fi
+
+      - name: Show audit summary
+        run: |
+          cat audit/inventory.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: caillou-rock-audit
+          path: audit/
+          if-no-files-found: error
+          retention-days: 14
