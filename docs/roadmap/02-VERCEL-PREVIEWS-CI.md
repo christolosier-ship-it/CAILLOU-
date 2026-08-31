@@ -48,14 +48,14 @@ Travailler par PR si des fichiers du repo changent. Compléter le compte rendu e
 
 ## État / compte rendu
 
-**Statut : Prête à fusionner — PR #5**
+**Statut : Terminée — PR #5 fusionnée**
 
 - Date : 31 août 2026.
 - Projet Vercel : `caillou` — `prj_s7mALANJeRy7DM7qq4umXnYobuz1`, lié à `christolosier-ship-it/CAILLOU-`, framework Vite.
-- PR / commit : PR #5 — branche `feature/02-vercel-previews-ci`.
+- PR / commit : PR #5 fusionnée dans `main` — merge `8d5a91f61ab81e6d6bc8b660a491c8565c4f7c28`.
 - Réalisé : Node fixé à `22.x` dans `package.json`; `vercel.json` explicite avec `npm run build` et sortie `dist`; CI GitHub minimale avec étapes séparées install/lint/typecheck/tests/build; variables frontend futures documentées dans `.env.example`; aucune variable requise ni aucun secret ajouté à Vercel pour cette étape.
-- Tests / previews : CI GitHub verte sur PR #5; Vercel Preview Git générée automatiquement pour la PR, état `READY`, statut GitHub `Vercel: success`; build Vercel confirme Node 22 malgré le réglage projet 24.x, Vite 8.2.2, génération `manifest.webmanifest`, `sw.js` et Workbox; aucun runtime error Vercel observé. La protection SSO Vercel empêche le connecteur de réaliser une visite visuelle anonyme de la Preview, mais le build et le déploiement Git sont validés.
-- Production : à valider immédiatement après fusion de PR #5 via le déploiement Git automatique de `main`; l'étape ne doit passer à `Terminée` qu'après ce contrôle.
+- Tests / previews : CI GitHub verte sur PR #5 et verte sur le merge `main`; Vercel Preview Git générée automatiquement pour la PR, état `READY`, statut GitHub `Vercel: success`; build Vercel confirme Node 22 malgré le réglage projet 24.x, Vite 8.2.2, génération `manifest.webmanifest`, `sw.js` et Workbox; aucun runtime error Vercel observé. La protection SSO Vercel empêche le connecteur de réaliser une visite visuelle anonyme de la Preview, mais le build et le déploiement Git sont validés.
+- Production : déploiement Git `dpl_4j2Gww3zeU7RcPRRSt2P8GoqXbm9` issu de `main` / merge `8d5a91f` validé `READY`; aliases actifs `caillou-sigma.vercel.app`, `caillou-christo5.vercel.app` et `caillou-git-main-christo5.vercel.app`.
 - Écarts / dette : `package-lock.json` reste absent; un bootstrap de lockfile a été validé mais l'auto-commit par workflow a été refusé par le garde-fou de sécurité, sans contournement. Warning transitif npm `glob@11.1.0` et warning de chunk 3D ~301,5 kB gzip déjà connus; aucune optimisation forcée à cette étape.
 - Supabase : projet `CAILLOU-` vérifié sain et volontairement inchangé.
 - Étape suivante recommandée : 03.
