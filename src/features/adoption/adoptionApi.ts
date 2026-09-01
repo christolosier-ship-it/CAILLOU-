@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase/client'
+import { DEFAULT_ROCK_POSE } from '../rockMovement/rockMovementRules'
 import { normalizeRockName, validateRockName } from './adoptionRules'
 import type { AdoptRockMutation } from './adoptionTypes'
 
@@ -41,5 +42,8 @@ export const adoptRock: AdoptRockMutation = async ({ rock, name, eventKey }) => 
     name: data.rock_name,
     adoptedAt: data.adopted_at,
     lastCleanedAt: null,
+    posePosition: [...DEFAULT_ROCK_POSE.position],
+    poseRotation: [...DEFAULT_ROCK_POSE.rotation],
+    poseStabilizedAt: data.adopted_at,
   }
 }
