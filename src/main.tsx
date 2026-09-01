@@ -9,6 +9,7 @@ import './styles/adoption.css'
 import './styles/caress.css'
 import './styles/cleaning.css'
 import './styles/accessories.css'
+import './styles/accessory-placement.css'
 
 registerPwa()
 

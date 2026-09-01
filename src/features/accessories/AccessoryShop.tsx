@@ -16,6 +16,10 @@ interface AccessoryShopProps {
   onBalanceChanged: (balance: number) => void
   onPurchased: (result: PurchaseAccessoryResult) => void
   onClose: () => void
+  onPlace?: (item: AccessoryCatalogItem) => Promise<void>
+  placedCount?: number
+  maxPlaced?: number
+  equippedCounts?: Record<string, number>
   loadShop?: () => Promise<AccessoryShopSnapshot>
   purchaseMutation?: PurchaseAccessoryMutation
 }
@@ -43,6 +47,10 @@ export function AccessoryShop({
   onBalanceChanged,
   onPurchased,
   onClose,
+  onPlace,
+  placedCount = 0,
+  maxPlaced = 8,
+  equippedCounts = {},
   loadShop = loadAccessoryShop,
   purchaseMutation = purchaseAccessory,
 }: AccessoryShopProps) {
@@ -50,9 +58,12 @@ export function AccessoryShop({
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [placingId, setPlacingId] = useState<string | null>(null)
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
   const [purchaseFeedback, setPurchaseFeedback] = useState<string | null>(null)
+  const [placementError, setPlacementError] = useState<string | null>(null)
   const [retryInput, setRetryInput] = useState<PurchaseAccessoryInput | null>(null)
+  const busy = pendingId !== null || placingId !== null
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -73,16 +84,17 @@ export function AccessoryShop({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !pendingId) onClose()
+      if (event.key === 'Escape' && !busy) onClose()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose, pendingId])
+  }, [busy, onClose])
 
   const submitPurchase = useCallback(async (input: PurchaseAccessoryInput) => {
-    if (pendingId) return
+    if (busy) return
     setPendingId(input.accessoryId)
     setPurchaseError(null)
+    setPlacementError(null)
     setPurchaseFeedback(null)
 
     try {
@@ -105,14 +117,30 @@ export function AccessoryShop({
     } finally {
       setPendingId(null)
     }
-  }, [onBalanceChanged, onPurchased, pendingId, purchaseMutation, refresh])
+  }, [busy, onBalanceChanged, onPurchased, purchaseMutation, refresh])
+
+  const submitPlacement = useCallback(async (item: AccessoryCatalogItem) => {
+    if (!onPlace || busy || placedCount >= maxPlaced) return
+    setPlacingId(item.id)
+    setPurchaseError(null)
+    setPurchaseFeedback(null)
+    setPlacementError(null)
+    try {
+      await onPlace(item)
+      navigator.vibrate?.(10)
+    } catch (error) {
+      setPlacementError(error instanceof Error ? error.message : 'Le placement n’a pas pu être créé.')
+    } finally {
+      setPlacingId(null)
+    }
+  }, [busy, maxPlaced, onPlace, placedCount])
 
   return (
     <div
       className="accessory-shop-backdrop"
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !pendingId) onClose()
+        if (event.target === event.currentTarget && !busy) onClose()
       }}
     >
       <section className="accessory-shop" role="dialog" aria-modal="true" aria-labelledby="accessory-shop-title">
@@ -120,14 +148,14 @@ export function AccessoryShop({
           <div>
             <p className="eyebrow">Collection du Socle</p>
             <h2 id="accessory-shop-title">Accessoires</h2>
-            <p>Objets cosmétiques homologués, acquis définitivement avec des Lithons.</p>
+            <p>Objets cosmétiques homologués, acquis définitivement avec des Lithons puis placés librement sur le caillou.</p>
           </div>
           <button
             type="button"
             className="accessory-shop-close"
             autoFocus
             onClick={onClose}
-            disabled={pendingId !== null}
+            disabled={busy}
             aria-label="Fermer la boutique d’accessoires"
           >
             <X size={22} aria-hidden="true" />
@@ -139,6 +167,10 @@ export function AccessoryShop({
           <span>Solde disponible</span>
           <strong>{formatLithons(balance)}</strong>
         </div>
+
+        <p className="accessory-shop-placement-count">
+          {placedCount}/{maxPlaced} instances actuellement placées sur ce caillou.
+        </p>
 
         {loading ? (
           <div className="accessory-shop-state" aria-live="polite">Consultation du registre…</div>
@@ -155,12 +187,16 @@ export function AccessoryShop({
           <div className="accessory-shop-grid">
             {items.map((item) => {
               const pending = pendingId === item.id
+              const placing = placingId === item.id
+              const equippedCount = equippedCounts[item.id] ?? 0
               const availability = getPurchaseAvailability({
                 balance,
                 priceLithons: item.priceLithons,
                 purchasedAt: item.purchasedAt,
-                pending: pendingId !== null,
+                pending: busy,
               })
+              const placementAllowed = Boolean(onPlace) && !busy && placedCount < maxPlaced
+
               return (
                 <article className="accessory-card" key={item.id}>
                   <div className="accessory-card-preview">
@@ -179,16 +215,33 @@ export function AccessoryShop({
                       <div><dt>Prix fixe</dt><dd>{formatLithons(item.priceLithons)}</dd></div>
                       <div><dt>Licence</dt><dd>{accessoryLicense(item.provenance)}</dd></div>
                     </dl>
-                    <button
-                      type="button"
-                      className={availability.allowed ? 'accessory-buy' : 'accessory-buy is-secondary'}
-                      disabled={!availability.allowed}
-                      onClick={() => void submitPurchase({ accessoryId: item.id, eventKey: crypto.randomUUID() })}
-                    >
-                      {pending ? 'Confirmation…' : availability.label}
-                    </button>
+
                     {item.purchasedAt ? (
-                      <p className="accessory-card-note">Dans votre collection — prêt pour le placement sur le caillou.</p>
+                      <button
+                        type="button"
+                        className="accessory-buy"
+                        disabled={!placementAllowed}
+                        onClick={() => void submitPlacement(item)}
+                      >
+                        {placing ? 'Placement…' : placedCount >= maxPlaced ? 'Limite atteinte' : 'Placer sur le caillou'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={availability.allowed ? 'accessory-buy' : 'accessory-buy is-secondary'}
+                        disabled={!availability.allowed}
+                        onClick={() => void submitPurchase({ accessoryId: item.id, eventKey: crypto.randomUUID() })}
+                      >
+                        {pending ? 'Confirmation…' : availability.label}
+                      </button>
+                    )}
+
+                    {item.purchasedAt ? (
+                      <p className="accessory-card-note">
+                        {equippedCount > 0
+                          ? `${equippedCount} instance${equippedCount > 1 ? 's' : ''} déjà placée${equippedCount > 1 ? 's' : ''}.`
+                          : 'Dans votre collection — prêt pour le placement libre.'}
+                      </p>
                     ) : null}
                   </div>
                 </article>
@@ -201,12 +254,14 @@ export function AccessoryShop({
           <div className="accessory-shop-error" role="alert">
             <span>{purchaseError}</span>
             {retryInput ? (
-              <button type="button" disabled={pendingId !== null} onClick={() => void submitPurchase(retryInput)}>
+              <button type="button" disabled={busy} onClick={() => void submitPurchase(retryInput)}>
                 Renvoyer la même opération
               </button>
             ) : null}
           </div>
         ) : null}
+
+        {placementError ? <div className="accessory-shop-error" role="alert">{placementError}</div> : null}
 
         {purchaseFeedback ? (
           <output className="accessory-shop-feedback" aria-live="polite">
@@ -216,7 +271,7 @@ export function AccessoryShop({
 
         <footer className="accessory-shop-footer">
           <ShieldCheck size={19} strokeWidth={1.75} aria-hidden="true" />
-          <span>Prix et débit sont vérifiés par le registre. Aucun paiement réel.</span>
+          <span>Prix, propriété et placements sont vérifiés par le registre. Aucun paiement réel.</span>
         </footer>
       </section>
     </div>

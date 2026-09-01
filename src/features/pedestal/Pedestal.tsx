@@ -6,8 +6,10 @@ import { PRODUCT_NAME } from '../../domain/foundation'
 import { ShowroomScene } from '../../scene/ShowroomScene'
 import type { RockLoadState, RockSurfacePointerSample } from '../../scene/RockModel'
 import { useReducedMotion } from '../../utils/useReducedMotion'
+import { AccessoryEditor } from '../accessories/AccessoryEditor'
 import { AccessoryShop } from '../accessories/AccessoryShop'
-import type { PurchaseAccessoryResult } from '../accessories/accessoryTypes'
+import type { AccessoryCatalogItem, AccessoryTransform, PurchaseAccessoryResult } from '../accessories/accessoryTypes'
+import { useAccessoryPlacements } from '../accessories/useAccessoryPlacements'
 import type { ActiveRock } from '../adoption/adoptionTypes'
 import { CaressMutationError, registerCaress } from '../caress/caressApi'
 import { CARESS_CLIENT_COOLDOWN_MS, isValidCaress } from '../caress/caressRules'
@@ -28,7 +30,7 @@ interface PedestalProps {
   registerCleaningMutation?: RegisterCleaningMutation | undefined
 }
 
-type PedestalMode = 'orbit' | 'caress' | 'cleaning'
+type PedestalMode = 'orbit' | 'caress' | 'cleaning' | 'accessory'
 
 interface ActiveSurfaceGesture {
   pointerId: number
@@ -102,6 +104,8 @@ export function Pedestal({
   const [retryKey, setRetryKey] = useState(0)
   const [bioOpen, setBioOpen] = useState(false)
   const [accessoryShopOpen, setAccessoryShopOpen] = useState(false)
+  const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null)
+  const [accessoryRenderError, setAccessoryRenderError] = useState<string | null>(null)
   const [mode, setMode] = useState<PedestalMode>('orbit')
   const [caressPending, setCaressPending] = useState(false)
   const [caressFeedback, setCaressFeedback] = useState<string | null>(null)
@@ -120,6 +124,16 @@ export function Pedestal({
   const reducedMotion = useReducedMotion()
   const caressMutation = registerCaressMutation ?? registerCaress
   const cleaningMutation = registerCleaningMutation ?? registerCleaning
+  const {
+    instances: accessoryInstances,
+    loading: accessoryPlacementsLoading,
+    pendingId: accessoryPendingId,
+    error: accessoryPlacementError,
+    maxInstances,
+    place: placeAccessory,
+    update: updateAccessory,
+    remove: removeAccessory,
+  } = useAccessoryPlacements(activeRock.id)
   const adoptionDate = useMemo(() => formatDate(activeRock.adoptedAt), [activeRock.adoptedAt])
   const lastCleaningDate = useMemo(
     () => lastCleanedAtState ? formatDate(lastCleanedAtState) : 'Non requis à ce jour',
@@ -129,10 +143,19 @@ export function Pedestal({
     () => getDustAmount(lastCleanedAtState, activeRock.adoptedAt),
     [activeRock.adoptedAt, lastCleanedAtState],
   )
+  const equippedCounts = useMemo(() => accessoryInstances.reduce<Record<string, number>>((counts, instance) => {
+    counts[instance.accessoryId] = (counts[instance.accessoryId] ?? 0) + 1
+    return counts
+  }, {}), [accessoryInstances])
   const cleaningAvailable = hasVisibleDust(dustAmount)
   const caressMode = mode === 'caress'
   const cleaningMode = mode === 'cleaning'
-  const mutationBlocked = caressPending || cleaningPending || retryInput !== null || cleaningRetryInput !== null
+  const accessoryMode = mode === 'accessory'
+  const mutationBlocked = caressPending
+    || cleaningPending
+    || retryInput !== null
+    || cleaningRetryInput !== null
+    || accessoryPendingId !== null
   const handleLoadState = useCallback((state: RockLoadState) => setLoadState(state), [])
 
   useEffect(() => setEconomyState(economy), [economy])
@@ -311,9 +334,10 @@ export function Pedestal({
     if (cleaningMode) setDustRevision((current) => current + 1)
   }, [cleaningMode])
 
-  const toggleMode = useCallback((target: Exclude<PedestalMode, 'orbit'>) => {
+  const toggleMode = useCallback((target: 'caress' | 'cleaning') => {
     if (mutationBlocked) return
     gestureRef.current = null
+    setSelectedAccessoryId(null)
     setMode((current) => {
       if (current === 'cleaning') setDustRevision((revision) => revision + 1)
       return current === target ? 'orbit' : target
@@ -333,21 +357,76 @@ export function Pedestal({
     void onServerStateChanged()
   }, [onServerStateChanged])
 
-  const status = cleaningPending
-    ? 'Enregistrement du nettoyage…'
-    : cleaningRetryInput
-      ? 'Confirmation du nettoyage à reprendre.'
-      : cleaningMode
-        ? 'Mode nettoyage actif. Passez le doigt sur la poussière visible.'
-        : caressPending
-          ? 'Enregistrement de la caresse…'
-          : retryInput
-            ? 'Confirmation serveur à reprendre.'
-            : caressMode
-              ? 'Mode caresse actif. Faites glisser le doigt sur la surface du caillou.'
-              : 'Votre caillou est prêt à ne rien faire à vos côtés.'
+  const handleAccessoryPlace = useCallback(async (item: AccessoryCatalogItem) => {
+    const created = await placeAccessory(item)
+    setAccessoryRenderError(null)
+    setSelectedAccessoryId(created.id)
+    setAccessoryShopOpen(false)
+    setMode('accessory')
+  }, [placeAccessory])
 
-  const shellModeClass = caressMode ? ' is-caress-mode' : cleaningMode ? ' is-cleaning-mode' : ''
+  const handleAccessorySelect = useCallback((instanceId: string) => {
+    if (mutationBlocked) return
+    setAccessoryShopOpen(false)
+    setSelectedAccessoryId(instanceId)
+    setMode('accessory')
+  }, [mutationBlocked])
+
+  const handleAccessoryTransform = useCallback((instanceId: string, transform: AccessoryTransform) => {
+    if (mutationBlocked) return
+    void updateAccessory(instanceId, transform)
+  }, [mutationBlocked, updateAccessory])
+
+  const handleAccessoryRemove = useCallback((instanceId: string) => {
+    if (mutationBlocked) return
+    void removeAccessory(instanceId).then((removed) => {
+      if (!removed) return
+      const remaining = accessoryInstances.filter((instance) => instance.id !== instanceId)
+      const nextSelected = remaining[0]?.id ?? null
+      setSelectedAccessoryId(nextSelected)
+      if (!nextSelected) setMode('orbit')
+    })
+  }, [accessoryInstances, mutationBlocked, removeAccessory])
+
+  const handleAccessoryDone = useCallback(() => {
+    if (mutationBlocked) return
+    setSelectedAccessoryId(null)
+    setMode('orbit')
+  }, [mutationBlocked])
+
+  const handleAccessoryLoadState = useCallback((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => {
+    if (state === 'error') {
+      setAccessoryRenderError(`L’instance ${instanceId.slice(0, 8)} n’a pas pu être chargée${message ? ` : ${message}` : '.'}`)
+    } else if (state === 'ready') {
+      setAccessoryRenderError(null)
+    }
+  }, [])
+
+  const status = accessoryPendingId
+    ? 'Enregistrement du placement…'
+    : accessoryPlacementsLoading
+      ? 'Vérification des accessoires placés…'
+      : accessoryMode
+        ? 'Mode accessoire actif. Glissez l’objet ou utilisez les réglages X/Y/Z.'
+        : cleaningPending
+          ? 'Enregistrement du nettoyage…'
+          : cleaningRetryInput
+            ? 'Confirmation du nettoyage à reprendre.'
+            : cleaningMode
+              ? 'Mode nettoyage actif. Passez le doigt sur la poussière visible.'
+              : caressPending
+                ? 'Enregistrement de la caresse…'
+                : retryInput
+                  ? 'Confirmation serveur à reprendre.'
+                  : caressMode
+                    ? 'Mode caresse actif. Faites glisser le doigt sur la surface du caillou.'
+                    : 'Votre caillou est prêt à ne rien faire à vos côtés.'
+
+  const shellModeClass = caressMode
+    ? ' is-caress-mode'
+    : cleaningMode
+      ? ' is-cleaning-mode'
+      : accessoryMode ? ' is-accessory-mode' : ''
 
   return (
     <div className={`pedestal-shell${shellModeClass}`}>
@@ -380,6 +459,7 @@ export function Pedestal({
           className="pedestal-stage"
           aria-label={`Socle de ${activeRock.name}`}
           data-dust-amount={dustAmount.toFixed(3)}
+          data-accessory-count={accessoryInstances.length}
         >
           <div className="pedestal-identity">
             <p className="eyebrow">{rock.label}</p>
@@ -399,6 +479,11 @@ export function Pedestal({
             onSurfacePointerMove={handleSurfaceMove}
             onSurfacePointerUp={handleSurfaceEnd}
             onSurfacePointerCancel={cancelSurfaceGesture}
+            accessories={accessoryInstances}
+            selectedAccessoryId={selectedAccessoryId}
+            onAccessorySelect={handleAccessorySelect}
+            onAccessoryTransformCommit={handleAccessoryTransform}
+            onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
 
           {loadState !== 'ready' ? (
@@ -445,6 +530,21 @@ export function Pedestal({
             </div>
           ) : null}
 
+          {accessoryMode && selectedAccessoryId ? (
+            <AccessoryEditor
+              instances={accessoryInstances}
+              selectedId={selectedAccessoryId}
+              busy={accessoryPendingId !== null}
+              message={accessoryPlacementError ?? accessoryRenderError}
+              maxInstances={maxInstances}
+              onSelect={handleAccessorySelect}
+              onTransform={handleAccessoryTransform}
+              onRemove={handleAccessoryRemove}
+              onOpenShop={openAccessoryShop}
+              onDone={handleAccessoryDone}
+            />
+          ) : null}
+
           <p className="pedestal-status">{status}</p>
         </section>
 
@@ -455,7 +555,7 @@ export function Pedestal({
             const isAccessory = label === 'Accessoire'
             const isActive = (isCaress && caressMode)
               || (isCleaning && cleaningMode)
-              || (isAccessory && accessoryShopOpen)
+              || (isAccessory && (accessoryShopOpen || accessoryMode))
             const disabled = isCaress
               ? mutationBlocked
               : isCleaning
@@ -468,7 +568,9 @@ export function Pedestal({
                     ? 'Nettoyer — surface déjà conforme'
                     : cleaningMode ? 'Quitter le mode Nettoyer' : 'Activer le mode Nettoyer')
                 : isAccessory
-                  ? (accessoryShopOpen ? 'Boutique d’accessoires ouverte' : 'Ouvrir la boutique d’accessoires')
+                  ? (accessoryShopOpen
+                      ? 'Boutique d’accessoires ouverte'
+                      : accessoryMode ? 'Gérer les accessoires placés' : 'Ouvrir la boutique d’accessoires')
                   : `${label} — fonctionnalité en préparation`
 
             return (
@@ -519,6 +621,7 @@ export function Pedestal({
               <div><dt>Dernier nettoyage</dt><dd>{lastCleaningDate}</dd></div>
               <div><dt>Lithons générés</dt><dd>{economyState.lithonsGenerated}</dd></div>
               <div><dt>Solde actuel</dt><dd>{lithonLabel(economyState.balance)}</dd></div>
+              <div><dt>Accessoires placés</dt><dd>{accessoryInstances.length}</dd></div>
               <div><dt>Déplacement spontané</dt><dd>0 m observé</dd></div>
             </dl>
           </section>
@@ -528,6 +631,10 @@ export function Pedestal({
       {accessoryShopOpen ? (
         <AccessoryShop
           balance={economyState.balance}
+          placedCount={accessoryInstances.length}
+          maxPlaced={maxInstances}
+          equippedCounts={equippedCounts}
+          onPlace={handleAccessoryPlace}
           onBalanceChanged={(balance) => setEconomyState((current) => ({ ...current, balance }))}
           onPurchased={handleAccessoryPurchased}
           onClose={() => setAccessoryShopOpen(false)}

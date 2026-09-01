@@ -1,0 +1,62 @@
+name: Validate multi-accessory placement
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/features/accessories/**'
+      - 'src/features/pedestal/**'
+      - 'src/scene/**'
+      - 'src/styles/accessory-placement.css'
+      - 'scripts/web/accessory-placement-e2e-validation.*'
+      - 'scripts/web/validate-accessory-placement-e2e.mjs'
+      - '.github/workflows/accessory-placement-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accessory-placement-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  placement:
+    name: Multi GLB + local transform persistence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chrome validation driver
+        run: npm install --no-save --package-lock=false --no-audit --no-fund puppeteer-core@24.16.0
+
+      - name: Validate multi-accessory placement
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm exec -- vite --host 127.0.0.1 --port 4178 > /tmp/caillou-accessory-placement-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          sleep 3
+          google-chrome --version
+          node scripts/web/validate-accessory-placement-e2e.mjs
+
+      - name: Upload placement diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: caillou-accessory-placement-${{ github.run_id }}
+          path: build/accessory-placement-validation/
+          if-no-files-found: warn
+          retention-days: 14

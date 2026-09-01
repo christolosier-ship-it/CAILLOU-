@@ -36,3 +36,49 @@ export interface PurchaseAccessoryResult {
 export type PurchaseAccessoryMutation = (
   input: PurchaseAccessoryInput,
 ) => Promise<PurchaseAccessoryResult>
+
+export type AccessoryLocalPosition = [number, number, number]
+export type AccessoryLocalRotation = [number, number, number, number]
+
+export interface AccessoryTransform {
+  localPosition: AccessoryLocalPosition
+  localRotation: AccessoryLocalRotation
+  uniformScale: number
+}
+
+export interface EquippedAccessoryInstance extends AccessoryTransform {
+  id: string
+  userRockId: string
+  accessoryId: string
+  category: string
+  name: string
+  modelPath: string
+  previewPath: string
+  scaleMin: number
+  scaleMax: number
+  triangleCount: number | null
+  equippedAt: string
+  updatedAt: string
+}
+
+export interface CreateAccessoryPlacementInput {
+  userRockId: string
+  accessory: AccessoryCatalogItem
+  eventKey: string
+  transform: AccessoryTransform
+}
+
+export interface UpdateAccessoryPlacementInput {
+  instanceId: string
+  transform: AccessoryTransform
+}
+
+export interface UpdateAccessoryPlacementResult extends AccessoryTransform {
+  instanceId: string
+  updatedAt: string
+}
+
+export interface RemoveAccessoryPlacementInput {
+  instanceId: string
+  eventKey: string
+}
