@@ -7,6 +7,7 @@ import '../../src/styles/global.css'
 import '../../src/styles/showroom.css'
 import '../../src/styles/adoption.css'
 import '../../src/styles/caress.css'
+import '../../src/styles/cleaning.css'
 
 function AdoptionFixture() {
   const [activeRock, setActiveRock] = useState<ActiveRock | null>(null)
@@ -25,7 +26,7 @@ function AdoptionFixture() {
       id: '70707070-7070-4707-8707-707070707077',
       specimenId: rock.id,
       name,
-      adoptedAt: '2026-09-01T07:00:00.000Z',
+      adoptedAt: new Date().toISOString(),
       lastCleanedAt: null,
     }
     receipts.current.set(eventKey, adopted)
@@ -49,7 +50,7 @@ function AdoptionFixture() {
         username="Step07"
         destination={activeRock ? 'socle' : 'showroom'}
         activeRock={activeRock}
-        economy={activeRock ? { balance: 0, caressCount: 0, lithonsGenerated: 0 } : null}
+        economy={activeRock ? { balance: 0, caressCount: 0, cleaningCount: 0, lithonsGenerated: 0 } : null}
         adoptRockMutation={mutation}
         onServerStateChanged={refreshServerState}
         onSignOut={async () => undefined}

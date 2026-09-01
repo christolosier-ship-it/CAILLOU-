@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabase/client'
-import type { RegisterCaressInput, RegisterCaressMutation, RockEconomySnapshot } from './caressTypes'
+import type { CaressMutationResult, RegisterCaressInput, RegisterCaressMutation } from './caressTypes'
 
 export class CaressMutationError extends Error {
   constructor(
@@ -35,7 +35,7 @@ function translateCaressError(error: { code?: string; message: string }) {
 export const registerCaress: RegisterCaressMutation = async ({
   userRockId,
   eventKey,
-}: RegisterCaressInput): Promise<RockEconomySnapshot> => {
+}: RegisterCaressInput): Promise<CaressMutationResult> => {
   const { data, error } = await supabase.rpc('register_caress', {
     p_user_rock_id: userRockId,
     p_event_key: eventKey,

@@ -1,6 +1,13 @@
 export interface RockEconomySnapshot {
   balance: number
   caressCount: number
+  cleaningCount: number
+  lithonsGenerated: number
+}
+
+export interface CaressMutationResult {
+  balance: number
+  caressCount: number
   lithonsGenerated: number
 }
 
@@ -9,4 +16,4 @@ export interface RegisterCaressInput {
   eventKey: string
 }
 
-export type RegisterCaressMutation = (input: RegisterCaressInput) => Promise<RockEconomySnapshot>
+export type RegisterCaressMutation = (input: RegisterCaressInput) => Promise<CaressMutationResult>
