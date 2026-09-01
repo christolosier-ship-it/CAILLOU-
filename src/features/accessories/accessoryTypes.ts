@@ -45,7 +45,7 @@ export interface AccessoryTransform {
   localRotation: AccessoryLocalRotation
   uniformScale: number
   /** Internal renderer marker: only a Rapier-settled pose may set this to true. */
-  physicsSettled?: boolean
+  physicsSettled?: boolean | undefined
 }
 
 export interface EquippedAccessoryInstance extends AccessoryTransform {
