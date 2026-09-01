@@ -76,7 +76,6 @@ function AccessoryPlacementFixture() {
   const [disposeCount, setDisposeCount] = useState(0)
   const [disposedGeometries, setDisposedGeometries] = useState(0)
   const [reloadCount, setReloadCount] = useState(0)
-  const [sceneRevision, setSceneRevision] = useState(0)
   const [message, setMessage] = useState<string | null>(null)
   const serverInstances = useRef(cloneInstances(INITIAL_INSTANCES))
 
@@ -112,11 +111,15 @@ function AccessoryPlacementFixture() {
   }, [])
 
   const simulateReload = useCallback(() => {
-    setInstances(cloneInstances(serverInstances.current))
+    const canonical = cloneInstances(serverInstances.current)
     setLoadedIds([])
-    setSceneRevision((current) => current + 1)
-    setReloadCount((current) => current + 1)
+    setInstances([])
     setMessage('Reload canonique simulé.')
+
+    window.setTimeout(() => {
+      setInstances(canonical)
+      setReloadCount((current) => current + 1)
+    }, 0)
   }, [])
 
   return (
@@ -124,7 +127,6 @@ function AccessoryPlacementFixture() {
       <main className="pedestal-main">
         <section className="pedestal-stage" data-accessory-count={instances.length}>
           <ShowroomScene
-            key={sceneRevision}
             rock={rock}
             retryKey={0}
             reducedMotion={false}
