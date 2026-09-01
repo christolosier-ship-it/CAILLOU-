@@ -16,8 +16,8 @@ interface AccessoryModelProps {
   editing: boolean
   onSelect: (instanceId: string) => void
   onTransformCommit: (instanceId: string, transform: AccessoryTransform) => void
-  onLoadStateChange?: (instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => void
-  onDisposed?: (instanceId: string, report: DisposalReport) => void
+  onLoadStateChange?: ((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => void) | undefined
+  onDisposed?: ((instanceId: string, report: DisposalReport) => void) | undefined
 }
 
 interface DragState {
@@ -28,6 +28,11 @@ interface DragState {
 
 function clampPosition(value: number) {
   return Math.min(ACCESSORY_POSITION_LIMIT, Math.max(-ACCESSORY_POSITION_LIMIT, value))
+}
+
+function pointerTarget(event: ThreeEvent<PointerEvent>) {
+  const target = event.nativeEvent.target
+  return target instanceof Element ? target : null
 }
 
 export function AccessoryModel({
@@ -147,7 +152,7 @@ export function AccessoryModel({
       plane,
       worldOffset: worldPosition.clone().sub(hit),
     }
-    event.target.setPointerCapture(event.pointerId)
+    pointerTarget(event)?.setPointerCapture(event.pointerId)
   }
 
   const moveDrag = (event: ThreeEvent<PointerEvent>) => {
@@ -177,7 +182,8 @@ export function AccessoryModel({
     if (!drag || !group || drag.pointerId !== event.pointerId) return
     event.stopPropagation()
     dragRef.current = null
-    event.target.releasePointerCapture(event.pointerId)
+    const target = pointerTarget(event)
+    if (target?.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
     onTransformCommit(instance.id, {
       localPosition: [group.position.x, group.position.y, group.position.z],
       localRotation: [group.quaternion.x, group.quaternion.y, group.quaternion.z, group.quaternion.w],
