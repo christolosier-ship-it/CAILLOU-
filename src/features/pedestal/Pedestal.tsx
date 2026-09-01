@@ -27,7 +27,7 @@ interface PedestalProps {
   username: string
   onServerStateChanged: () => Promise<void>
   onSignOut: () => Promise<void>
-  registerCaressMutation?: RegisterCaressMutation
+  registerCaressMutation?: RegisterCaressMutation | undefined
 }
 
 interface ActiveCaressGesture {
