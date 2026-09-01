@@ -6,10 +6,31 @@ import type { RockId } from '../../content/rockCatalog'
 import { supabase } from '../../lib/supabase/client'
 import type { ActiveRock } from '../adoption/adoptionTypes'
 import type { RockEconomySnapshot } from '../caress/caressTypes'
+import { parseRockPosition, parseRockRotation } from '../rockMovement/rockMovementRules'
 import { resolveAuthenticatedDestination } from './authRules'
 
 const USERNAME_CACHE = 'caillou.auth.username'
 const SESSION_SEEN = 'caillou.auth.session-seen'
+
+interface CanonicalRockRow {
+  id: string
+  specimen_id: string
+  name: string
+  adopted_at: string
+  last_cleaned_at: string | null
+  pose_position: unknown
+  pose_rotation: unknown
+  pose_stabilized_at: string | null
+}
+
+interface MaybeSingleQuery<T> {
+  select: (columns: string) => MaybeSingleQuery<T>
+  eq: (column: string, value: unknown) => MaybeSingleQuery<T>
+  is: (column: string, value: null) => MaybeSingleQuery<T>
+  maybeSingle: () => Promise<{ data: T | null; error: Error | null }>
+}
+
+const rawFrom = supabase.from.bind(supabase) as unknown as <T>(table: string) => MaybeSingleQuery<T>
 
 export type AuthSessionState =
   | { status: 'loading' }
@@ -37,9 +58,8 @@ export function useAuthSession() {
         { data: wallet, error: walletError },
       ] = await Promise.all([
         supabase.from('profiles').select('username').eq('id', session.user.id).single(),
-        supabase
-          .from('user_rocks')
-          .select('id, specimen_id, name, adopted_at, last_cleaned_at')
+        rawFrom<CanonicalRockRow>('user_rocks')
+          .select('id, specimen_id, name, adopted_at, last_cleaned_at, pose_position, pose_rotation, pose_stabilized_at')
           .eq('user_id', session.user.id)
           .is('discarded_at', null)
           .maybeSingle(),
@@ -60,6 +80,9 @@ export function useAuthSession() {
         name: rock.name,
         adoptedAt: rock.adopted_at,
         lastCleanedAt: rock.last_cleaned_at,
+        posePosition: parseRockPosition(rock.pose_position),
+        poseRotation: parseRockRotation(rock.pose_rotation),
+        poseStabilizedAt: rock.pose_stabilized_at,
       } : null
 
       let economy: RockEconomySnapshot | null = null
