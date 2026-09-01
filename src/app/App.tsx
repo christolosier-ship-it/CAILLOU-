@@ -40,6 +40,7 @@ export function App() {
     <AuthenticatedHome
       destination={state.destination}
       activeRock={state.activeRock}
+      economy={state.economy}
       username={state.username}
       onServerStateChanged={refresh}
       onSignOut={signOut}
