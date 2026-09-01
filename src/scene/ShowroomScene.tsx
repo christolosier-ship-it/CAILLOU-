@@ -14,7 +14,9 @@ interface ShowroomSceneProps {
   reducedMotion: boolean
   onLoadStateChange: (state: RockLoadState, message?: string) => void
   onInteractionChange: (active: boolean) => void
-  interactionMode?: 'orbit' | 'caress'
+  interactionMode?: 'orbit' | 'caress' | 'cleaning'
+  dustAmount?: number
+  dustRevision?: number
   onSurfacePointerDown?: (sample: RockSurfacePointerSample) => void
   onSurfacePointerMove?: (sample: RockSurfacePointerSample) => void
   onSurfacePointerUp?: (sample: RockSurfacePointerSample) => void
@@ -73,6 +75,8 @@ export function ShowroomScene({
   onLoadStateChange,
   onInteractionChange,
   interactionMode = 'orbit',
+  dustAmount = 0,
+  dustRevision = 0,
   onSurfacePointerDown,
   onSurfacePointerMove,
   onSurfacePointerUp,
@@ -80,19 +84,20 @@ export function ShowroomScene({
 }: ShowroomSceneProps) {
   const [object, setObject] = useState<Object3D | null>(null)
   const handleObjectReady = useCallback((nextObject: Object3D | null) => setObject(nextObject), [])
-  const caressMode = interactionMode === 'caress'
+  const surfaceMode = interactionMode !== 'orbit'
+  const cleaningMode = interactionMode === 'cleaning'
 
   return (
     <div
       className="showroom-canvas"
       onPointerDown={() => {
-        if (!caressMode) onInteractionChange(true)
+        if (!surfaceMode) onInteractionChange(true)
       }}
       onPointerUp={() => {
-        if (!caressMode) onInteractionChange(false)
+        if (!surfaceMode) onInteractionChange(false)
       }}
       onPointerCancel={() => {
-        if (!caressMode) onInteractionChange(false)
+        if (!surfaceMode) onInteractionChange(false)
       }}
       onContextMenu={(event) => event.preventDefault()}
     >
@@ -113,12 +118,15 @@ export function ShowroomScene({
         <RockModel
           key={`${rock.id}-${retryKey}`}
           path={rock.modelPath}
+          dustAmount={dustAmount}
+          dustRevision={dustRevision}
+          cleaningActive={cleaningMode}
           onLoadStateChange={onLoadStateChange}
           onObjectReady={handleObjectReady}
-          onSurfacePointerDown={caressMode ? onSurfacePointerDown : undefined}
-          onSurfacePointerMove={caressMode ? onSurfacePointerMove : undefined}
-          onSurfacePointerUp={caressMode ? onSurfacePointerUp : undefined}
-          onSurfacePointerCancel={caressMode ? onSurfacePointerCancel : undefined}
+          onSurfacePointerDown={surfaceMode ? onSurfacePointerDown : undefined}
+          onSurfacePointerMove={surfaceMode ? onSurfacePointerMove : undefined}
+          onSurfacePointerUp={surfaceMode ? onSurfacePointerUp : undefined}
+          onSurfacePointerCancel={surfaceMode ? onSurfacePointerCancel : undefined}
         />
         <AutoFitCamera object={object} />
         {object ? (
@@ -134,7 +142,7 @@ export function ShowroomScene({
         ) : null}
         <OrbitControls
           makeDefault
-          enabled={!caressMode}
+          enabled={!surfaceMode}
           enablePan={false}
           enableDamping={!reducedMotion}
           dampingFactor={0.08}
