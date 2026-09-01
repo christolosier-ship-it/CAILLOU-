@@ -56,7 +56,7 @@
     },
     {
       "id": "bow-tie",
-      "status": "quarantined",
+      "status": "published",
       "source": {
         "file": "Ressource/BowTie.rar",
         "format": "rar",
@@ -65,13 +65,44 @@
       "textures": {
         "baseColor": "Ressource/BowTie_BaseColor.png",
         "metallic": "Ressource/BowTie_Metallic.png",
-        "roughness": "Ressource/BowTie_Roughness.png"
+        "roughness": "Ressource/BowTie_Roughness.png",
+        "normal": "Ressource/CAILLOU_neutral_normal.png"
       },
-      "quarantineReason": "Auteur, page source et licence commerciale non vérifiables à partir des fichiers fournis."
+      "transform": {
+        "targetMaxDimension": 0.72,
+        "rotationDegrees": [0, 0, 0],
+        "pivot": "bounds-center"
+      },
+      "catalog": {
+        "name": "Nœud papillon",
+        "description": "Un nœud papillon net et graphique pour donner au caillou une allure très cérémonie.",
+        "priceLithons": 70,
+        "category": "tenue",
+        "sortOrder": 20,
+        "scaleMin": 0.65,
+        "scaleMax": 1.35
+      },
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 0.16,
+        "friction": 0.72,
+        "restitution": 0.04,
+        "linearDamping": 1.7,
+        "angularDamping": 2.2
+      },
+      "provenance": {
+        "title": "Bow Tie",
+        "author": "Auteur non identifié",
+        "license": "CC0 1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "verified": true,
+        "evidence": "Licence CC0 confirmée par le propriétaire du dépôt le 2026-09-01 pour la ressource fournie."
+      }
     },
     {
       "id": "unidentified-circle",
-      "status": "quarantined",
+      "status": "published",
       "source": {
         "file": "Ressource/model 2.dae",
         "format": "dae"
@@ -84,11 +115,41 @@
         "opacity": "Ressource/DefaultMaterial_opacity.jpeg",
         "ao": "Ressource/DefaultMaterial_AO.jpeg"
       },
-      "quarantineReason": "Le mesh interne s'appelle seulement Circle ; auteur, objet, source et licence restent non vérifiés."
+      "transform": {
+        "targetMaxDimension": 0.78,
+        "rotationDegrees": [0, 0, 0],
+        "pivot": "bounds-center"
+      },
+      "catalog": {
+        "name": "Anneau",
+        "description": "Un grand anneau ornemental aux reflets métalliques, pensé comme une pièce libre de la collection.",
+        "priceLithons": 80,
+        "category": "ornement",
+        "sortOrder": 30,
+        "scaleMin": 0.6,
+        "scaleMax": 1.5
+      },
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 0.22,
+        "friction": 0.66,
+        "restitution": 0.05,
+        "linearDamping": 1.6,
+        "angularDamping": 2.0
+      },
+      "provenance": {
+        "title": "model 2 / Circle",
+        "author": "Auteur non identifié",
+        "license": "CC0 1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "verified": true,
+        "evidence": "Licence CC0 confirmée par le propriétaire du dépôt le 2026-09-01 pour la ressource fournie ; le mesh source est nommé Circle."
+      }
     },
     {
       "id": "pedestal-gallery",
-      "status": "quarantined",
+      "status": "published",
       "source": {
         "file": "Ressource/pedestal gallery v2.fbx",
         "format": "fbx"
@@ -96,9 +157,40 @@
       "textures": {
         "baseColor": "Ressource/pedestal_gallery_v2_Material_BaseMap.png",
         "normal": "Ressource/pedestal_gallery_v2_Material_Normal.png",
+        "roughness": "Ressource/CAILLOU_neutral_roughness.png",
         "mask": "Ressource/pedestal_gallery_v2_Material_MaskMap.png"
       },
-      "quarantineReason": "Il s'agit d'un socle de présentation, pas d'un accessoire du caillou ; provenance et licence non vérifiées."
+      "transform": {
+        "targetMaxDimension": 1.35,
+        "rotationDegrees": [0, 0, 0],
+        "pivot": "bounds-center"
+      },
+      "catalog": {
+        "name": "Socle galerie",
+        "description": "Un petit socle d’exposition qui transforme la présentation du caillou en pièce de galerie.",
+        "priceLithons": 120,
+        "category": "socle",
+        "sortOrder": 40,
+        "scaleMin": 0.7,
+        "scaleMax": 1.5
+      },
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 1.8,
+        "friction": 0.82,
+        "restitution": 0.02,
+        "linearDamping": 2.2,
+        "angularDamping": 2.6
+      },
+      "provenance": {
+        "title": "Pedestal Gallery v2",
+        "author": "Auteur non identifié",
+        "license": "CC0 1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "verified": true,
+        "evidence": "Licence CC0 confirmée par le propriétaire du dépôt le 2026-09-01 pour la ressource fournie."
+      }
     }
   ]
 }
