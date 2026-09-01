@@ -82,15 +82,21 @@ PR dédiée. Compléter compte rendu + index. Faire une validation mobile réell
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : Terminée — PR #22, candidat final validé**
 
-- Date :
-- PR / commit :
-- Migration multi-instance :
-- UX placement :
-- Transform local :
-- Persistance :
-- Tests tactile/desktop :
-- Performance :
-- Dette :
-- Étape suivante recommandée : 10D
+- Date : 2026-09-01.
+- PR / candidat final : PR #22 `feat(accessories): livrer le placement libre multi-instance (10C)` ; candidat runtime et tests `76b038f9cfcbf3ca88252dfae8c8f9abbebde63a`.
+- Migration multi-instance : `20260901201124_multi_instance_accessory_placement` remplace l'unicité historique `(user_rock_id, slot)` par des instances UUID dans `equipped_accessories`, avec `local_position`, `local_rotation`, `uniform_scale`, `equipped_at` et `updated_at`. `slot` reste une catégorie facultative et ne porte plus d'exclusivité.
+- Idempotence : `20260901201220_extend_accessory_placement_mutation_receipts` étend le registre des mutations aux créations/retraits d'instances. `create_equipped_accessory` et `remove_equipped_accessory` sont rejouables sans duplication ; `update_equipped_accessory` met à jour le transform de l'instance possédée.
+- Garde-fous serveur : caillou actif appartenant à `auth.uid()`, accessoire possédé dans `user_accessories`, position locale bornée, quaternion valide, échelle comprise entre `scale_min`/`scale_max`, plafond V1 de **8 instances simultanées**. Les écritures directes restent révoquées et la RLS isole les comptes.
+- UX placement : mode Accessoire distinct de l'achat ; plusieurs GLB sont visibles simultanément autour d'un seul GLB de caillou. Tap/clic pour sélectionner, glisser dans le plan de vue pour déplacer, commandes dédiées X/Y/Z pour la précision et la profondeur, rotation fine et agrandissement/rétrécissement. `OrbitControls` est suspendu pendant l'édition afin d'éviter les gestes concurrents.
+- Transform local : position `[x,y,z]`, rotation quaternion `[x,y,z,w]` et échelle uniforme sont toujours exprimées relativement au caillou. Les changements de caméra et l'auto-fit ne modifient donc pas la composition.
+- Persistance : les transforms manuels de 10C sont autoritaires dans Supabase et sont restaurés exactement lors d'une réhydratation/reconnexion. 10D réutilisera le même modèle d'instance pour persister l'état **stabilisé par la physique**, sans migration d'identité.
+- Mémoire GPU : chaque GLB accessoire possède son cycle explicite chargement/disposal ; géométries, matériaux et textures sont libérés lors d'un retrait ou d'une réhydratation. Le test navigateur final observe effectivement le disposal.
+- Test SQL : contrat transactionnel réel validé puis rollback complet ; multi-instance de même catégorie, transform, 8e instance acceptée / 9e refusée, accessoire non possédé refusé, isolation utilisateur A/B, anon refusé, writes directs refusés et retries idempotents.
+- GitHub final : les six workflows sont verts sur `76b038f9…` : CI #108 (`33557972723`), Multi-accessory placement #7 (`33557972685`), Adoption #38 (`33557972690`), Caresse/Lithon #32 (`33557972785`), Showroom WebGL #33 (`33557972688`) et Nettoyage #27 (`33557972696`). Lint, TypeScript strict, tests unitaires et build production passent.
+- Validation téléphone/tablette : artifact `9820141281`, scénario PASS avec 2 GLB simultanés, translation/rotation/échelle tactiles sur 390 × 844, restauration exacte, déplacement en profondeur sur 1024 × 768, retrait d'une instance et disposal GPU. Rapport final : 5 sauvegardes, 3 disposals, 3 géométries libérées.
+- Vercel Preview unique : branche `preview/10c-final`, commit de déclenchement sans différence de fichiers `127bfc2ac0cb1445421dca72c042f199ea9e6cfd`, même arbre que le candidat `76b038f9…`. Déploiement `dpl_DWbf8L2nhQ3gayJgLLX9wfA33ftm`, alias `caillou-git-preview-10c-final-christo5.vercel.app`, état `READY`, HTTP 200, aucune erreur/fatal runtime observée. Avertissements non bloquants déjà connus : Node 22 imposé par `package.json` et chunk Vite > 500 kB.
+- Supabase Advisors : aucune nouvelle alerte sécurité liée à 10C ; seul avertissement Auth préexistant sur la protection contre les mots de passe compromis.
+- Dette : collisions caillou/accessoires, anti-traversée, gravité, friction/rebond, stabilisation physique et reprise de contrôle cinématique restent exclusivement dans 10D.
+- Étape suivante recommandée : **10D — Physique, collisions, gravité et persistance de l'état stabilisé**.

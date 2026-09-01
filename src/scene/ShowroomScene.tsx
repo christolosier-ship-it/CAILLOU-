@@ -4,9 +4,14 @@ import { useCallback, useLayoutEffect, useState } from 'react'
 import { Box3, MathUtils, PerspectiveCamera, Sphere, Vector3 } from 'three'
 import type { Object3D } from 'three'
 
+import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
 import type { RockCatalogEntry } from '../content/rockCatalog'
+import { AccessoryModel } from './AccessoryModel'
 import { RockModel } from './RockModel'
 import type { RockLoadState, RockSurfacePointerSample } from './RockModel'
+import type { DisposalReport } from './rockResources'
+
+export type ShowroomInteractionMode = 'orbit' | 'caress' | 'cleaning' | 'accessory'
 
 interface ShowroomSceneProps {
   rock: RockCatalogEntry
@@ -14,13 +19,23 @@ interface ShowroomSceneProps {
   reducedMotion: boolean
   onLoadStateChange: (state: RockLoadState, message?: string) => void
   onInteractionChange: (active: boolean) => void
-  interactionMode?: 'orbit' | 'caress' | 'cleaning'
+  interactionMode?: ShowroomInteractionMode
   dustAmount?: number
   dustRevision?: number
   onSurfacePointerDown?: (sample: RockSurfacePointerSample) => void
   onSurfacePointerMove?: (sample: RockSurfacePointerSample) => void
   onSurfacePointerUp?: (sample: RockSurfacePointerSample) => void
   onSurfacePointerCancel?: (sample: RockSurfacePointerSample) => void
+  accessories?: EquippedAccessoryInstance[]
+  selectedAccessoryId?: string | null
+  onAccessorySelect?: (instanceId: string) => void
+  onAccessoryTransformCommit?: (instanceId: string, transform: AccessoryTransform) => void
+  onAccessoryLoadStateChange?: (
+    instanceId: string,
+    state: 'loading' | 'ready' | 'error',
+    message?: string,
+  ) => void
+  onAccessoryDisposed?: (instanceId: string, report: DisposalReport) => void
 }
 
 interface OrbitControlsShape {
@@ -81,23 +96,31 @@ export function ShowroomScene({
   onSurfacePointerMove,
   onSurfacePointerUp,
   onSurfacePointerCancel,
+  accessories = [],
+  selectedAccessoryId = null,
+  onAccessorySelect,
+  onAccessoryTransformCommit,
+  onAccessoryLoadStateChange,
+  onAccessoryDisposed,
 }: ShowroomSceneProps) {
   const [object, setObject] = useState<Object3D | null>(null)
   const handleObjectReady = useCallback((nextObject: Object3D | null) => setObject(nextObject), [])
-  const surfaceMode = interactionMode !== 'orbit'
+  const surfaceMode = interactionMode === 'caress' || interactionMode === 'cleaning'
   const cleaningMode = interactionMode === 'cleaning'
+  const accessoryMode = interactionMode === 'accessory'
+  const orbitMode = interactionMode === 'orbit'
 
   return (
     <div
       className="showroom-canvas"
       onPointerDown={() => {
-        if (!surfaceMode) onInteractionChange(true)
+        if (orbitMode) onInteractionChange(true)
       }}
       onPointerUp={() => {
-        if (!surfaceMode) onInteractionChange(false)
+        if (orbitMode) onInteractionChange(false)
       }}
       onPointerCancel={() => {
-        if (!surfaceMode) onInteractionChange(false)
+        if (orbitMode) onInteractionChange(false)
       }}
       onContextMenu={(event) => event.preventDefault()}
     >
@@ -115,19 +138,35 @@ export function ShowroomScene({
         <directionalLight position={[-4.2, 2.4, -2.5]} intensity={0.72} />
         <directionalLight position={[1.2, 3.4, -4.4]} intensity={0.62} />
 
-        <RockModel
-          key={`${rock.id}-${retryKey}`}
-          path={rock.modelPath}
-          dustAmount={dustAmount}
-          dustRevision={dustRevision}
-          cleaningActive={cleaningMode}
-          onLoadStateChange={onLoadStateChange}
-          onObjectReady={handleObjectReady}
-          onSurfacePointerDown={surfaceMode ? onSurfacePointerDown : undefined}
-          onSurfacePointerMove={surfaceMode ? onSurfacePointerMove : undefined}
-          onSurfacePointerUp={surfaceMode ? onSurfacePointerUp : undefined}
-          onSurfacePointerCancel={surfaceMode ? onSurfacePointerCancel : undefined}
-        />
+        <group>
+          <RockModel
+            key={`${rock.id}-${retryKey}`}
+            path={rock.modelPath}
+            dustAmount={dustAmount}
+            dustRevision={dustRevision}
+            cleaningActive={cleaningMode}
+            onLoadStateChange={onLoadStateChange}
+            onObjectReady={handleObjectReady}
+            onSurfacePointerDown={surfaceMode ? onSurfacePointerDown : undefined}
+            onSurfacePointerMove={surfaceMode ? onSurfacePointerMove : undefined}
+            onSurfacePointerUp={surfaceMode ? onSurfacePointerUp : undefined}
+            onSurfacePointerCancel={surfaceMode ? onSurfacePointerCancel : undefined}
+          />
+
+          {accessories.map((instance) => (
+            <AccessoryModel
+              key={instance.id}
+              instance={instance}
+              selected={selectedAccessoryId === instance.id}
+              editing={accessoryMode}
+              onSelect={(instanceId) => onAccessorySelect?.(instanceId)}
+              onTransformCommit={(instanceId, transform) => onAccessoryTransformCommit?.(instanceId, transform)}
+              onLoadStateChange={onAccessoryLoadStateChange}
+              onDisposed={onAccessoryDisposed}
+            />
+          ))}
+        </group>
+
         <AutoFitCamera object={object} />
         {object ? (
           <ContactShadows
@@ -142,7 +181,7 @@ export function ShowroomScene({
         ) : null}
         <OrbitControls
           makeDefault
-          enabled={!surfaceMode}
+          enabled={orbitMode}
           enablePan={false}
           enableDamping={!reducedMotion}
           dampingFactor={0.08}

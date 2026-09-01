@@ -45,21 +45,22 @@ Permettre à l'utilisateur d'acquérir des accessoires avec ses Lithons puis de 
 ### 10C — Multi-équipement et placement libre
 
 - Plusieurs accessoires simultanés sur un même caillou.
-- Création d'instances équipées distinctes de la propriété du type.
+- Création d'instances UUID équipées distinctes de la propriété du type.
 - Translation, rotation et échelle manuelles.
 - UX tactile téléphone/tablette.
 - Sélection, suppression du placement et réédition.
-- Pas encore de simulation physique complète ni persistance finale.
+- Persistance Supabase des transforms **manuels locaux au caillou** et restauration exacte.
+- Pas encore de simulation physique complète, collisions ou gravité.
 
-### 10D — Physique, collisions, gravité et persistance
+### 10D — Physique, collisions, gravité et persistance stabilisée
 
 - Colliders caillou/accessoires.
 - Anti-traversée visible.
 - Gravité client pour les accessoires compatibles.
 - Stabilisation et reprise de contrôle manuel.
-- Persistance Supabase des transforms finaux relatifs au caillou.
+- Réutilisation des instances 10C pour enregistrer l'état final stabilisé.
 - Restauration exacte après reload/reconnexion.
-- Validation performance et mémoire GPU sur appareils cibles.
+- Validation performance et mémoire GPU sur appareils cibles avec physique active.
 
 ## Règles structurelles
 
@@ -67,6 +68,7 @@ Permettre à l'utilisateur d'acquérir des accessoires avec ses Lithons puis de 
 - Un utilisateur peut conserver ses accessoires même s'il jette son caillou.
 - Plusieurs instances peuvent coexister sur un même caillou ; ne pas imposer une exclusivité artificielle par `slot`.
 - Les transformations persistées sont relatives au caillou, jamais en coordonnées monde.
+- Le plafond V1 actuellement validé est de huit instances simultanées par caillou.
 - La physique est calculée côté client. Supabase stocke l'état final stabilisé mais ne simule rien.
 - Les Lithons n'ont aucune valeur réelle, ne sont ni achetables ni transférables.
 - Aucun achat ne peut être autorisé uniquement par le navigateur.
@@ -91,19 +93,20 @@ Le jalon 10 est terminé lorsque :
 - chacun peut être déplacé, tourné et redimensionné ;
 - les collisions empêchent les pénétrations visibles avec la pierre ;
 - la gravité fonctionne sur les accessoires compatibles sans compromettre le mobile ;
-- le placement final est persistant côté Supabase ;
+- le placement final stabilisé est persistant côté Supabase ;
 - reload/reconnexion restaurent exactement la composition ;
 - jeter un caillou ne détruit pas les possessions du compte ;
 - performances, mémoire GPU et interactions sont validées sur téléphone/tablette cibles.
 
 ## État / compte rendu
 
-**Statut : À faire — scindée en 10A, 10B, 10C et 10D**
+**Statut : En cours — 10A, 10B et 10C terminées ; 10D restante**
 
-- Décision de découpage : 2026-09-01
-- Motif : ressources 3D hétérogènes + multi-équipement + placement libre + physique + persistance dépassent un objectif unique cohérent
-- État 10A : Terminée — PR #19, monocle CC BY 4.0 publié ; trois sources non vérifiées mises en quarantaine à cette date
-- État 10B : Terminée — PR #20, boutique Lithons et propriété permanente validées sous RLS ; catalogue commercial final à quatre accessoires, dont les trois ressources de 10A réintégrées après confirmation CC0
-- État 10C : À faire
-- État 10D : À faire
-- Étape suivante après jalon complet : 11
+- Décision de découpage : 2026-09-01.
+- Motif : ressources 3D hétérogènes + multi-équipement + placement libre + physique + persistance dépassent un objectif unique cohérent.
+- État 10A : Terminée — PR #19, pipeline Blender/accessoires et catalogue GLB validés ; les trois ressources initialement mises en quarantaine ont ensuite été réintégrées en 10B après confirmation CC0.
+- État 10B : Terminée — PR #20, boutique Lithons et propriété permanente validées sous RLS ; catalogue commercial final à quatre accessoires.
+- État 10C : Terminée — PR #22, instances UUID multi-équipement, plafond 8, transforms locaux persistants, édition tactile et disposal GPU validés ; Preview Vercel unique `dpl_DWbf8L2nhQ3gayJgLLX9wfA33ftm` READY.
+- État 10D : À faire — collisions, anti-traversée, gravité et stabilisation physique.
+- Étape suivante : 10D.
+- Étape suivante après jalon complet : 11.
