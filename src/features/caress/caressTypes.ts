@@ -1,6 +1,7 @@
 export interface RockEconomySnapshot {
   balance: number
   caressCount: number
+  cleaningCount: number
   lithonsGenerated: number
 }
 
