@@ -1,9 +1,11 @@
 import { ContactShadows, OrbitControls } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { useCallback, useLayoutEffect, useState } from 'react'
+import { Physics, RigidBody } from '@react-three/rapier'
+import { Suspense, useCallback, useLayoutEffect, useMemo, useState } from 'react'
 import { Box3, MathUtils, PerspectiveCamera, Sphere, Vector3 } from 'three'
 import type { Object3D } from 'three'
 
+import { ACCESSORY_WORLD_GRAVITY } from '../features/accessories/accessoryPhysics'
 import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
 import type { RockCatalogEntry } from '../content/rockCatalog'
 import { AccessoryModel } from './AccessoryModel'
@@ -83,6 +85,21 @@ function AutoFitCamera({ object }: { object: Object3D | null }) {
   return null
 }
 
+function RockPhysicsCollider({ object }: { object: Object3D }) {
+  const colliderObject = useMemo(() => {
+    const clone = object.clone(true)
+    clone.name = 'CAILLOU_STATIC_PHYSICS_COLLIDER'
+    clone.visible = false
+    return clone
+  }, [object])
+
+  return (
+    <RigidBody type="fixed" colliders="trimesh" includeInvisible friction={0.86} restitution={0.02}>
+      <primitive object={colliderObject} />
+    </RigidBody>
+  )
+}
+
 export function ShowroomScene({
   rock,
   retryKey,
@@ -138,34 +155,46 @@ export function ShowroomScene({
         <directionalLight position={[-4.2, 2.4, -2.5]} intensity={0.72} />
         <directionalLight position={[1.2, 3.4, -4.4]} intensity={0.62} />
 
-        <group>
-          <RockModel
-            key={`${rock.id}-${retryKey}`}
-            path={rock.modelPath}
-            dustAmount={dustAmount}
-            dustRevision={dustRevision}
-            cleaningActive={cleaningMode}
-            onLoadStateChange={onLoadStateChange}
-            onObjectReady={handleObjectReady}
-            onSurfacePointerDown={surfaceMode ? onSurfacePointerDown : undefined}
-            onSurfacePointerMove={surfaceMode ? onSurfacePointerMove : undefined}
-            onSurfacePointerUp={surfaceMode ? onSurfacePointerUp : undefined}
-            onSurfacePointerCancel={surfaceMode ? onSurfacePointerCancel : undefined}
-          />
+        <Suspense fallback={null}>
+          <Physics
+            gravity={[ACCESSORY_WORLD_GRAVITY[0], ACCESSORY_WORLD_GRAVITY[1], ACCESSORY_WORLD_GRAVITY[2]]}
+            colliders={false}
+            updateLoop="independent"
+            paused={!object}
+          >
+            <group>
+              <RockModel
+                key={`${rock.id}-${retryKey}`}
+                path={rock.modelPath}
+                dustAmount={dustAmount}
+                dustRevision={dustRevision}
+                cleaningActive={cleaningMode}
+                onLoadStateChange={onLoadStateChange}
+                onObjectReady={handleObjectReady}
+                onSurfacePointerDown={surfaceMode ? onSurfacePointerDown : undefined}
+                onSurfacePointerMove={surfaceMode ? onSurfacePointerMove : undefined}
+                onSurfacePointerUp={surfaceMode ? onSurfacePointerUp : undefined}
+                onSurfacePointerCancel={surfaceMode ? onSurfacePointerCancel : undefined}
+              />
 
-          {accessories.map((instance) => (
-            <AccessoryModel
-              key={instance.id}
-              instance={instance}
-              selected={selectedAccessoryId === instance.id}
-              editing={accessoryMode}
-              onSelect={(instanceId) => onAccessorySelect?.(instanceId)}
-              onTransformCommit={(instanceId, transform) => onAccessoryTransformCommit?.(instanceId, transform)}
-              onLoadStateChange={onAccessoryLoadStateChange}
-              onDisposed={onAccessoryDisposed}
-            />
-          ))}
-        </group>
+              {object ? <RockPhysicsCollider object={object} /> : null}
+
+              {accessories.map((instance) => (
+                <AccessoryModel
+                  key={instance.id}
+                  instance={instance}
+                  selected={selectedAccessoryId === instance.id}
+                  editing={accessoryMode}
+                  rockObject={object}
+                  onSelect={(instanceId) => onAccessorySelect?.(instanceId)}
+                  onTransformCommit={(instanceId, transform) => onAccessoryTransformCommit?.(instanceId, transform)}
+                  onLoadStateChange={onAccessoryLoadStateChange}
+                  onDisposed={onAccessoryDisposed}
+                />
+              ))}
+            </group>
+          </Physics>
+        </Suspense>
 
         <AutoFitCamera object={object} />
         {object ? (

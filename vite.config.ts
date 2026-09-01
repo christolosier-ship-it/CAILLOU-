@@ -17,6 +17,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,webp,woff2}'],
         navigateFallback: 'index.html',
+        // Rapier makes the production JS bundle ~3.7 MB raw (~1.25 MB gzip).
+        // Keep the current offline contract until the dedicated cache/code-splitting pass in step 12.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
       },
     }),
   ],

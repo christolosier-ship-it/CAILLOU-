@@ -6,6 +6,8 @@ import type {
   CreateAccessoryPlacementInput,
   EquippedAccessoryInstance,
   RemoveAccessoryPlacementInput,
+  StabilizeAccessoryPlacementInput,
+  StabilizeAccessoryPlacementResult,
   UpdateAccessoryPlacementInput,
   UpdateAccessoryPlacementResult,
 } from './accessoryTypes'
@@ -34,6 +36,7 @@ interface PlacementRow {
   uniform_scale: number
   equipped_at: string
   updated_at: string
+  stabilized_at: string | null
 }
 
 interface CreatePlacementRow {
@@ -54,6 +57,10 @@ interface UpdatePlacementRow {
   local_rotation: unknown
   uniform_scale: number
   updated_at: string
+}
+
+interface StabilizePlacementRow extends UpdatePlacementRow {
+  stabilized_at: string
 }
 
 export type AccessoryPlacementErrorKind =
@@ -125,7 +132,7 @@ export async function loadAccessoryPlacements(userRockId: string): Promise<Equip
   const [placementResult, shop] = await Promise.all([
     supabase
       .from('equipped_accessories')
-      .select('id, user_rock_id, accessory_id, slot, local_position, local_rotation, uniform_scale, equipped_at, updated_at')
+      .select('id, user_rock_id, accessory_id, slot, local_position, local_rotation, uniform_scale, equipped_at, updated_at, stabilized_at')
       .eq('user_rock_id', userRockId)
       .order('equipped_at')
       .order('id'),
@@ -154,8 +161,11 @@ export async function loadAccessoryPlacements(userRockId: string): Promise<Equip
       scaleMin: accessory.scaleMin,
       scaleMax: accessory.scaleMax,
       triangleCount: accessory.triangleCount,
+      dimensions: accessory.dimensions,
+      physics: accessory.physics,
       equippedAt: row.equipped_at,
       updatedAt: row.updated_at,
+      stabilizedAt: row.stabilized_at,
       ...transform,
     }]
   })
@@ -188,8 +198,11 @@ export async function createAccessoryPlacement(
     scaleMin: input.accessory.scaleMin,
     scaleMax: input.accessory.scaleMax,
     triangleCount: input.accessory.triangleCount,
+    dimensions: input.accessory.dimensions,
+    physics: input.accessory.physics,
     equippedAt: row.equipped_at,
     updatedAt: row.updated_at,
+    stabilizedAt: null,
     ...parseTransform(row),
   }
 }
@@ -211,6 +224,29 @@ export async function updateAccessoryPlacement(
   return {
     instanceId: row.instance_id,
     updatedAt: row.updated_at,
+    ...parseTransform(row),
+  }
+}
+
+export async function stabilizeAccessoryPlacement(
+  input: StabilizeAccessoryPlacementInput,
+): Promise<StabilizeAccessoryPlacementResult> {
+  const { data, error } = await placementRpc('stabilize_equipped_accessory', {
+    p_instance_id: input.instanceId,
+    p_event_key: input.eventKey,
+    p_local_position: input.transform.localPosition,
+    p_local_rotation: input.transform.localRotation,
+    p_uniform_scale: input.transform.uniformScale,
+  }).single()
+
+  if (error) throw toAccessoryPlacementError(error)
+  if (!data) throw new AccessoryPlacementError('Le registre n’a retourné aucune pose stabilisée.', 'unknown', true)
+
+  const row = data as StabilizePlacementRow
+  return {
+    instanceId: row.instance_id,
+    updatedAt: row.updated_at,
+    stabilizedAt: row.stabilized_at,
     ...parseTransform(row),
   }
 }

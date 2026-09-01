@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import {
+  AccessoryPlacementError,
   createAccessoryPlacement,
   loadAccessoryPlacements,
   removeAccessoryPlacement,
+  stabilizeAccessoryPlacement,
   updateAccessoryPlacement,
 } from './accessoryPlacementApi'
 import {
@@ -81,20 +83,44 @@ export function useAccessoryPlacements(userRockId: string) {
     if (!currentInstance) return
 
     const nextTransform = clampAccessoryTransform(transform, currentInstance.scaleMin, currentInstance.scaleMax)
+    const physicallySettled = transform.physicsSettled === true
     setPendingId(instanceId)
     setError(null)
-    setInstances((current) => current.map((instance) => instance.id === instanceId
-      ? { ...instance, ...nextTransform }
-      : instance))
 
     try {
-      const result = await updateAccessoryPlacement({ instanceId, transform: nextTransform })
+      if (!physicallySettled) {
+        // Confirm the kinematic edit first. Only then expose stabilizedAt=NULL to the renderer,
+        // which starts the Rapier release. This prevents the final settle write racing this RPC.
+        const result = await updateAccessoryPlacement({ instanceId, transform: nextTransform })
+        setInstances((current) => current.map((instance) => instance.id === instanceId
+          ? { ...instance, ...result, stabilizedAt: null, physicsSettled: undefined }
+          : instance))
+        return
+      }
+
+      // The physical pose is already visible inside Rapier. Reflect it optimistically so a failed
+      // final save can deterministically roll back to currentInstance and move the body back too.
       setInstances((current) => current.map((instance) => instance.id === instanceId
-        ? { ...instance, ...result }
+        ? { ...instance, ...nextTransform }
+        : instance))
+
+      const input = { instanceId, transform: nextTransform, eventKey: crypto.randomUUID() }
+      let result
+      try {
+        result = await stabilizeAccessoryPlacement(input)
+      } catch (firstError) {
+        if (!(firstError instanceof AccessoryPlacementError) || !firstError.retryable) throw firstError
+        result = await stabilizeAccessoryPlacement(input)
+      }
+
+      setInstances((current) => current.map((instance) => instance.id === instanceId
+        ? { ...instance, ...result, physicsSettled: undefined }
         : instance))
     } catch (nextError) {
       setInstances((current) => current.map((instance) => instance.id === instanceId ? currentInstance : instance))
-      setError(nextError instanceof Error ? nextError.message : 'Le transform n’a pas pu être enregistré.')
+      setError(nextError instanceof Error
+        ? `${nextError.message} Le dernier état serveur connu a été restauré.`
+        : 'La pose n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
     } finally {
       setPendingId(null)
     }

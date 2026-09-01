@@ -1,6 +1,6 @@
 # Étape 10 — Accessoires et boutique Lithons
 
-> Cette étape historique est désormais scindée en quatre sous-étapes exécutables :
+> Cette étape historique a été scindée puis exécutée en quatre sous-étapes :
 > `10A-PIPELINE-ACCESSOIRES-3D-CATALOGUE.md`, `10B-BOUTIQUE-LITHONS-PROPRIETE.md`,
 > `10C-MULTI-EQUIPEMENT-PLACEMENT-LIBRE.md` et `10D-PHYSIQUE-COLLISIONS-GRAVITE-PERSISTANCE.md`.
 
@@ -54,13 +54,16 @@ Permettre à l'utilisateur d'acquérir des accessoires avec ses Lithons puis de 
 
 ### 10D — Physique, collisions, gravité et persistance stabilisée
 
-- Colliders caillou/accessoires.
-- Anti-traversée visible.
-- Gravité client pour les accessoires compatibles.
-- Stabilisation et reprise de contrôle manuel.
-- Réutilisation des instances 10C pour enregistrer l'état final stabilisé.
-- Restauration exacte après reload/reconnexion.
-- Validation performance et mémoire GPU sur appareils cibles avec physique active.
+- Rapier client via `@react-three/rapier` 2.2.0.
+- Collider statique `trimesh` du caillou.
+- Colliders accessoires simplifiés : hulls dynamiques et cuboid fixe pour le Socle galerie.
+- Anti-traversée visible pendant la manipulation.
+- Gravité, friction, restitution, damping, CCD et sommeil pour les accessoires compatibles.
+- Transition cinématique → dynamique après drag ou réglage fin.
+- Réutilisation des instances UUID 10C pour enregistrer l'état final stabilisé.
+- Colonne `stabilized_at` et RPC idempotent `stabilize_equipped_accessory(..., event_key)`.
+- Restauration exacte après reload/reconnexion sans refaire tomber les poses déjà stabilisées.
+- Validation multi-accessoires, téléphone/tablette, régressions historiques et Preview Vercel.
 
 ## Règles structurelles
 
@@ -70,6 +73,7 @@ Permettre à l'utilisateur d'acquérir des accessoires avec ses Lithons puis de 
 - Les transformations persistées sont relatives au caillou, jamais en coordonnées monde.
 - Le plafond V1 actuellement validé est de huit instances simultanées par caillou.
 - La physique est calculée côté client. Supabase stocke l'état final stabilisé mais ne simule rien.
+- Une pose intermédiaire `stabilized_at = NULL` n'est jamais présentée comme une pose finale confirmée.
 - Les Lithons n'ont aucune valeur réelle, ne sont ni achetables ni transférables.
 - Aucun achat ne peut être autorisé uniquement par le navigateur.
 
@@ -98,15 +102,20 @@ Le jalon 10 est terminé lorsque :
 - jeter un caillou ne détruit pas les possessions du compte ;
 - performances, mémoire GPU et interactions sont validées sur téléphone/tablette cibles.
 
+Tous ces critères ont été couverts par les sous-étapes 10A à 10D.
+
 ## État / compte rendu
 
-**Statut : En cours — 10A, 10B et 10C terminées ; 10D restante**
+**Statut : Terminée — 10A, 10B, 10C et 10D validées**
 
 - Décision de découpage : 2026-09-01.
-- Motif : ressources 3D hétérogènes + multi-équipement + placement libre + physique + persistance dépassent un objectif unique cohérent.
+- Motif : ressources 3D hétérogènes + multi-équipement + placement libre + physique + persistance dépassaient un objectif unique cohérent.
 - État 10A : Terminée — PR #19, pipeline Blender/accessoires et catalogue GLB validés ; les trois ressources initialement mises en quarantaine ont ensuite été réintégrées en 10B après confirmation CC0.
 - État 10B : Terminée — PR #20, boutique Lithons et propriété permanente validées sous RLS ; catalogue commercial final à quatre accessoires.
 - État 10C : Terminée — PR #22, instances UUID multi-équipement, plafond 8, transforms locaux persistants, édition tactile et disposal GPU validés ; Preview Vercel unique `dpl_DWbf8L2nhQ3gayJgLLX9wfA33ftm` READY.
-- État 10D : À faire — collisions, anti-traversée, gravité et stabilisation physique.
-- Étape suivante : 10D.
-- Étape suivante après jalon complet : 11.
+- État 10D : Terminée — PR #23, Rapier, collider statique du caillou, colliders simplifiés accessoires, gravité, anti-traversée, sommeil et persistance stabilisée idempotente. Workflow physique #9, CI #123, showroom #47, placement #21, adoption #52, caresse #46, nettoyage #41 et production accessoires #28 verts sur le commit fonctionnel `f62c9636aa7512d8b0ad0adcfc8d64e9faf72d5b`.
+- Preview Vercel 10D unique : `dpl_AurhtjqxWiviSkP79Q2KMAT8dyzB`, READY, HTTP 200, aucune erreur runtime détectée. Le commit vide `2277f91e1fd92815bb92cf8cd99c16577936ced7` ne change pas l'arbre runtime validé.
+- Validation physique téléphone/tablette : 390×844 et 1024×768, 2 GLB simultanés, gravité/collision/sommeil et sauvegarde finale PASS.
+- Dette reportée en étape 12 : code-splitting/lazy-loading du moteur Rapier et réduction du chunk JS principal ; budget Workbox V1 porté explicitement à 4 MiB afin de conserver le précache.
+- **Jalon 10 complet : terminé.**
+- Étape suivante : 11 — Bio, statistiques et action Jeter.
