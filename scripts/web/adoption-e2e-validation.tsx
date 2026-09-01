@@ -6,6 +6,7 @@ import type { ActiveRock, AdoptRockMutation } from '../../src/features/adoption/
 import '../../src/styles/global.css'
 import '../../src/styles/showroom.css'
 import '../../src/styles/adoption.css'
+import '../../src/styles/caress.css'
 
 function AdoptionFixture() {
   const [activeRock, setActiveRock] = useState<ActiveRock | null>(null)
@@ -48,6 +49,7 @@ function AdoptionFixture() {
         username="Step07"
         destination={activeRock ? 'socle' : 'showroom'}
         activeRock={activeRock}
+        economy={activeRock ? { balance: 0, caressCount: 0, lithonsGenerated: 0 } : null}
         adoptRockMutation={mutation}
         onServerStateChanged={refreshServerState}
         onSignOut={async () => undefined}
