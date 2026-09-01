@@ -67,14 +67,14 @@ PR dédiée. Compléter compte rendu + index. Une seule Preview Vercel volontair
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : Terminée — PR #20**
 
-- Date :
-- PR / commit :
-- Catalogue commercial :
-- Transaction achat :
-- RLS/idempotence :
-- UI Boutique :
-- Tests :
-- Dette :
+- Date : 2026-09-01
+- PR / commit : [PR #20](https://github.com/christolosier-ship-it/CAILLOU-/pull/20) — boutique et achat autoritaire
+- Catalogue commercial : `monocle`, 90 Lithons, preview/GLB licenciés, métadonnées placement et physique alignées sur 10A
+- Transaction achat : RPC `purchase_accessory(accessory_id, event_key)` ; prix serveur, verrou wallet, possession, débit et ledger atomiques
+- RLS/idempotence : writes directs révoqués, anon refusé, isolation A/B, reçu exact au retry et propriété unique par compte/type
+- UI Boutique : catalogue institutionnel responsive, solde/prix/acquis, feedback accessible, aucun argent réel ni mécanique casino
+- Tests : migration live, contrat SQL rollback complet, Security Advisor sans nouvelle alerte, `npm run check` (35 tests), revue React
+- Dette : validation tactile réelle sur la Preview finale ; le placement 3D appartient à 10C
 - Étape suivante recommandée : 10C
