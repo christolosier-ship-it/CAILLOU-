@@ -1,4 +1,4 @@
-name: Validate showroom WebGL memory
+name: Validate showroom WebGL and responsive UI
 
 on:
   workflow_dispatch:
@@ -11,6 +11,9 @@ on:
       - 'src/content/rockCatalog*'
       - 'scripts/web/showroom-memory-validation.html'
       - 'scripts/web/validate-showroom-memory.mjs'
+      - 'scripts/web/showroom-ui-validation.html'
+      - 'scripts/web/showroom-ui-validation.tsx'
+      - 'scripts/web/validate-showroom-ui.mjs'
       - '.github/workflows/showroom-validation.yml'
 
 permissions:
@@ -21,10 +24,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  memory:
-    name: 20-rock WebGL memory tour
+  showroom:
+    name: WebGL memory + phone/tablet UX
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,6 +56,16 @@ jobs:
           sleep 2
           google-chrome --version
           node scripts/web/validate-showroom-memory.mjs
+
+      - name: Validate real showroom component on phone and tablet
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm exec -- vite --host 127.0.0.1 --port 4174 > /tmp/caillou-showroom-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          sleep 3
+          node scripts/web/validate-showroom-ui.mjs
 
       - name: Upload showroom diagnostics
         if: ${{ always() }}
