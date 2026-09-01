@@ -66,9 +66,14 @@ try {
 
   const pedestal = await page.evaluate(() => {
     const actionButtons = [...document.querySelectorAll('.pedestal-actions button')]
+    const caressButton = document.querySelector('button[aria-label="Activer le mode Caresser"]')
     return {
       actionCount: actionButtons.length,
-      allActionsDisabled: actionButtons.every((button) => button.disabled),
+      enabledCount: actionButtons.filter((button) => !button.disabled).length,
+      caressEnabled: caressButton ? !caressButton.disabled : false,
+      remainingActionsDisabled: actionButtons
+        .filter((button) => button !== caressButton)
+        .every((button) => button.disabled),
       allTargetsLargeEnough: actionButtons.every((button) => {
         const rect = button.getBoundingClientRect()
         return rect.width >= 44 && rect.height >= 44
@@ -78,7 +83,8 @@ try {
   })
 
   if (pedestal.actionCount !== 4) throw new Error(`expected 4 pedestal actions, got ${pedestal.actionCount}`)
-  if (!pedestal.allActionsDisabled) throw new Error('step-08+ actions are not intentionally disabled')
+  if (pedestal.enabledCount !== 1 || !pedestal.caressEnabled) throw new Error('caress is not the only enabled step-08 action')
+  if (!pedestal.remainingActionsDisabled) throw new Error('cleaning, accessory or discard became active too early')
   if (!pedestal.allTargetsLargeEnough) throw new Error('pedestal action targets are below 44px')
   if (!pedestal.hasCanvas) throw new Error('pedestal 3D canvas is missing')
 
@@ -99,7 +105,7 @@ try {
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] adoption E2E PASS: showroom → naming → lost response → idempotent retry → pedestal')
+  console.log('[CAILLOU] adoption E2E PASS: showroom → naming → lost response → idempotent retry → pedestal with caress enabled')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})
