@@ -42,7 +42,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | 09 | Nettoyage et poussière cosmétique | Terminée — PR #17, poussière UV + nettoyage persistant + E2E validés | 07 |
 | 10A | Pipeline accessoires 3D et catalogue | Terminée — PR #19, catalogue GLB licencié et WebGL validé | 03, 05, 06 |
 | 10B | Boutique Lithons et propriété des accessoires | Terminée — PR #20, achat atomique/RLS et UI catalogue | 08, 10A |
-| 10C | Multi-équipement et placement libre | À faire | 07, 10A, 10B |
+| 10C | Multi-équipement et placement libre | Terminée — PR #22, instances UUID + transforms locaux persistants + téléphone/tablette validés | 07, 10A, 10B |
 | 10D | Physique, collisions, gravité et persistance | À faire | 06, 10C |
 | 11 | Bio, statistiques et action Jeter | À faire | 03, 07, 08, 09, 10B, 10D |
 | 12 | PWA, cache, reprise réseau et résilience | À faire | 06 à 11, y compris 10A–10D |
@@ -54,8 +54,8 @@ L'ancien périmètre unique `10 — Accessoires et boutique Lithons` est désorm
 
 - **10A** : ingestion/conversion des ressources 3D, GLB web, PBR, optimisation, provenance/licences et colliders simplifiés ;
 - **10B** : catalogue commercial, achat transactionnel en Lithons et propriété permanente au compte ;
-- **10C** : plusieurs accessoires simultanés sur un même caillou, placement manuel, rotation, échelle et édition tactile ;
-- **10D** : collisions, anti-traversée, gravité, stabilisation physique et sauvegarde/restauration des transforms finaux.
+- **10C** : plusieurs accessoires simultanés sur un même caillou, instances UUID, placement manuel, rotation, échelle, édition tactile et persistance des transforms manuels ;
+- **10D** : collisions, anti-traversée, gravité, stabilisation physique et persistance/reprise de l'état stabilisé.
 
 Les quatre sous-étapes font partie du jalon fonctionnel « étape 10 ». L'étape 11 ne commence qu'une fois 10B et 10D validées.
 
@@ -64,9 +64,10 @@ Les quatre sous-étapes font partie du jalon fonctionnel « étape 10 ». L'éta
 - **Supabase est la source de vérité** pour compte, caillou adopté, progression, Lithons, achats, possession d'accessoires, placements persistants et statistiques.
 - **Vercel distribue le frontend** et fournit les previews/production ; pas de backend métier Vercel V1 sans justification explicite.
 - **Le navigateur ne fait jamais autorité sur les Lithons** ni sur un achat.
-- **Un seul GLB de caillou actif à la fois** dans le showroom. Plusieurs GLB d'accessoires peuvent être chargés simultanément autour de ce caillou, dans un budget mobile contrôlé.
-- Les accessoires sont multi-instance côté équipement : le modèle final ne doit pas limiter artificiellement un caillou à un accessoire par zone ou `slot`.
+- **Un seul GLB de caillou actif à la fois** dans le showroom. Jusqu'à huit GLB d'accessoires peuvent être chargés simultanément autour de ce caillou dans le contrat V1 actuel.
+- Les accessoires sont multi-instance côté équipement : le modèle final ne limite pas artificiellement un caillou à un accessoire par zone ou `slot`.
 - Les transforms d'accessoires persistants sont exprimés relativement au caillou, pas en coordonnées monde.
+- 10C persiste le placement manuel ; 10D conserve la même identité d'instance et ajoute la physique, les collisions et la persistance de l'état stabilisé.
 - La physique est exécutée côté client ; Supabase persiste l'état stabilisé mais ne simule pas la physique.
 - Le caillou n'a aucun besoin vital et l'absence n'est jamais punie.
 - Les Lithons n'ont aucune valeur réelle et ne sont ni achetables ni transférables.
