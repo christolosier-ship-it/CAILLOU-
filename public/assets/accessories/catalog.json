@@ -11,7 +11,11 @@
       "modelPath": "/assets/accessories/monocle/model.glb",
       "previewPath": "/assets/accessory-previews/monocle.png",
       "triangleCount": 665,
-      "dimensions": [0.440386, 0.626706, 0.725703],
+      "dimensions": [
+        0.440386,
+        0.626706,
+        0.725703
+      ],
       "pivot": "bounds-center",
       "scaleMin": 0.65,
       "scaleMax": 1.35,
@@ -47,7 +51,11 @@
       "modelPath": "/assets/accessories/bow-tie/model.glb",
       "previewPath": "/assets/accessory-previews/bow-tie.png",
       "triangleCount": 1036,
-      "dimensions": [0.72, 0.245974, 0.504354],
+      "dimensions": [
+        0.72,
+        0.245974,
+        0.504354
+      ],
       "pivot": "bounds-center",
       "scaleMin": 0.65,
       "scaleMax": 1.35,
@@ -82,7 +90,11 @@
       "modelPath": "/assets/accessories/round-glasses/model.glb",
       "previewPath": "/assets/accessory-previews/round-glasses.png",
       "triangleCount": 7386,
-      "dimensions": [0.78, 0.656022, 0.307408],
+      "dimensions": [
+        0.78,
+        0.656022,
+        0.307408
+      ],
       "pivot": "bounds-center",
       "scaleMin": 0.6,
       "scaleMax": 1.5,
@@ -117,7 +129,11 @@
       "modelPath": "/assets/accessories/pedestal-gallery/model.glb",
       "previewPath": "/assets/accessory-previews/pedestal-gallery.png",
       "triangleCount": 712,
-      "dimensions": [0.587645, 0.589615, 1.35],
+      "dimensions": [
+        0.587645,
+        0.589615,
+        1.35
+      ],
       "pivot": "bounds-center",
       "scaleMin": 0.7,
       "scaleMax": 1.5,
