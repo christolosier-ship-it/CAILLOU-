@@ -3,6 +3,31 @@
 
 begin;
 
+-- The commercial catalogue expected at the end of 10B must be complete,
+-- active and carry verified provenance before any purchase is exercised.
+do $$
+begin
+  if (
+    select count(*)
+    from public.accessories
+    where id in ('monocle', 'bow-tie', 'round-glasses', 'pedestal-gallery')
+      and active
+      and provenance @> '{"verified":true}'::jsonb
+  ) <> 4 then
+    raise exception '10B commercial catalogue is incomplete or has unverified provenance';
+  end if;
+
+  if (
+    select count(*)
+    from public.accessories
+    where id in ('bow-tie', 'round-glasses', 'pedestal-gallery')
+      and provenance->>'license' = 'CC0 1.0'
+  ) <> 3 then
+    raise exception 'CC0 accessory provenance is not aligned with the published catalogue';
+  end if;
+end
+$$;
+
 insert into auth.users(id) values
   ('10b00000-0000-4000-8000-000000000001'::uuid),
   ('10b00000-0000-4000-8000-000000000002'::uuid);
@@ -48,13 +73,13 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '10b00000-0000-4000-8000-000000000001', true);
 
 select * from public.purchase_accessory(
-  'monocle',
+  'bow-tie',
   '10b10000-0000-4000-8000-000000000001'::uuid
 );
 
 -- Exact retry must return the receipt without a second debit or ledger row.
 select * from public.purchase_accessory(
-  'monocle',
+  'bow-tie',
   '10b10000-0000-4000-8000-000000000001'::uuid
 );
 
@@ -62,7 +87,7 @@ do $$
 begin
   begin
     perform * from public.purchase_accessory(
-      'monocle',
+      'bow-tie',
       '10b10000-0000-4000-8000-000000000002'::uuid
     );
     raise exception 'distinct double purchase unexpectedly accepted';
@@ -112,7 +137,7 @@ begin
 
   begin
     perform * from public.purchase_accessory(
-      'monocle',
+      'bow-tie',
       '10b10000-0000-4000-8000-000000000005'::uuid
     );
     raise exception 'user B purchase without balance unexpectedly accepted';
@@ -126,16 +151,16 @@ reset role;
 
 do $$
 begin
-  if (select balance from public.wallets where user_id = '10b00000-0000-4000-8000-000000000001'::uuid) <> 110 then
+  if (select balance from public.wallets where user_id = '10b00000-0000-4000-8000-000000000001'::uuid) <> 130 then
     raise exception 'wallet was not debited exactly once by the server price';
   end if;
-  if (select lifetime_spent from public.wallets where user_id = '10b00000-0000-4000-8000-000000000001'::uuid) <> 90 then
+  if (select lifetime_spent from public.wallets where user_id = '10b00000-0000-4000-8000-000000000001'::uuid) <> 70 then
     raise exception 'lifetime spent is inconsistent';
   end if;
-  if (select count(*) from public.user_accessories where user_id = '10b00000-0000-4000-8000-000000000001'::uuid and accessory_id = 'monocle') <> 1 then
+  if (select count(*) from public.user_accessories where user_id = '10b00000-0000-4000-8000-000000000001'::uuid and accessory_id = 'bow-tie') <> 1 then
     raise exception 'permanent ownership was not created exactly once';
   end if;
-  if (select count(*) from public.lithon_ledger where user_id = '10b00000-0000-4000-8000-000000000001'::uuid and accessory_id = 'monocle' and delta = -90) <> 1 then
+  if (select count(*) from public.lithon_ledger where user_id = '10b00000-0000-4000-8000-000000000001'::uuid and accessory_id = 'bow-tie' and delta = -70) <> 1 then
     raise exception 'purchase ledger is not exactly-once';
   end if;
   if (select balance from public.wallets where user_id = '10b00000-0000-4000-8000-000000000002'::uuid) <> 40 then
