@@ -1,4 +1,4 @@
-import { BrushCleaning, ClipboardList, Gem, HandHeart, Shirt, Trash2 } from 'lucide-react'
+import { Box, BrushCleaning, ClipboardList, Gem, HandHeart, Move, Shirt, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { getRockCatalogEntryById } from '../../content/rockCatalog'
@@ -19,6 +19,12 @@ import { CleaningMutationError, registerCleaning } from '../cleaning/cleaningApi
 import { getDustAmount, hasVisibleDust, isValidCleaning } from '../cleaning/cleaningRules'
 import type { CleaningMetrics } from '../cleaning/cleaningRules'
 import type { RegisterCleaningInput, RegisterCleaningMutation } from '../cleaning/cleaningTypes'
+import { RockMovementControls } from '../rockMovement/RockMovementControls'
+import type { RockMovementMode } from '../rockMovement/RockMovementControls'
+import { RockMovementPermitDialog } from '../rockMovement/RockMovementPermitDialog'
+import { stabilizeRockComposition } from '../rockMovement/rockMovementApi'
+import type { RockCompositionDraft, RockPose } from '../rockMovement/rockMovementTypes'
+import { useRockMovementPermit } from '../rockMovement/useRockMovementPermit'
 
 interface PedestalProps {
   activeRock: ActiveRock
@@ -30,7 +36,7 @@ interface PedestalProps {
   registerCleaningMutation?: RegisterCleaningMutation | undefined
 }
 
-type PedestalMode = 'orbit' | 'caress' | 'cleaning' | 'accessory'
+type PedestalMode = 'orbit' | 'caress' | 'cleaning' | 'accessory' | RockMovementMode | 'composition-settle'
 
 interface ActiveSurfaceGesture {
   pointerId: number
@@ -104,9 +110,17 @@ export function Pedestal({
   const [retryKey, setRetryKey] = useState(0)
   const [bioOpen, setBioOpen] = useState(false)
   const [accessoryShopOpen, setAccessoryShopOpen] = useState(false)
+  const [rockPermitOpen, setRockPermitOpen] = useState(false)
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null)
   const [accessoryRenderError, setAccessoryRenderError] = useState<string | null>(null)
+  const [rockMovementError, setRockMovementError] = useState<string | null>(null)
+  const [compositionPending, setCompositionPending] = useState(false)
   const [mode, setMode] = useState<PedestalMode>('orbit')
+  const [rockPose, setRockPose] = useState<RockPose>({
+    position: [...activeRock.posePosition],
+    rotation: [...activeRock.poseRotation],
+  })
+  const canonicalRockPoseRef = useRef<RockPose>(rockPose)
   const [caressPending, setCaressPending] = useState(false)
   const [caressFeedback, setCaressFeedback] = useState<string | null>(null)
   const [caressError, setCaressError] = useState<string | null>(null)
@@ -124,14 +138,19 @@ export function Pedestal({
   const reducedMotion = useReducedMotion()
   const caressMutation = registerCaressMutation ?? registerCaress
   const cleaningMutation = registerCleaningMutation ?? registerCleaning
+  const rockPermit = useRockMovementPermit()
   const {
     instances: accessoryInstances,
     loading: accessoryPlacementsLoading,
     pendingId: accessoryPendingId,
     error: accessoryPlacementError,
     maxInstances,
+    refresh: refreshAccessoryPlacements,
     place: placeAccessory,
+    draft: draftAccessory,
+    commitDrafts: commitAccessoryDrafts,
     update: updateAccessory,
+    acceptComposition,
     remove: removeAccessory,
   } = useAccessoryPlacements(activeRock.id)
   const adoptionDate = useMemo(() => formatDate(activeRock.adoptedAt), [activeRock.adoptedAt])
@@ -151,15 +170,34 @@ export function Pedestal({
   const caressMode = mode === 'caress'
   const cleaningMode = mode === 'cleaning'
   const accessoryMode = mode === 'accessory'
+  const rockManipulationMode = mode === 'rock-position' || mode === 'rock-orientation'
+  const globalSettling = mode === 'composition-settle'
   const mutationBlocked = caressPending
     || cleaningPending
     || retryInput !== null
     || cleaningRetryInput !== null
     || accessoryPendingId !== null
+    || compositionPending
+    || globalSettling
+    || rockPermit.pending
   const handleLoadState = useCallback((state: RockLoadState) => setLoadState(state), [])
 
   useEffect(() => setEconomyState(economy), [economy])
   useEffect(() => setLastCleanedAtState(activeRock.lastCleanedAt), [activeRock.lastCleanedAt])
+  useEffect(() => {
+    const canonical = {
+      position: [...activeRock.posePosition] as RockPose['position'],
+      rotation: [...activeRock.poseRotation] as RockPose['rotation'],
+    }
+    canonicalRockPoseRef.current = canonical
+    if (!rockManipulationMode && !globalSettling) setRockPose(canonical)
+  }, [
+    activeRock.id,
+    activeRock.posePosition,
+    activeRock.poseRotation,
+    globalSettling,
+    rockManipulationMode,
+  ])
 
   useEffect(() => () => {
     if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current)
@@ -187,10 +225,8 @@ export function Pedestal({
 
   const submitCaress = useCallback(async (input: RegisterCaressInput) => {
     if (caressPending) return
-
     setCaressPending(true)
     setCaressError(null)
-
     try {
       const result = await caressMutation(input)
       setEconomyState((current) => ({ ...current, ...result }))
@@ -210,10 +246,8 @@ export function Pedestal({
 
   const submitCleaning = useCallback(async (input: RegisterCleaningInput) => {
     if (cleaningPending) return
-
     setCleaningPending(true)
     setCleaningError(null)
-
     try {
       const result = await cleaningMutation(input)
       setLastCleanedAtState(result.lastCleanedAt)
@@ -260,7 +294,6 @@ export function Pedestal({
   const handleSurfaceMove = useCallback((sample: RockSurfacePointerSample) => {
     const gesture = gestureRef.current
     if (!gesture || gesture.pointerId !== sample.pointerId) return
-
     gesture.pathLengthPx += distance(gesture.lastX, gesture.lastY, sample.clientX, sample.clientY)
     gesture.lastX = sample.clientX
     gesture.lastY = sample.clientY
@@ -287,10 +320,8 @@ export function Pedestal({
         directDistancePx: distance(gesture.startX, gesture.startY, sample.clientX, sample.clientY),
         sampleCount,
       }
-
       if (!isValidCaress(metrics)) return
       if (performance.now() - lastSuccessfulCaressAt.current < CARESS_CLIENT_COOLDOWN_MS) return
-
       if (import.meta.env.DEV) console.debug('[CAILLOU] caress gesture accepted', metrics)
       void submitCaress({ userRockId: activeRock.id, eventKey: crypto.randomUUID() })
       return
@@ -307,12 +338,10 @@ export function Pedestal({
         spanPx: Math.max(maxX - minX, maxY - minY),
         sampleCount,
       }
-
       if (!isValidCleaning(metrics)) {
         setDustRevision((current) => current + 1)
         return
       }
-
       if (import.meta.env.DEV) console.debug('[CAILLOU] cleaning gesture accepted', metrics)
       void submitCleaning({ userRockId: activeRock.id, eventKey: crypto.randomUUID() })
     }
@@ -338,6 +367,7 @@ export function Pedestal({
     if (mutationBlocked) return
     gestureRef.current = null
     setSelectedAccessoryId(null)
+    setRockMovementError(null)
     setMode((current) => {
       if (current === 'cleaning') setDustRevision((revision) => revision + 1)
       return current === target ? 'orbit' : target
@@ -346,11 +376,15 @@ export function Pedestal({
 
   const openAccessoryShop = useCallback(() => {
     if (mutationBlocked) return
-    gestureRef.current = null
-    if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
-    setMode('orbit')
-    setAccessoryShopOpen(true)
-  }, [mode, mutationBlocked])
+    void (async () => {
+      if (mode === 'accessory' && !(await commitAccessoryDrafts())) return
+      gestureRef.current = null
+      if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
+      setSelectedAccessoryId(null)
+      setMode('orbit')
+      setAccessoryShopOpen(true)
+    })()
+  }, [commitAccessoryDrafts, mode, mutationBlocked])
 
   const handleAccessoryPurchased = useCallback((result: PurchaseAccessoryResult) => {
     setEconomyState((current) => ({ ...current, balance: result.balance }))
@@ -366,19 +400,23 @@ export function Pedestal({
   }, [placeAccessory])
 
   const handleAccessorySelect = useCallback((instanceId: string) => {
-    if (mutationBlocked) return
+    if (mutationBlocked || mode !== 'accessory') return
     setAccessoryShopOpen(false)
     setSelectedAccessoryId(instanceId)
-    setMode('accessory')
-  }, [mutationBlocked])
+  }, [mode, mutationBlocked])
 
-  const handleAccessoryTransform = useCallback((instanceId: string, transform: AccessoryTransform) => {
-    if (mutationBlocked) return
+  const handleAccessoryDraft = useCallback((instanceId: string, transform: AccessoryTransform) => {
+    if (mutationBlocked || mode !== 'accessory') return
+    draftAccessory(instanceId, transform)
+  }, [draftAccessory, mode, mutationBlocked])
+
+  const handleAccessoryPhysicsTransform = useCallback((instanceId: string, transform: AccessoryTransform) => {
+    if (compositionPending || globalSettling) return
     void updateAccessory(instanceId, transform)
-  }, [mutationBlocked, updateAccessory])
+  }, [compositionPending, globalSettling, updateAccessory])
 
   const handleAccessoryRemove = useCallback((instanceId: string) => {
-    if (mutationBlocked) return
+    if (mutationBlocked || mode !== 'accessory') return
     void removeAccessory(instanceId).then((removed) => {
       if (!removed) return
       const remaining = accessoryInstances.filter((instance) => instance.id !== instanceId)
@@ -386,13 +424,106 @@ export function Pedestal({
       setSelectedAccessoryId(nextSelected)
       if (!nextSelected) setMode('orbit')
     })
-  }, [accessoryInstances, mutationBlocked, removeAccessory])
+  }, [accessoryInstances, mode, mutationBlocked, removeAccessory])
 
   const handleAccessoryDone = useCallback(() => {
+    if (mutationBlocked || mode !== 'accessory') return
+    void (async () => {
+      const confirmed = await commitAccessoryDrafts()
+      if (!confirmed) return
+      setSelectedAccessoryId(null)
+      setMode('orbit')
+    })()
+  }, [commitAccessoryDrafts, mode, mutationBlocked])
+
+  const toggleAccessoryEditing = useCallback(() => {
     if (mutationBlocked) return
+    if (mode === 'accessory') {
+      handleAccessoryDone()
+      return
+    }
+    if (accessoryInstances.length === 0) return
+    gestureRef.current = null
+    setAccessoryShopOpen(false)
+    setRockPermitOpen(false)
+    setRockMovementError(null)
+    setSelectedAccessoryId((current) => current && accessoryInstances.some((instance) => instance.id === current)
+      ? current
+      : accessoryInstances[0].id)
+    setMode('accessory')
+  }, [accessoryInstances, handleAccessoryDone, mode, mutationBlocked])
+
+  const beginRockMovement = useCallback(() => {
+    if (mutationBlocked) return
+    if (!rockPermit.unlocked) {
+      setRockPermitOpen(true)
+      return
+    }
+    canonicalRockPoseRef.current = rockPose
+    gestureRef.current = null
+    setAccessoryShopOpen(false)
     setSelectedAccessoryId(null)
-    setMode('orbit')
-  }, [mutationBlocked])
+    setRockMovementError(null)
+    setMode('rock-position')
+  }, [mutationBlocked, rockPermit.unlocked, rockPose])
+
+  const handleRockMovementButton = useCallback(() => {
+    if (rockManipulationMode) {
+      if (mutationBlocked) return
+      setMode('composition-settle')
+      return
+    }
+    beginRockMovement()
+  }, [beginRockMovement, mutationBlocked, rockManipulationMode])
+
+  const handlePermitPurchase = useCallback(() => {
+    void (async () => {
+      const result = await rockPermit.purchase()
+      if (!result) return
+      setEconomyState((current) => ({ ...current, balance: result.balance }))
+      setRockPermitOpen(false)
+      canonicalRockPoseRef.current = rockPose
+      setMode('rock-position')
+      navigator.vibrate?.(18)
+      void onServerStateChanged()
+    })()
+  }, [onServerStateChanged, rockPermit, rockPose])
+
+  const handleCompositionSettled = useCallback((draft: RockCompositionDraft) => {
+    if (compositionPending || mode !== 'composition-settle') return
+    setCompositionPending(true)
+    setRockMovementError(null)
+    const eventKey = crypto.randomUUID()
+    void stabilizeRockComposition(activeRock.id, eventKey, draft).then(async (result) => {
+      acceptComposition(result)
+      setRockPose(result.rockPose)
+      canonicalRockPoseRef.current = result.rockPose
+      setMode('orbit')
+      navigator.vibrate?.(20)
+      await onServerStateChanged()
+    }).catch(async (error) => {
+      setRockMovementError(error instanceof Error
+        ? `${error.message} Le dernier état serveur connu a été restauré.`
+        : 'La manutention n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
+      setRockPose(canonicalRockPoseRef.current)
+      try {
+        await refreshAccessoryPlacements()
+      } catch {
+        // The visible canonical pose is still restored even if the accessory reread is offline.
+      }
+      setMode('orbit')
+      await onServerStateChanged()
+    }).finally(() => {
+      setCompositionPending(false)
+    })
+  }, [
+    acceptComposition,
+    activeRock.id,
+    compositionPending,
+    mode,
+    onServerStateChanged,
+    refreshAccessoryPlacements,
+  ])
 
   const handleAccessoryLoadState = useCallback((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => {
     if (state === 'error') {
@@ -402,44 +533,81 @@ export function Pedestal({
     }
   }, [])
 
-  const status = accessoryPendingId
-    ? 'Enregistrement du placement…'
-    : accessoryPlacementsLoading
-      ? 'Vérification des accessoires placés…'
-      : accessoryMode
-        ? 'Mode accessoire actif. Glissez l’objet ou utilisez les réglages X/Y/Z.'
-        : cleaningPending
-          ? 'Enregistrement du nettoyage…'
-          : cleaningRetryInput
-            ? 'Confirmation du nettoyage à reprendre.'
-            : cleaningMode
-              ? 'Mode nettoyage actif. Passez le doigt sur la poussière visible.'
-              : caressPending
-                ? 'Enregistrement de la caresse…'
-                : retryInput
-                  ? 'Confirmation serveur à reprendre.'
-                  : caressMode
-                    ? 'Mode caresse actif. Faites glisser le doigt sur la surface du caillou.'
-                    : 'Votre caillou est prêt à ne rien faire à vos côtés.'
+  const status = compositionPending
+    ? 'Enregistrement atomique de la nouvelle composition…'
+    : globalSettling
+      ? 'Gravité active. Le caillou et ses accessoires cherchent une position stable…'
+      : rockManipulationMode
+        ? mode === 'rock-position'
+          ? 'Manutention : déplacez librement le caillou, pincez pour la profondeur.'
+          : 'Manutention : inclinez le caillou, tournez deux doigts pour le faire pivoter.'
+        : accessoryPendingId
+          ? 'Enregistrement du placement…'
+          : accessoryPlacementsLoading
+            ? 'Vérification des accessoires placés…'
+            : accessoryMode
+              ? 'Édition accessoire active. Un doigt place, deux doigts tournent, pincez pour redimensionner.'
+              : cleaningPending
+                ? 'Enregistrement du nettoyage…'
+                : cleaningRetryInput
+                  ? 'Confirmation du nettoyage à reprendre.'
+                  : cleaningMode
+                    ? 'Mode nettoyage actif. Passez le doigt sur la poussière visible.'
+                    : caressPending
+                      ? 'Enregistrement de la caresse…'
+                      : retryInput
+                        ? 'Confirmation serveur à reprendre.'
+                        : caressMode
+                          ? 'Mode caresse actif. Faites glisser le doigt sur la surface du caillou.'
+                          : rockMovementError ?? 'Votre caillou est prêt à ne rien faire à vos côtés.'
 
   const shellModeClass = caressMode
     ? ' is-caress-mode'
     : cleaningMode
       ? ' is-cleaning-mode'
-      : accessoryMode ? ' is-accessory-mode' : ''
+      : accessoryMode
+        ? ' is-accessory-mode'
+        : rockManipulationMode
+          ? ' is-rock-movement-mode'
+          : globalSettling ? ' is-composition-settling' : ''
 
   return (
     <div className={`pedestal-shell${shellModeClass}`}>
       <header className="pedestal-topbar">
-        <button
-          type="button"
-          className="pedestal-utility"
-          onClick={() => setBioOpen(true)}
-          aria-label="Bio et statistiques"
-          title="Bio et statistiques"
-        >
-          <ClipboardList size={24} strokeWidth={1.75} aria-hidden="true" />
-        </button>
+        <div className="pedestal-utilities">
+          <button
+            type="button"
+            className="pedestal-utility"
+            onClick={() => setBioOpen(true)}
+            aria-label="Bio et statistiques"
+            title="Bio et statistiques"
+          >
+            <ClipboardList size={24} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`pedestal-utility pedestal-utility-icon${accessoryMode ? ' is-active' : ''}`}
+            onClick={toggleAccessoryEditing}
+            disabled={mutationBlocked || accessoryInstances.length === 0}
+            aria-label={accessoryMode ? 'Terminer la modification des accessoires' : 'Modifier les accessoires placés'}
+            aria-pressed={accessoryMode}
+            title={accessoryInstances.length === 0 ? 'Aucun accessoire placé' : 'Modifier les accessoires'}
+          >
+            <Move size={22} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`pedestal-utility pedestal-utility-icon pedestal-rock-move${rockManipulationMode ? ' is-active' : ''}${rockPermit.unlocked ? '' : ' is-locked'}`}
+            onClick={handleRockMovementButton}
+            disabled={mutationBlocked && !rockManipulationMode}
+            aria-label={rockPermit.unlocked ? 'Déplacer le caillou' : 'Débloquer le déplacement du caillou pour 1000 Lithons'}
+            aria-pressed={rockManipulationMode}
+            title={rockPermit.unlocked ? 'Déplacer le caillou' : 'Permis de manutention : 1000 Lithons'}
+          >
+            <Box size={22} strokeWidth={1.75} aria-hidden="true" />
+            {!rockPermit.unlocked ? <span className="pedestal-utility-price" aria-hidden="true">1000</span> : null}
+          </button>
+        </div>
         <div className="pedestal-brand" aria-label={PRODUCT_NAME}>
           <span>{PRODUCT_NAME}</span>
           <small>{username}</small>
@@ -460,6 +628,9 @@ export function Pedestal({
           aria-label={`Socle de ${activeRock.name}`}
           data-dust-amount={dustAmount.toFixed(3)}
           data-accessory-count={accessoryInstances.length}
+          data-rock-mode={mode}
+          data-rock-position={rockPose.position.join(',')}
+          data-rock-rotation={rockPose.rotation.join(',')}
         >
           <div className="pedestal-identity">
             <p className="eyebrow">{rock.label}</p>
@@ -473,6 +644,9 @@ export function Pedestal({
             onLoadStateChange={handleLoadState}
             onInteractionChange={() => undefined}
             interactionMode={mode}
+            rockPose={rockPose}
+            onRockPoseDraft={setRockPose}
+            onCompositionSettled={handleCompositionSettled}
             dustAmount={dustAmount}
             dustRevision={dustRevision}
             onSurfacePointerDown={handleSurfaceStart}
@@ -482,7 +656,8 @@ export function Pedestal({
             accessories={accessoryInstances}
             selectedAccessoryId={selectedAccessoryId}
             onAccessorySelect={handleAccessorySelect}
-            onAccessoryTransformCommit={handleAccessoryTransform}
+            onAccessoryTransformDraft={handleAccessoryDraft}
+            onAccessoryTransformCommit={handleAccessoryPhysicsTransform}
             onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
 
@@ -512,9 +687,7 @@ export function Pedestal({
             <div className="pedestal-caress-error" role="alert">
               <span>{caressError}</span>
               {retryInput ? (
-                <button type="button" disabled={caressPending} onClick={() => void submitCaress(retryInput)}>
-                  Réessayer
-                </button>
+                <button type="button" disabled={caressPending} onClick={() => void submitCaress(retryInput)}>Réessayer</button>
               ) : null}
             </div>
           ) : null}
@@ -523,9 +696,7 @@ export function Pedestal({
             <div className="pedestal-cleaning-error" role="alert">
               <span>{cleaningError}</span>
               {cleaningRetryInput ? (
-                <button type="button" disabled={cleaningPending} onClick={() => void submitCleaning(cleaningRetryInput)}>
-                  Réessayer
-                </button>
+                <button type="button" disabled={cleaningPending} onClick={() => void submitCleaning(cleaningRetryInput)}>Réessayer</button>
               ) : null}
             </div>
           ) : null}
@@ -538,10 +709,20 @@ export function Pedestal({
               message={accessoryPlacementError ?? accessoryRenderError}
               maxInstances={maxInstances}
               onSelect={handleAccessorySelect}
-              onTransform={handleAccessoryTransform}
+              onTransform={handleAccessoryDraft}
               onRemove={handleAccessoryRemove}
               onOpenShop={openAccessoryShop}
               onDone={handleAccessoryDone}
+            />
+          ) : null}
+
+          {rockManipulationMode ? (
+            <RockMovementControls
+              mode={mode}
+              busy={compositionPending}
+              message={rockMovementError}
+              onModeChange={(nextMode) => setMode(nextMode)}
+              onDone={() => setMode('composition-settle')}
             />
           ) : null}
 
@@ -555,7 +736,7 @@ export function Pedestal({
             const isAccessory = label === 'Accessoire'
             const isActive = (isCaress && caressMode)
               || (isCleaning && cleaningMode)
-              || (isAccessory && (accessoryShopOpen || accessoryMode))
+              || (isAccessory && accessoryShopOpen)
             const disabled = isCaress
               ? mutationBlocked
               : isCleaning
@@ -568,9 +749,7 @@ export function Pedestal({
                     ? 'Nettoyer — surface déjà conforme'
                     : cleaningMode ? 'Quitter le mode Nettoyer' : 'Activer le mode Nettoyer')
                 : isAccessory
-                  ? (accessoryShopOpen
-                      ? 'Boutique d’accessoires ouverte'
-                      : accessoryMode ? 'Gérer les accessoires placés' : 'Ouvrir la boutique d’accessoires')
+                  ? (accessoryShopOpen ? 'Boutique d’accessoires ouverte' : 'Ouvrir la boutique d’accessoires')
                   : `${label} — fonctionnalité en préparation`
 
             return (
@@ -622,10 +801,28 @@ export function Pedestal({
               <div><dt>Lithons générés</dt><dd>{economyState.lithonsGenerated}</dd></div>
               <div><dt>Solde actuel</dt><dd>{lithonLabel(economyState.balance)}</dd></div>
               <div><dt>Accessoires placés</dt><dd>{accessoryInstances.length}</dd></div>
+              <div><dt>Permis manutention</dt><dd>{rockPermit.unlocked ? 'Acquis' : 'Non acquis'}</dd></div>
               <div><dt>Déplacement spontané</dt><dd>0 m observé</dd></div>
             </dl>
           </section>
         </div>
+      ) : null}
+
+      {rockPermitOpen ? (
+        <RockMovementPermitDialog
+          snapshot={rockPermit.snapshot}
+          balance={economyState.balance}
+          loading={rockPermit.loading}
+          pending={rockPermit.pending}
+          error={rockPermit.error}
+          onPurchase={handlePermitPurchase}
+          onClose={() => {
+            if (!rockPermit.pending) {
+              rockPermit.clearError()
+              setRockPermitOpen(false)
+            }
+          }}
+        />
       ) : null}
 
       {accessoryShopOpen ? (
