@@ -100,14 +100,17 @@ export function ShowroomScene({
           onObjectReady={handleObjectReady}
         />
         <AutoFitCamera object={object} />
-        <ContactShadows
-          position={[0, -0.02, 0]}
-          opacity={0.3}
-          scale={5.5}
-          blur={2.6}
-          far={4}
-          frames={1}
-        />
+        {object ? (
+          <ContactShadows
+            key={`${rock.id}-${retryKey}-shadow`}
+            position={[0, -0.02, 0]}
+            opacity={0.3}
+            scale={5.5}
+            blur={2.6}
+            far={4}
+            frames={1}
+          />
+        ) : null}
         <OrbitControls
           makeDefault
           enablePan={false}
