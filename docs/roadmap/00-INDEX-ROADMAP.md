@@ -35,7 +35,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | 03 | Supabase : schéma, RLS et contrats | Terminée — PR #7 fusionnée | 01 |
 | 04 | Auth pseudo + mot de passe | Terminée — PR #8 fusionnée | 03 |
 | 05 | Pipeline 3D de production et catalogue | Terminée — PR #10 fusionnée, 20/20 cailloux actifs | pipeline audit existant |
-| 06 | Showroom 3D des 20 cailloux | À faire | 01, 05 |
+| 06 | Showroom 3D des 20 cailloux | Terminée — PR #13 fusionnée, WebGL + téléphone/tablette validés | 01, 05 |
 | 07 | Adoption, nommage et Socle | À faire | 04, 06 |
 | 08 | Caresse et économie en Lithons | À faire | 03, 07 |
 | 09 | Nettoyage et poussière cosmétique | À faire | 07 |
@@ -47,7 +47,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 ## Frontières importantes
 
 - **Supabase est la source de vérité** pour compte, caillou adopté, progression, Lithons, achats et statistiques.
-- **Vercel distribue le frontend** et fournit les previews/production ; pas de backend métier Vercel en V1 sans justification explicite.
+- **Vercel distribue le frontend** et fournit les previews/production ; pas de backend métier Vercel V1 sans justification explicite.
 - **Le navigateur ne fait jamais autorité sur les Lithons** ni sur un achat.
 - **Un seul GLB 3D actif à la fois** dans le showroom.
 - Le caillou n'a aucun besoin vital et l'absence n'est jamais punie.
