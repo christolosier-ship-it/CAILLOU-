@@ -57,8 +57,11 @@ export interface EquippedAccessoryInstance extends AccessoryTransform {
   scaleMin: number
   scaleMax: number
   triangleCount: number | null
+  dimensions?: Json | null
+  physics?: Json | null
   equippedAt: string
   updatedAt: string
+  stabilizedAt?: string | null
 }
 
 export interface CreateAccessoryPlacementInput {
@@ -76,6 +79,14 @@ export interface UpdateAccessoryPlacementInput {
 export interface UpdateAccessoryPlacementResult extends AccessoryTransform {
   instanceId: string
   updatedAt: string
+}
+
+export interface StabilizeAccessoryPlacementInput extends UpdateAccessoryPlacementInput {
+  eventKey: string
+}
+
+export interface StabilizeAccessoryPlacementResult extends UpdateAccessoryPlacementResult {
+  stabilizedAt: string
 }
 
 export interface RemoveAccessoryPlacementInput {

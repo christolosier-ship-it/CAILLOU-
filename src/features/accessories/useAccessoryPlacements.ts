@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import {
+  AccessoryPlacementError,
   createAccessoryPlacement,
   loadAccessoryPlacements,
   removeAccessoryPlacement,
-  updateAccessoryPlacement,
+  stabilizeAccessoryPlacement,
 } from './accessoryPlacementApi'
 import {
   MAX_EQUIPPED_ACCESSORIES,
@@ -81,20 +82,30 @@ export function useAccessoryPlacements(userRockId: string) {
     if (!currentInstance) return
 
     const nextTransform = clampAccessoryTransform(transform, currentInstance.scaleMin, currentInstance.scaleMax)
+    const input = { instanceId, transform: nextTransform, eventKey: crypto.randomUUID() }
     setPendingId(instanceId)
     setError(null)
     setInstances((current) => current.map((instance) => instance.id === instanceId
-      ? { ...instance, ...nextTransform }
+      ? { ...instance, ...nextTransform, stabilizedAt: null }
       : instance))
 
     try {
-      const result = await updateAccessoryPlacement({ instanceId, transform: nextTransform })
+      let result
+      try {
+        result = await stabilizeAccessoryPlacement(input)
+      } catch (firstError) {
+        if (!(firstError instanceof AccessoryPlacementError) || !firstError.retryable) throw firstError
+        result = await stabilizeAccessoryPlacement(input)
+      }
+
       setInstances((current) => current.map((instance) => instance.id === instanceId
         ? { ...instance, ...result }
         : instance))
     } catch (nextError) {
       setInstances((current) => current.map((instance) => instance.id === instanceId ? currentInstance : instance))
-      setError(nextError instanceof Error ? nextError.message : 'Le transform n’a pas pu être enregistré.')
+      setError(nextError instanceof Error
+        ? `${nextError.message} La dernière pose confirmée a été restaurée.`
+        : 'La pose physique n’a pas pu être confirmée ; le dernier état serveur a été restauré.')
     } finally {
       setPendingId(null)
     }
