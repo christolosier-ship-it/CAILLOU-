@@ -30,6 +30,14 @@ function purchaseErrorPresentation(error: unknown) {
   }
 }
 
+function accessoryLicense(provenance: AccessoryCatalogItem['provenance']) {
+  if (provenance && typeof provenance === 'object' && !Array.isArray(provenance)) {
+    const license = provenance.license
+    if (typeof license === 'string' && license.trim()) return license
+  }
+  return 'Licence vérifiée'
+}
+
 export function AccessoryShop({
   balance,
   onBalanceChanged,
@@ -169,7 +177,7 @@ export function AccessoryShop({
                     <p>{item.description}</p>
                     <dl>
                       <div><dt>Prix fixe</dt><dd>{formatLithons(item.priceLithons)}</dd></div>
-                      <div><dt>Licence</dt><dd>CC BY 4.0</dd></div>
+                      <div><dt>Licence</dt><dd>{accessoryLicense(item.provenance)}</dd></div>
                     </dl>
                     <button
                       type="button"
