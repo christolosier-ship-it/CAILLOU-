@@ -6,6 +6,7 @@ import { registerPwa } from './pwa/registerServiceWorker'
 import './styles/global.css'
 import './styles/showroom.css'
 import './styles/adoption.css'
+import './styles/caress.css'
 
 registerPwa()
 

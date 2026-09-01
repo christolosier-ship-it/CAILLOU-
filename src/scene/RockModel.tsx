@@ -1,3 +1,4 @@
+import type { ThreeEvent } from '@react-three/fiber'
 import { useEffect, useState } from 'react'
 import { Mesh } from 'three'
 import type { Object3D } from 'three'
@@ -7,13 +8,43 @@ import { disposeRockObject } from './rockResources'
 
 export type RockLoadState = 'loading' | 'ready' | 'error'
 
-interface RockModelProps {
-  path: string
-  onLoadStateChange?: (state: RockLoadState, message?: string) => void
-  onObjectReady?: (object: Object3D | null) => void
+export interface RockSurfacePointerSample {
+  pointerId: number
+  clientX: number
+  clientY: number
+  timeStamp: number
+  isPrimary: boolean
 }
 
-export function RockModel({ path, onLoadStateChange, onObjectReady }: RockModelProps) {
+interface RockModelProps {
+  path: string
+  onLoadStateChange?: ((state: RockLoadState, message?: string) => void) | undefined
+  onObjectReady?: ((object: Object3D | null) => void) | undefined
+  onSurfacePointerDown?: ((sample: RockSurfacePointerSample) => void) | undefined
+  onSurfacePointerMove?: ((sample: RockSurfacePointerSample) => void) | undefined
+  onSurfacePointerUp?: ((sample: RockSurfacePointerSample) => void) | undefined
+  onSurfacePointerCancel?: ((sample: RockSurfacePointerSample) => void) | undefined
+}
+
+function toSurfaceSample(event: ThreeEvent<PointerEvent>): RockSurfacePointerSample {
+  return {
+    pointerId: event.nativeEvent.pointerId,
+    clientX: event.nativeEvent.clientX,
+    clientY: event.nativeEvent.clientY,
+    timeStamp: event.nativeEvent.timeStamp,
+    isPrimary: event.nativeEvent.isPrimary,
+  }
+}
+
+export function RockModel({
+  path,
+  onLoadStateChange,
+  onObjectReady,
+  onSurfacePointerDown,
+  onSurfacePointerMove,
+  onSurfacePointerUp,
+  onSurfacePointerCancel,
+}: RockModelProps) {
   const [object, setObject] = useState<Object3D | null>(null)
 
   useEffect(() => {
@@ -70,5 +101,27 @@ export function RockModel({ path, onLoadStateChange, onObjectReady }: RockModelP
     }
   }, [onLoadStateChange, onObjectReady, path])
 
-  return object ? <primitive object={object} /> : null
+  if (!object) return null
+
+  return (
+    <primitive
+      object={object}
+      onPointerDown={onSurfacePointerDown ? (event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation()
+        onSurfacePointerDown(toSurfaceSample(event))
+      } : undefined}
+      onPointerMove={onSurfacePointerMove ? (event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation()
+        onSurfacePointerMove(toSurfaceSample(event))
+      } : undefined}
+      onPointerUp={onSurfacePointerUp ? (event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation()
+        onSurfacePointerUp(toSurfaceSample(event))
+      } : undefined}
+      onPointerCancel={onSurfacePointerCancel ? (event: ThreeEvent<PointerEvent>) => {
+        event.stopPropagation()
+        onSurfacePointerCancel(toSurfaceSample(event))
+      } : undefined}
+    />
+  )
 }
