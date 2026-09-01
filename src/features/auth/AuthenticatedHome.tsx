@@ -5,6 +5,7 @@ import { adoptRock } from '../adoption/adoptionApi'
 import { NamingScreen } from '../adoption/NamingScreen'
 import type { ActiveRock, AdoptRockMutation } from '../adoption/adoptionTypes'
 import type { RegisterCaressMutation, RockEconomySnapshot } from '../caress/caressTypes'
+import type { RegisterCleaningMutation } from '../cleaning/cleaningTypes'
 import { Pedestal } from '../pedestal/Pedestal'
 import { Showroom } from '../showroom/Showroom'
 
@@ -17,6 +18,7 @@ interface AuthenticatedHomeProps {
   onSignOut: () => Promise<void>
   adoptRockMutation?: AdoptRockMutation
   registerCaressMutation?: RegisterCaressMutation
+  registerCleaningMutation?: RegisterCleaningMutation
 }
 
 export function AuthenticatedHome({
@@ -28,6 +30,7 @@ export function AuthenticatedHome({
   onSignOut,
   adoptRockMutation,
   registerCaressMutation,
+  registerCleaningMutation,
 }: AuthenticatedHomeProps) {
   const [namingRock, setNamingRock] = useState<RockCatalogEntry | null>(null)
   const mutation = adoptRockMutation ?? adoptRock
@@ -50,6 +53,7 @@ export function AuthenticatedHome({
         onServerStateChanged={onServerStateChanged}
         onSignOut={onSignOut}
         registerCaressMutation={registerCaressMutation}
+        registerCleaningMutation={registerCleaningMutation}
       />
     )
   }
