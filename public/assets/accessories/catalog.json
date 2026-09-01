@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "accessories": [
+    {
+      "id": "monocle",
+      "name": "Monocle",
+      "description": "Un monocle en métal patiné, parfaitement sérieux sur un caillou.",
+      "priceLithons": 90,
+      "category": "visage",
+      "sortOrder": 10,
+      "modelPath": "/assets/accessories/monocle/model.glb",
+      "previewPath": "/assets/accessory-previews/monocle.png",
+      "triangleCount": 665,
+      "dimensions": [
+        0.440386,
+        0.626706,
+        0.725703
+      ],
+      "pivot": "bounds-center",
+      "scaleMin": 0.65,
+      "scaleMax": 1.35,
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 0.18,
+        "friction": 0.68,
+        "restitution": 0.06,
+        "linearDamping": 1.6,
+        "angularDamping": 2.1
+      },
+      "provenance": {
+        "title": "Monocle",
+        "author": "Una.K.Carlstrøm",
+        "url": "https://sketchfab.com/3d-models/monocle-4f04956ecea24108869f5cbd785fd854",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "verified": true,
+        "evidence": "Le nom, les 395 triangles et les 205 sommets publiés concordent avec le fichier DAE source."
+      }
+    }
+  ]
+}
