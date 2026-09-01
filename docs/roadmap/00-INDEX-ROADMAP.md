@@ -38,7 +38,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | 06 | Showroom 3D des 20 cailloux | Terminée — PR #13 fusionnée, WebGL + téléphone/tablette validés | 01, 05 |
 | 07 | Adoption, nommage et Socle | Terminée — PR #14, adoption idempotente + Socle + E2E validés | 04, 06 |
 | 08 | Caresse et économie en Lithons | Terminée — PR #16, caresse 3D + économie autoritaire + E2E validés | 03, 07 |
-| 09 | Nettoyage et poussière cosmétique | À faire | 07 |
+| 09 | Nettoyage et poussière cosmétique | Terminée — PR #17, poussière UV + nettoyage persistant + E2E validés | 07 |
 | 10 | Accessoires et boutique Lithons | À faire | 03, 05, 08 |
 | 11 | Bio, statistiques et action Jeter | À faire | 03, 07, 08, 09, 10 |
 | 12 | PWA, cache, reprise réseau et résilience | À faire | 06 à 11 |
