@@ -43,10 +43,17 @@ async function state() {
 
 async function touch(selector) {
   const rect = await page.$eval(selector, (element) => {
+    element.scrollIntoView({ block: 'center', inline: 'center' })
     const box = element.getBoundingClientRect()
     return { x: box.x, y: box.y, width: box.width, height: box.height }
   })
-  await page.touchscreen.tap(rect.x + rect.width / 2, rect.y + rect.height / 2)
+  await new Promise((resolve) => setTimeout(resolve, 80))
+  const visibleRect = await page.$eval(selector, (element) => {
+    const box = element.getBoundingClientRect()
+    return { x: box.x, y: box.y, width: box.width, height: box.height }
+  })
+  const target = visibleRect.width > 0 && visibleRect.height > 0 ? visibleRect : rect
+  await page.touchscreen.tap(target.x + target.width / 2, target.y + target.height / 2)
 }
 
 try {
