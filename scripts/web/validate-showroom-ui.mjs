@@ -41,6 +41,7 @@ async function validateViewport(name, viewport, reducedMotion = false) {
   page.on('requestfailed', (request) => consoleLines.push(`[requestfailed] ${request.url()} ${request.failure()?.errorText ?? ''}`))
 
   try {
+    await page.setCacheEnabled(false)
     await page.setViewport({ ...viewport, deviceScaleFactor: 1, isMobile: name === 'phone', hasTouch: name === 'phone' })
     if (reducedMotion) {
       await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
@@ -50,7 +51,9 @@ async function validateViewport(name, viewport, reducedMotion = false) {
       waitUntil: 'domcontentloaded',
       timeout: 20_000,
     })
-    if (!response?.ok()) throw new Error(`${name}: fixture returned HTTP ${response?.status() ?? 'unknown'}`)
+    if (!response || response.status() >= 400) {
+      throw new Error(`${name}: fixture returned HTTP ${response?.status() ?? 'unknown'}`)
+    }
 
     await waitForRock(page, '01')
 
