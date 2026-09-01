@@ -37,12 +37,15 @@
       "scaleMax": 1.35,
       "physics": {
         "enabled": true,
+        "dynamic": true,
         "collider": "convexHull",
         "mass": 0.18,
         "friction": 0.68,
         "restitution": 0.06,
         "linearDamping": 1.6,
-        "angularDamping": 2.1
+        "angularDamping": 2.1,
+        "gravityScale": 0.9,
+        "ccd": true
       },
       "provenance": {
         "title": "Monocle",
@@ -171,12 +174,15 @@
       "scaleMax": 1.35,
       "physics": {
         "enabled": true,
+        "dynamic": true,
         "collider": "convexHull",
         "mass": 0.16,
         "friction": 0.72,
         "restitution": 0.04,
         "linearDamping": 1.7,
-        "angularDamping": 2.2
+        "angularDamping": 2.2,
+        "gravityScale": 0.86,
+        "ccd": true
       },
       "provenance": {
         "title": "Bow Tie",
@@ -293,12 +299,15 @@
       "scaleMax": 1.5,
       "physics": {
         "enabled": true,
+        "dynamic": true,
         "collider": "convexHull",
         "mass": 0.22,
         "friction": 0.66,
         "restitution": 0.05,
         "linearDamping": 1.6,
-        "angularDamping": 2.0
+        "angularDamping": 2.0,
+        "gravityScale": 0.88,
+        "ccd": true
       },
       "provenance": {
         "title": "Round glasses / model 2",
@@ -426,12 +435,15 @@
       "scaleMax": 1.5,
       "physics": {
         "enabled": true,
-        "collider": "convexHull",
+        "dynamic": false,
+        "collider": "cuboid",
         "mass": 1.8,
         "friction": 0.82,
         "restitution": 0.02,
         "linearDamping": 2.2,
-        "angularDamping": 2.6
+        "angularDamping": 2.6,
+        "gravityScale": 0,
+        "ccd": false
       },
       "provenance": {
         "title": "Pedestal Gallery v2",
