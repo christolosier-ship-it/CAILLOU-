@@ -8,18 +8,13 @@ import type { RockLoadState, RockSurfacePointerSample } from '../../scene/RockMo
 import { useReducedMotion } from '../../utils/useReducedMotion'
 import type { ActiveRock } from '../adoption/adoptionTypes'
 import { CaressMutationError, registerCaress } from '../caress/caressApi'
-import {
-  CARESS_CLIENT_COOLDOWN_MS,
-  isValidCaress,
-} from '../caress/caressRules'
-import type {
-  CaressMetrics,
-} from '../caress/caressRules'
-import type {
-  RegisterCaressInput,
-  RegisterCaressMutation,
-  RockEconomySnapshot,
-} from '../caress/caressTypes'
+import { CARESS_CLIENT_COOLDOWN_MS, isValidCaress } from '../caress/caressRules'
+import type { CaressMetrics } from '../caress/caressRules'
+import type { RegisterCaressInput, RegisterCaressMutation, RockEconomySnapshot } from '../caress/caressTypes'
+import { CleaningMutationError, registerCleaning } from '../cleaning/cleaningApi'
+import { getDustAmount, hasVisibleDust, isValidCleaning } from '../cleaning/cleaningRules'
+import type { CleaningMetrics } from '../cleaning/cleaningRules'
+import type { RegisterCleaningInput, RegisterCleaningMutation } from '../cleaning/cleaningTypes'
 
 interface PedestalProps {
   activeRock: ActiveRock
@@ -28,15 +23,22 @@ interface PedestalProps {
   onServerStateChanged: () => Promise<void>
   onSignOut: () => Promise<void>
   registerCaressMutation?: RegisterCaressMutation | undefined
+  registerCleaningMutation?: RegisterCleaningMutation | undefined
 }
 
-interface ActiveCaressGesture {
+type PedestalMode = 'orbit' | 'caress' | 'cleaning'
+
+interface ActiveSurfaceGesture {
   pointerId: number
   startedAt: number
   startX: number
   startY: number
   lastX: number
   lastY: number
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
   pathLengthPx: number
   sampleCount: number
 }
@@ -48,7 +50,7 @@ const ACTIONS = [
   { label: 'Jeter', Icon: Trash2 },
 ] as const
 
-function formatAdoptionDate(value: string) {
+function formatDate(value: string) {
   return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(value))
 }
 
@@ -60,13 +62,25 @@ function distance(x1: number, y1: number, x2: number, y2: number) {
   return Math.hypot(x2 - x1, y2 - y1)
 }
 
-function errorPresentation(error: unknown) {
+function caressErrorPresentation(error: unknown) {
   if (error instanceof CaressMutationError) {
     return { message: error.message, retryable: error.retryable, refresh: !error.retryable }
   }
 
   return {
     message: 'La confirmation serveur n’est pas arrivée. La même caresse peut être renvoyée sans double crédit.',
+    retryable: true,
+    refresh: false,
+  }
+}
+
+function cleaningErrorPresentation(error: unknown) {
+  if (error instanceof CleaningMutationError) {
+    return { message: error.message, retryable: error.retryable, refresh: !error.retryable }
+  }
+
+  return {
+    message: 'La confirmation serveur n’est pas arrivée. Le même nettoyage peut être renvoyé sans doubler la statistique.',
     retryable: true,
     refresh: false,
   }
@@ -79,36 +93,71 @@ export function Pedestal({
   onServerStateChanged,
   onSignOut,
   registerCaressMutation,
+  registerCleaningMutation,
 }: PedestalProps) {
   const rock = getRockCatalogEntryById(activeRock.specimenId)
   const [loadState, setLoadState] = useState<RockLoadState>('loading')
   const [retryKey, setRetryKey] = useState(0)
   const [bioOpen, setBioOpen] = useState(false)
-  const [caressMode, setCaressMode] = useState(false)
+  const [mode, setMode] = useState<PedestalMode>('orbit')
   const [caressPending, setCaressPending] = useState(false)
   const [caressFeedback, setCaressFeedback] = useState<string | null>(null)
   const [caressError, setCaressError] = useState<string | null>(null)
   const [retryInput, setRetryInput] = useState<RegisterCaressInput | null>(null)
+  const [cleaningPending, setCleaningPending] = useState(false)
+  const [cleaningFeedback, setCleaningFeedback] = useState<string | null>(null)
+  const [cleaningError, setCleaningError] = useState<string | null>(null)
+  const [cleaningRetryInput, setCleaningRetryInput] = useState<RegisterCleaningInput | null>(null)
   const [economyState, setEconomyState] = useState(economy)
-  const gestureRef = useRef<ActiveCaressGesture | null>(null)
+  const [lastCleanedAtState, setLastCleanedAtState] = useState(activeRock.lastCleanedAt)
+  const [dustRevision, setDustRevision] = useState(0)
+  const gestureRef = useRef<ActiveSurfaceGesture | null>(null)
   const lastSuccessfulCaressAt = useRef(-Infinity)
   const feedbackTimerRef = useRef<number | null>(null)
   const reducedMotion = useReducedMotion()
-  const mutation = registerCaressMutation ?? registerCaress
-  const adoptionDate = useMemo(() => formatAdoptionDate(activeRock.adoptedAt), [activeRock.adoptedAt])
+  const caressMutation = registerCaressMutation ?? registerCaress
+  const cleaningMutation = registerCleaningMutation ?? registerCleaning
+  const adoptionDate = useMemo(() => formatDate(activeRock.adoptedAt), [activeRock.adoptedAt])
+  const lastCleaningDate = useMemo(
+    () => lastCleanedAtState ? formatDate(lastCleanedAtState) : 'Non requis à ce jour',
+    [lastCleanedAtState],
+  )
+  const dustAmount = useMemo(
+    () => getDustAmount(lastCleanedAtState, activeRock.adoptedAt),
+    [activeRock.adoptedAt, lastCleanedAtState],
+  )
+  const cleaningAvailable = hasVisibleDust(dustAmount)
+  const caressMode = mode === 'caress'
+  const cleaningMode = mode === 'cleaning'
+  const mutationBlocked = caressPending || cleaningPending || retryInput !== null || cleaningRetryInput !== null
   const handleLoadState = useCallback((state: RockLoadState) => setLoadState(state), [])
 
   useEffect(() => setEconomyState(economy), [economy])
+  useEffect(() => setLastCleanedAtState(activeRock.lastCleanedAt), [activeRock.lastCleanedAt])
 
   useEffect(() => () => {
     if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current)
   }, [])
 
-  const showSuccess = useCallback(() => {
-    setCaressFeedback('+1 Lithon')
+  const scheduleFeedbackClear = useCallback(() => {
     if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current)
-    feedbackTimerRef.current = window.setTimeout(() => setCaressFeedback(null), 1400)
+    feedbackTimerRef.current = window.setTimeout(() => {
+      setCaressFeedback(null)
+      setCleaningFeedback(null)
+    }, 1500)
   }, [])
+
+  const showCaressSuccess = useCallback(() => {
+    setCleaningFeedback(null)
+    setCaressFeedback('+1 Lithon')
+    scheduleFeedbackClear()
+  }, [scheduleFeedbackClear])
+
+  const showCleaningSuccess = useCallback(() => {
+    setCaressFeedback(null)
+    setCleaningFeedback('Surface remise dans un état réglementaire.')
+    scheduleFeedbackClear()
+  }, [scheduleFeedbackClear])
 
   const submitCaress = useCallback(async (input: RegisterCaressInput) => {
     if (caressPending) return
@@ -117,24 +166,52 @@ export function Pedestal({
     setCaressError(null)
 
     try {
-      const result = await mutation(input)
-      setEconomyState(result)
+      const result = await caressMutation(input)
+      setEconomyState((current) => ({ ...current, ...result }))
       setRetryInput(null)
       lastSuccessfulCaressAt.current = performance.now()
-      showSuccess()
+      showCaressSuccess()
       navigator.vibrate?.(12)
     } catch (error) {
-      const presentation = errorPresentation(error)
+      const presentation = caressErrorPresentation(error)
       setCaressError(presentation.message)
       setRetryInput(presentation.retryable ? input : null)
       if (presentation.refresh) void onServerStateChanged()
     } finally {
       setCaressPending(false)
     }
-  }, [caressPending, mutation, onServerStateChanged, showSuccess])
+  }, [caressMutation, caressPending, onServerStateChanged, showCaressSuccess])
 
-  const handleCaressStart = useCallback((sample: RockSurfacePointerSample) => {
-    if (!caressMode || caressPending || retryInput || !sample.isPrimary) return
+  const submitCleaning = useCallback(async (input: RegisterCleaningInput) => {
+    if (cleaningPending) return
+
+    setCleaningPending(true)
+    setCleaningError(null)
+
+    try {
+      const result = await cleaningMutation(input)
+      setLastCleanedAtState(result.lastCleanedAt)
+      setEconomyState((current) => ({ ...current, cleaningCount: result.cleaningCount }))
+      setCleaningRetryInput(null)
+      setDustRevision((current) => current + 1)
+      setMode('orbit')
+      showCleaningSuccess()
+      navigator.vibrate?.(16)
+    } catch (error) {
+      const presentation = cleaningErrorPresentation(error)
+      setCleaningError(presentation.message)
+      setCleaningRetryInput(presentation.retryable ? input : null)
+      setDustRevision((current) => current + 1)
+      if (presentation.refresh) void onServerStateChanged()
+    } finally {
+      setCleaningPending(false)
+    }
+  }, [cleaningMutation, cleaningPending, onServerStateChanged, showCleaningSuccess])
+
+  const handleSurfaceStart = useCallback((sample: RockSurfacePointerSample) => {
+    const caressUnavailable = caressMode && (caressPending || retryInput)
+    const cleaningUnavailable = cleaningMode && (cleaningPending || cleaningRetryInput || !cleaningAvailable)
+    if ((!caressMode && !cleaningMode) || caressUnavailable || cleaningUnavailable || !sample.isPrimary) return
 
     gestureRef.current = {
       pointerId: sample.pointerId,
@@ -143,58 +220,121 @@ export function Pedestal({
       startY: sample.clientY,
       lastX: sample.clientX,
       lastY: sample.clientY,
+      minX: sample.clientX,
+      maxX: sample.clientX,
+      minY: sample.clientY,
+      maxY: sample.clientY,
       pathLengthPx: 0,
       sampleCount: 1,
     }
     setCaressError(null)
-  }, [caressMode, caressPending, retryInput])
+    setCleaningError(null)
+  }, [caressMode, caressPending, cleaningAvailable, cleaningMode, cleaningPending, cleaningRetryInput, retryInput])
 
-  const handleCaressMove = useCallback((sample: RockSurfacePointerSample) => {
+  const handleSurfaceMove = useCallback((sample: RockSurfacePointerSample) => {
     const gesture = gestureRef.current
     if (!gesture || gesture.pointerId !== sample.pointerId) return
 
     gesture.pathLengthPx += distance(gesture.lastX, gesture.lastY, sample.clientX, sample.clientY)
     gesture.lastX = sample.clientX
     gesture.lastY = sample.clientY
+    gesture.minX = Math.min(gesture.minX, sample.clientX)
+    gesture.maxX = Math.max(gesture.maxX, sample.clientX)
+    gesture.minY = Math.min(gesture.minY, sample.clientY)
+    gesture.maxY = Math.max(gesture.maxY, sample.clientY)
     gesture.sampleCount += 1
   }, [])
 
-  const handleCaressEnd = useCallback((sample: RockSurfacePointerSample) => {
+  const handleSurfaceEnd = useCallback((sample: RockSurfacePointerSample) => {
     const gesture = gestureRef.current
     gestureRef.current = null
-    if (!gesture || gesture.pointerId !== sample.pointerId || !caressMode || caressPending || retryInput) return
+    if (!gesture || gesture.pointerId !== sample.pointerId) return
 
-    const metrics: CaressMetrics = {
-      durationMs: Math.max(0, sample.timeStamp - gesture.startedAt),
-      pathLengthPx: gesture.pathLengthPx + distance(gesture.lastX, gesture.lastY, sample.clientX, sample.clientY),
-      directDistancePx: distance(gesture.startX, gesture.startY, sample.clientX, sample.clientY),
-      sampleCount: gesture.sampleCount + 1,
+    const pathLengthPx = gesture.pathLengthPx + distance(gesture.lastX, gesture.lastY, sample.clientX, sample.clientY)
+    const sampleCount = gesture.sampleCount + 1
+    const durationMs = Math.max(0, sample.timeStamp - gesture.startedAt)
+
+    if (caressMode && !caressPending && !retryInput) {
+      const metrics: CaressMetrics = {
+        durationMs,
+        pathLengthPx,
+        directDistancePx: distance(gesture.startX, gesture.startY, sample.clientX, sample.clientY),
+        sampleCount,
+      }
+
+      if (!isValidCaress(metrics)) return
+      if (performance.now() - lastSuccessfulCaressAt.current < CARESS_CLIENT_COOLDOWN_MS) return
+
+      if (import.meta.env.DEV) console.debug('[CAILLOU] caress gesture accepted', metrics)
+      void submitCaress({ userRockId: activeRock.id, eventKey: crypto.randomUUID() })
+      return
     }
 
-    if (!isValidCaress(metrics)) return
-    if (performance.now() - lastSuccessfulCaressAt.current < CARESS_CLIENT_COOLDOWN_MS) return
+    if (cleaningMode && !cleaningPending && !cleaningRetryInput && cleaningAvailable) {
+      const minX = Math.min(gesture.minX, sample.clientX)
+      const maxX = Math.max(gesture.maxX, sample.clientX)
+      const minY = Math.min(gesture.minY, sample.clientY)
+      const maxY = Math.max(gesture.maxY, sample.clientY)
+      const metrics: CleaningMetrics = {
+        durationMs,
+        pathLengthPx,
+        spanPx: Math.max(maxX - minX, maxY - minY),
+        sampleCount,
+      }
 
-    if (import.meta.env.DEV) {
-      console.debug('[CAILLOU] caress gesture accepted', metrics)
+      if (!isValidCleaning(metrics)) {
+        setDustRevision((current) => current + 1)
+        return
+      }
+
+      if (import.meta.env.DEV) console.debug('[CAILLOU] cleaning gesture accepted', metrics)
+      void submitCleaning({ userRockId: activeRock.id, eventKey: crypto.randomUUID() })
     }
+  }, [
+    activeRock.id,
+    caressMode,
+    caressPending,
+    cleaningAvailable,
+    cleaningMode,
+    cleaningPending,
+    cleaningRetryInput,
+    retryInput,
+    submitCaress,
+    submitCleaning,
+  ])
 
-    void submitCaress({ userRockId: activeRock.id, eventKey: crypto.randomUUID() })
-  }, [activeRock.id, caressMode, caressPending, retryInput, submitCaress])
-
-  const cancelCaressGesture = useCallback(() => {
+  const cancelSurfaceGesture = useCallback(() => {
     gestureRef.current = null
-  }, [])
+    if (cleaningMode) setDustRevision((current) => current + 1)
+  }, [cleaningMode])
 
-  const status = caressPending
-    ? 'Enregistrement de la caresse…'
-    : retryInput
-      ? 'Confirmation serveur à reprendre.'
-      : caressMode
-        ? 'Mode caresse actif. Faites glisser le doigt sur la surface du caillou.'
-        : 'Votre caillou est prêt à ne rien faire à vos côtés.'
+  const toggleMode = useCallback((target: Exclude<PedestalMode, 'orbit'>) => {
+    if (mutationBlocked) return
+    gestureRef.current = null
+    setMode((current) => {
+      if (current === 'cleaning') setDustRevision((revision) => revision + 1)
+      return current === target ? 'orbit' : target
+    })
+  }, [mutationBlocked])
+
+  const status = cleaningPending
+    ? 'Enregistrement du nettoyage…'
+    : cleaningRetryInput
+      ? 'Confirmation du nettoyage à reprendre.'
+      : cleaningMode
+        ? 'Mode nettoyage actif. Passez le doigt sur la poussière visible.'
+        : caressPending
+          ? 'Enregistrement de la caresse…'
+          : retryInput
+            ? 'Confirmation serveur à reprendre.'
+            : caressMode
+              ? 'Mode caresse actif. Faites glisser le doigt sur la surface du caillou.'
+              : 'Votre caillou est prêt à ne rien faire à vos côtés.'
+
+  const shellModeClass = caressMode ? ' is-caress-mode' : cleaningMode ? ' is-cleaning-mode' : ''
 
   return (
-    <div className={`pedestal-shell${caressMode ? ' is-caress-mode' : ''}`}>
+    <div className={`pedestal-shell${shellModeClass}`}>
       <header className="pedestal-topbar">
         <button
           type="button"
@@ -220,7 +360,11 @@ export function Pedestal({
       </header>
 
       <main className="pedestal-main">
-        <section className="pedestal-stage" aria-label={`Socle de ${activeRock.name}`}>
+        <section
+          className="pedestal-stage"
+          aria-label={`Socle de ${activeRock.name}`}
+          data-dust-amount={dustAmount.toFixed(3)}
+        >
           <div className="pedestal-identity">
             <p className="eyebrow">{rock.label}</p>
             <h1>{activeRock.name}</h1>
@@ -232,11 +376,13 @@ export function Pedestal({
             reducedMotion={reducedMotion}
             onLoadStateChange={handleLoadState}
             onInteractionChange={() => undefined}
-            interactionMode={caressMode ? 'caress' : 'orbit'}
-            onSurfacePointerDown={handleCaressStart}
-            onSurfacePointerMove={handleCaressMove}
-            onSurfacePointerUp={handleCaressEnd}
-            onSurfacePointerCancel={cancelCaressGesture}
+            interactionMode={mode}
+            dustAmount={dustAmount}
+            dustRevision={dustRevision}
+            onSurfacePointerDown={handleSurfaceStart}
+            onSurfacePointerMove={handleSurfaceMove}
+            onSurfacePointerUp={handleSurfaceEnd}
+            onSurfacePointerCancel={cancelSurfaceGesture}
           />
 
           {loadState !== 'ready' ? (
@@ -257,11 +403,26 @@ export function Pedestal({
             <output className="pedestal-caress-feedback" aria-live="polite">{caressFeedback}</output>
           ) : null}
 
+          {cleaningFeedback ? (
+            <output className="pedestal-cleaning-feedback" aria-live="polite">{cleaningFeedback}</output>
+          ) : null}
+
           {caressError ? (
             <div className="pedestal-caress-error" role="alert">
               <span>{caressError}</span>
               {retryInput ? (
                 <button type="button" disabled={caressPending} onClick={() => void submitCaress(retryInput)}>
+                  Réessayer
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {cleaningError ? (
+            <div className="pedestal-cleaning-error" role="alert">
+              <span>{cleaningError}</span>
+              {cleaningRetryInput ? (
+                <button type="button" disabled={cleaningPending} onClick={() => void submitCleaning(cleaningRetryInput)}>
                   Réessayer
                 </button>
               ) : null}
@@ -274,21 +435,33 @@ export function Pedestal({
         <nav className="pedestal-actions" aria-label="Actions du caillou">
           {ACTIONS.map(({ label, Icon }) => {
             const isCaress = label === 'Caresser'
+            const isCleaning = label === 'Nettoyer'
+            const isActive = (isCaress && caressMode) || (isCleaning && cleaningMode)
+            const disabled = isCaress
+              ? mutationBlocked
+              : isCleaning
+                ? mutationBlocked || !cleaningAvailable
+                : true
+            const ariaLabel = isCaress
+              ? (caressMode ? 'Quitter le mode Caresser' : 'Activer le mode Caresser')
+              : isCleaning
+                ? (!cleaningAvailable
+                    ? 'Nettoyer — surface déjà conforme'
+                    : cleaningMode ? 'Quitter le mode Nettoyer' : 'Activer le mode Nettoyer')
+                : `${label} — fonctionnalité en préparation`
+
             return (
               <button
                 key={label}
                 type="button"
-                className={isCaress && caressMode ? 'is-active' : undefined}
-                disabled={!isCaress || caressPending}
-                aria-label={isCaress
-                  ? (caressMode ? 'Quitter le mode Caresser' : 'Activer le mode Caresser')
-                  : `${label} — fonctionnalité en préparation`}
-                aria-pressed={isCaress ? caressMode : undefined}
+                className={isActive ? 'is-active' : undefined}
+                disabled={disabled}
+                aria-label={ariaLabel}
+                aria-pressed={isCaress || isCleaning ? isActive : undefined}
                 title={label}
-                onClick={isCaress ? () => {
-                  cancelCaressGesture()
-                  setCaressMode((current) => !current)
-                } : undefined}
+                onClick={isCaress
+                  ? () => toggleMode('caress')
+                  : isCleaning ? () => toggleMode('cleaning') : undefined}
               >
                 <Icon size={28} strokeWidth={1.75} aria-hidden="true" />
               </button>
@@ -319,6 +492,8 @@ export function Pedestal({
               <div><dt>Adopté le</dt><dd>{adoptionDate}</dd></div>
               <div><dt>Statut</dt><dd>Actif</dd></div>
               <div><dt>Caresses</dt><dd>{economyState.caressCount}</dd></div>
+              <div><dt>Nettoyages</dt><dd>{economyState.cleaningCount}</dd></div>
+              <div><dt>Dernier nettoyage</dt><dd>{lastCleaningDate}</dd></div>
               <div><dt>Lithons générés</dt><dd>{economyState.lithonsGenerated}</dd></div>
               <div><dt>Solde actuel</dt><dd>{lithonLabel(economyState.balance)}</dd></div>
               <div><dt>Déplacement spontané</dt><dd>0 m observé</dd></div>
