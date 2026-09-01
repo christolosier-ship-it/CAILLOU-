@@ -20,11 +20,18 @@ export type Database = {
           asset_path: string | null
           created_at: string
           description: string | null
+          dimensions: Json | null
           id: string
           name: string
+          physics: Json | null
+          preview_path: string | null
           price_lithons: number
+          provenance: Json | null
+          scale_max: number
+          scale_min: number
           slot: string
           sort_order: number
+          triangle_count: number | null
           updated_at: string
         }
         Insert: {
@@ -32,11 +39,18 @@ export type Database = {
           asset_path?: string | null
           created_at?: string
           description?: string | null
+          dimensions?: Json | null
           id: string
           name: string
+          physics?: Json | null
+          preview_path?: string | null
           price_lithons: number
+          provenance?: Json | null
+          scale_max?: number
+          scale_min?: number
           slot: string
           sort_order?: number
+          triangle_count?: number | null
           updated_at?: string
         }
         Update: {
@@ -44,11 +58,18 @@ export type Database = {
           asset_path?: string | null
           created_at?: string
           description?: string | null
+          dimensions?: Json | null
           id?: string
           name?: string
+          physics?: Json | null
+          preview_path?: string | null
           price_lithons?: number
+          provenance?: Json | null
+          scale_max?: number
+          scale_min?: number
           slot?: string
           sort_order?: number
+          triangle_count?: number | null
           updated_at?: string
         }
         Relationships: []

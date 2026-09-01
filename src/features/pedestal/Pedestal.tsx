@@ -6,6 +6,8 @@ import { PRODUCT_NAME } from '../../domain/foundation'
 import { ShowroomScene } from '../../scene/ShowroomScene'
 import type { RockLoadState, RockSurfacePointerSample } from '../../scene/RockModel'
 import { useReducedMotion } from '../../utils/useReducedMotion'
+import { AccessoryShop } from '../accessories/AccessoryShop'
+import type { PurchaseAccessoryResult } from '../accessories/accessoryTypes'
 import type { ActiveRock } from '../adoption/adoptionTypes'
 import { CaressMutationError, registerCaress } from '../caress/caressApi'
 import { CARESS_CLIENT_COOLDOWN_MS, isValidCaress } from '../caress/caressRules'
@@ -99,6 +101,7 @@ export function Pedestal({
   const [loadState, setLoadState] = useState<RockLoadState>('loading')
   const [retryKey, setRetryKey] = useState(0)
   const [bioOpen, setBioOpen] = useState(false)
+  const [accessoryShopOpen, setAccessoryShopOpen] = useState(false)
   const [mode, setMode] = useState<PedestalMode>('orbit')
   const [caressPending, setCaressPending] = useState(false)
   const [caressFeedback, setCaressFeedback] = useState<string | null>(null)
@@ -317,6 +320,19 @@ export function Pedestal({
     })
   }, [mutationBlocked])
 
+  const openAccessoryShop = useCallback(() => {
+    if (mutationBlocked) return
+    gestureRef.current = null
+    if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
+    setMode('orbit')
+    setAccessoryShopOpen(true)
+  }, [mode, mutationBlocked])
+
+  const handleAccessoryPurchased = useCallback((result: PurchaseAccessoryResult) => {
+    setEconomyState((current) => ({ ...current, balance: result.balance }))
+    void onServerStateChanged()
+  }, [onServerStateChanged])
+
   const status = cleaningPending
     ? 'Enregistrement du nettoyage…'
     : cleaningRetryInput
@@ -436,19 +452,24 @@ export function Pedestal({
           {ACTIONS.map(({ label, Icon }) => {
             const isCaress = label === 'Caresser'
             const isCleaning = label === 'Nettoyer'
-            const isActive = (isCaress && caressMode) || (isCleaning && cleaningMode)
+            const isAccessory = label === 'Accessoire'
+            const isActive = (isCaress && caressMode)
+              || (isCleaning && cleaningMode)
+              || (isAccessory && accessoryShopOpen)
             const disabled = isCaress
               ? mutationBlocked
               : isCleaning
                 ? mutationBlocked || !cleaningAvailable
-                : true
+                : isAccessory ? mutationBlocked : true
             const ariaLabel = isCaress
               ? (caressMode ? 'Quitter le mode Caresser' : 'Activer le mode Caresser')
               : isCleaning
                 ? (!cleaningAvailable
                     ? 'Nettoyer — surface déjà conforme'
                     : cleaningMode ? 'Quitter le mode Nettoyer' : 'Activer le mode Nettoyer')
-                : `${label} — fonctionnalité en préparation`
+                : isAccessory
+                  ? (accessoryShopOpen ? 'Boutique d’accessoires ouverte' : 'Ouvrir la boutique d’accessoires')
+                  : `${label} — fonctionnalité en préparation`
 
             return (
               <button
@@ -457,11 +478,13 @@ export function Pedestal({
                 className={isActive ? 'is-active' : undefined}
                 disabled={disabled}
                 aria-label={ariaLabel}
-                aria-pressed={isCaress || isCleaning ? isActive : undefined}
+                aria-pressed={isCaress || isCleaning || isAccessory ? isActive : undefined}
                 title={label}
                 onClick={isCaress
                   ? () => toggleMode('caress')
-                  : isCleaning ? () => toggleMode('cleaning') : undefined}
+                  : isCleaning
+                    ? () => toggleMode('cleaning')
+                    : isAccessory ? openAccessoryShop : undefined}
               >
                 <Icon size={28} strokeWidth={1.75} aria-hidden="true" />
               </button>
@@ -500,6 +523,15 @@ export function Pedestal({
             </dl>
           </section>
         </div>
+      ) : null}
+
+      {accessoryShopOpen ? (
+        <AccessoryShop
+          balance={economyState.balance}
+          onBalanceChanged={(balance) => setEconomyState((current) => ({ ...current, balance }))}
+          onPurchased={handleAccessoryPurchased}
+          onClose={() => setAccessoryShopOpen(false)}
+        />
       ) : null}
     </div>
   )

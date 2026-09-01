@@ -41,7 +41,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | 08 | Caresse et économie en Lithons | Terminée — PR #16, caresse 3D + économie autoritaire + E2E validés | 03, 07 |
 | 09 | Nettoyage et poussière cosmétique | Terminée — PR #17, poussière UV + nettoyage persistant + E2E validés | 07 |
 | 10A | Pipeline accessoires 3D et catalogue | Terminée — PR #19, catalogue GLB licencié et WebGL validé | 03, 05, 06 |
-| 10B | Boutique Lithons et propriété des accessoires | À faire | 08, 10A |
+| 10B | Boutique Lithons et propriété des accessoires | Terminée — PR #20, achat atomique/RLS et UI catalogue | 08, 10A |
 | 10C | Multi-équipement et placement libre | À faire | 07, 10A, 10B |
 | 10D | Physique, collisions, gravité et persistance | À faire | 06, 10C |
 | 11 | Bio, statistiques et action Jeter | À faire | 03, 07, 08, 09, 10B, 10D |

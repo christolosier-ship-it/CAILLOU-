@@ -456,13 +456,17 @@ Chaque accessoire possède :
 
 L'achat :
 
-1. vérifie le solde autoritaire ;
-2. débite les Lithons ;
-3. ajoute l'accessoire à l'inventaire ;
-4. enregistre la transaction ;
-5. permet d'équiper ou retirer l'accessoire.
+1. reçoit uniquement l'identifiant stable et une clé d'événement, jamais un prix client ;
+2. vérifie l'accessoire actif, son prix serveur et le solde autoritaire ;
+3. sérialise les doubles taps concurrents sur le portefeuille ;
+4. débite les Lithons ;
+5. ajoute l'accessoire à l'inventaire permanent ;
+6. écrit le mouvement dans le ledger ;
+7. renvoie le nouveau solde et permet ensuite d'entrer dans le mode d'équipement.
 
-La transaction est atomique côté Supabase.
+La transaction est atomique et idempotente côté Supabase : un retry avec la même clé retourne le
+même reçu sans second débit, et le contournement de l'UI ne permet ni achat sans solde ni double
+propriété.
 
 ### 12.3 Propriété
 

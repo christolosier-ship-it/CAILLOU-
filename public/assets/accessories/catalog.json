@@ -37,6 +37,114 @@
         "verified": true,
         "evidence": "Le nom, les 395 triangles et les 205 sommets publiés concordent avec le fichier DAE source."
       }
+    },
+    {
+      "id": "bow-tie",
+      "name": "Nœud papillon",
+      "description": "Un nœud papillon net et graphique pour donner au caillou une allure très cérémonie.",
+      "priceLithons": 70,
+      "category": "tenue",
+      "sortOrder": 20,
+      "modelPath": "/assets/accessories/bow-tie/model.glb",
+      "previewPath": "/assets/accessory-previews/bow-tie.png",
+      "triangleCount": 1036,
+      "dimensions": [
+        0.72,
+        0.245974,
+        0.504354
+      ],
+      "pivot": "bounds-center",
+      "scaleMin": 0.65,
+      "scaleMax": 1.35,
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 0.16,
+        "friction": 0.72,
+        "restitution": 0.04,
+        "linearDamping": 1.7,
+        "angularDamping": 2.2
+      },
+      "provenance": {
+        "title": "Bow Tie",
+        "author": "Auteur non identifié",
+        "license": "CC0 1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "verified": true,
+        "evidence": "Licence CC0 confirmée par le propriétaire du dépôt le 2026-09-01 pour la ressource fournie."
+      }
+    },
+    {
+      "id": "round-glasses",
+      "name": "Lunettes rondes",
+      "description": "De fines lunettes rondes dorées avec branches brunes, pour un caillou à l’allure délicieusement studieuse.",
+      "priceLithons": 80,
+      "category": "visage",
+      "sortOrder": 30,
+      "modelPath": "/assets/accessories/round-glasses/model.glb",
+      "previewPath": "/assets/accessory-previews/round-glasses.png",
+      "triangleCount": 7386,
+      "dimensions": [
+        0.78,
+        0.656022,
+        0.307408
+      ],
+      "pivot": "bounds-center",
+      "scaleMin": 0.6,
+      "scaleMax": 1.5,
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 0.22,
+        "friction": 0.66,
+        "restitution": 0.05,
+        "linearDamping": 1.6,
+        "angularDamping": 2.0
+      },
+      "provenance": {
+        "title": "Round glasses / model 2",
+        "author": "Auteur non identifié",
+        "license": "CC0 1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "verified": true,
+        "evidence": "Licence CC0 confirmée par le propriétaire du dépôt le 2026-09-01 pour la ressource fournie ; le rendu de production identifie sans ambiguïté une paire de lunettes rondes."
+      }
+    },
+    {
+      "id": "pedestal-gallery",
+      "name": "Socle galerie",
+      "description": "Un petit socle d’exposition en pierre claire qui transforme le caillou en pièce de galerie.",
+      "priceLithons": 120,
+      "category": "socle",
+      "sortOrder": 40,
+      "modelPath": "/assets/accessories/pedestal-gallery/model.glb",
+      "previewPath": "/assets/accessory-previews/pedestal-gallery.png",
+      "triangleCount": 712,
+      "dimensions": [
+        0.587645,
+        0.589615,
+        1.35
+      ],
+      "pivot": "bounds-center",
+      "scaleMin": 0.7,
+      "scaleMax": 1.5,
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 1.8,
+        "friction": 0.82,
+        "restitution": 0.02,
+        "linearDamping": 2.2,
+        "angularDamping": 2.6
+      },
+      "provenance": {
+        "title": "Pedestal Gallery v2",
+        "author": "Auteur non identifié",
+        "license": "CC0 1.0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "verified": true,
+        "evidence": "Licence CC0 confirmée par le propriétaire du dépôt le 2026-09-01 pour la ressource fournie."
+      }
     }
   ]
 }
