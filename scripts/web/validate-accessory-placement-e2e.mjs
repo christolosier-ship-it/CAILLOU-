@@ -118,21 +118,22 @@ try {
     throw new Error('reload did not restore the canonical local transforms exactly')
   }
   if (afterReload.disposeCount <= disposeBeforeReload || afterReload.disposedGeometries <= 0) {
-    throw new Error('scene remount did not dispose accessory GPU geometry')
+    throw new Error('accessory rehydration did not dispose previous GPU geometry')
   }
 
-  await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: false, hasTouch: false })
-  await page.waitForTimeout?.(150)
-  const savesBeforeDesktop = afterReload.saveCount
-  await page.click('button[aria-label="Déplacer Z positif"]')
-  await page.waitForFunction((expected) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') > expected, {}, savesBeforeDesktop)
-  const desktop = await state()
-  if (desktop.instanceCount !== 2) throw new Error('desktop precision edit unexpectedly changed instance count')
+  // Keep touch/mobile emulation enabled while widening to tablet. Toggling isMobile/hasTouch
+  // makes Puppeteer reload the page and would invalidate the persistence counters we are testing.
+  await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
+  const savesBeforeTablet = afterReload.saveCount
+  await touch('button[aria-label="Déplacer Z positif"]')
+  await page.waitForFunction((expected) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') > expected, {}, savesBeforeTablet)
+  const tablet = await state()
+  if (tablet.instanceCount !== 2) throw new Error('tablet precision edit unexpectedly changed instance count')
   await page.screenshot({ path: `${outputDir}/placement-tablet.png`, fullPage: true })
 
-  const disposeBeforeRemove = desktop.disposeCount
+  const disposeBeforeRemove = tablet.disposeCount
   const selectedName = await page.$eval('.accessory-editor-heading h2', (element) => element.textContent?.trim() ?? '')
-  await page.click(`button[aria-label="Retirer ${selectedName} du caillou"]`)
+  await touch(`button[aria-label="Retirer ${selectedName} du caillou"]`)
   await page.waitForFunction(() => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-instance-count') ?? '0') === 1)
   await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-dispose-count') ?? '0') > before, {}, disposeBeforeRemove)
   const removed = await state()
@@ -140,11 +141,11 @@ try {
   const report = {
     status: 'pass',
     simultaneousInstances: initial.instanceCount,
-    touchTranslation: true,
-    touchRotation: true,
-    touchScale: true,
+    phoneTouchTranslation: true,
+    phoneTouchRotation: true,
+    phoneTouchScale: true,
     exactReloadRestore: true,
-    desktopDepthTranslation: true,
+    tabletDepthTranslation: true,
     instanceRemoval: removed.instanceCount === 1,
     gpuDisposalObserved: removed.disposeCount > disposeBeforeRemove && removed.disposedGeometries > 0,
     saveCount: removed.saveCount,
@@ -154,7 +155,7 @@ try {
 
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] accessory placement E2E PASS: 2 GLB → touch XYZ/rotation/scale → exact reload → desktop depth → remove → GPU dispose')
+  console.log('[CAILLOU] accessory placement E2E PASS: 2 GLB → phone touch XYZ/rotation/scale → exact reload → tablet depth → remove → GPU dispose')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})
