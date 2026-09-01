@@ -66,7 +66,7 @@ export function useAuthSession() {
       if (rock) {
         const { data: progress, error: progressError } = await supabase
           .from('rock_progress')
-          .select('caress_count, lithons_generated')
+          .select('caress_count, cleaning_count, lithons_generated')
           .eq('user_rock_id', rock.id)
           .single()
 
@@ -75,6 +75,7 @@ export function useAuthSession() {
         economy = {
           balance: wallet.balance,
           caressCount: progress.caress_count,
+          cleaningCount: progress.cleaning_count,
           lithonsGenerated: progress.lithons_generated,
         }
       }
