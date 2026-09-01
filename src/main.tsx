@@ -8,6 +8,7 @@ import './styles/showroom.css'
 import './styles/adoption.css'
 import './styles/caress.css'
 import './styles/cleaning.css'
+import './styles/accessories.css'
 
 registerPwa()
 

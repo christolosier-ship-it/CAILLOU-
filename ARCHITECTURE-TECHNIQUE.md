@@ -373,10 +373,20 @@ name text
 description text
 price_lithons bigint check (price_lithons >= 0)
 asset_path text
+preview_path text
 slot text
 active boolean
 sort_order int
+triangle_count int null
+dimensions jsonb null
+scale_min numeric
+scale_max numeric
+physics jsonb
+provenance jsonb
 ```
+
+Une entrée active doit référencer un GLB et une preview statiques valides, disposer d'une
+provenance vérifiée et fournir le contrat de placement/physique consommé par les étapes 10C/10D.
 
 ### 6.8 `user_accessories`
 
@@ -452,7 +462,7 @@ Il n'existe aucune limite quotidienne. Des garde-fous techniques peuvent empêch
 L'achat passe par :
 
 ```text
-purchase_accessory(accessory_id)
+purchase_accessory(accessory_id, event_key)
 ```
 
 La fonction :
@@ -460,16 +470,18 @@ La fonction :
 1. vérifie l'utilisateur ;
 2. charge le prix serveur ;
 3. vérifie que l'accessoire est actif ;
-4. vérifie qu'il n'est pas déjà possédé ;
-5. verrouille/vérifie le portefeuille ;
+4. verrouille le portefeuille utilisateur pour sérialiser les doubles taps concurrents ;
+5. vérifie qu'il n'est pas déjà possédé après acquisition du verrou ;
 6. refuse si le solde est insuffisant ;
 7. débite exactement le prix ;
 8. incrémente `lifetime_spent` ;
 9. crée `user_accessories` ;
 10. écrit le mouvement négatif dans `lithon_ledger` ;
-11. renvoie l'inventaire et le nouveau solde.
+11. mémorise le résultat sous `event_key` puis renvoie la possession et le nouveau solde.
 
-Le prix envoyé par le client n'est jamais utilisé comme autorité.
+Le prix envoyé par le client n'existe pas dans la signature RPC et n'est jamais utilisé comme
+autorité. Un replay exact renvoie le reçu sans second débit ; une autre clé pour le même type
+d'accessoire est refusée par la propriété unique `(user_id, accessory_id)`.
 
 ---
 
