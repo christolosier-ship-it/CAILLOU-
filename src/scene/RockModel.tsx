@@ -1,3 +1,4 @@
+import { useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -83,7 +84,7 @@ function paintDustMask(context: CanvasRenderingContext2D, amount: number, seed: 
 }
 
 function brushDust(resources: DustResources | null, uvX: number | null, uvY: number | null) {
-  if (!resources || uvX === null || uvY === null) return
+  if (!resources || uvX === null || uvY === null) return false
 
   const x = uvX * DUST_TEXTURE_SIZE
   const y = (1 - uvY) * DUST_TEXTURE_SIZE
@@ -106,6 +107,7 @@ function brushDust(resources: DustResources | null, uvX: number | null, uvY: num
   resources.context.fill()
   resources.context.restore()
   resources.texture.needsUpdate = true
+  return true
 }
 
 function toSurfaceSample(event: ThreeEvent<PointerEvent>): RockSurfacePointerSample {
@@ -134,6 +136,7 @@ export function RockModel({
 }: RockModelProps) {
   const [object, setObject] = useState<Object3D | null>(null)
   const dustResourcesRef = useRef<DustResources | null>(null)
+  const invalidate = useThree((state) => state.invalidate)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -237,6 +240,7 @@ export function RockModel({
 
     const resources = { context, texture, overlays }
     dustResourcesRef.current = resources
+    invalidate()
 
     return () => {
       if (dustResourcesRef.current === resources) dustResourcesRef.current = null
@@ -246,7 +250,7 @@ export function RockModel({
       }
       texture.dispose()
     }
-  }, [dustAmount, dustRevision, object, path])
+  }, [dustAmount, dustRevision, invalidate, object, path])
 
   if (!object) return null
 
@@ -256,13 +260,13 @@ export function RockModel({
       onPointerDown={onSurfacePointerDown ? (event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation()
         const sample = toSurfaceSample(event)
-        if (cleaningActive) brushDust(dustResourcesRef.current, sample.uvX, sample.uvY)
+        if (cleaningActive && brushDust(dustResourcesRef.current, sample.uvX, sample.uvY)) invalidate()
         onSurfacePointerDown(sample)
       } : undefined}
       onPointerMove={onSurfacePointerMove ? (event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation()
         const sample = toSurfaceSample(event)
-        if (cleaningActive) brushDust(dustResourcesRef.current, sample.uvX, sample.uvY)
+        if (cleaningActive && brushDust(dustResourcesRef.current, sample.uvX, sample.uvY)) invalidate()
         onSurfacePointerMove(sample)
       } : undefined}
       onPointerUp={onSurfacePointerUp ? (event: ThreeEvent<PointerEvent>) => {
