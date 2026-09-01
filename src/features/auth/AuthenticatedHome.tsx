@@ -1,5 +1,5 @@
 import { PRODUCT_NAME } from '../../domain/foundation'
-import { FoundationScene } from '../../scene/FoundationScene'
+import { Showroom } from '../showroom/Showroom'
 
 interface AuthenticatedHomeProps {
   username: string
@@ -8,11 +8,15 @@ interface AuthenticatedHomeProps {
 }
 
 export function AuthenticatedHome({ username, destination, onSignOut }: AuthenticatedHomeProps) {
+  if (destination === 'showroom') {
+    return <Showroom username={username} onSignOut={onSignOut} />
+  }
+
   return (
     <div className="app-shell authenticated-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">{destination === 'showroom' ? 'Showroom' : 'Socle'}</p>
+          <p className="eyebrow">Socle</p>
           <h1>{PRODUCT_NAME}</h1>
         </div>
         <div className="account-chip">
@@ -23,24 +27,9 @@ export function AuthenticatedHome({ username, destination, onSignOut }: Authenti
 
       <main className="foundation-layout">
         <section className="foundation-copy">
-          <p className="eyebrow">Session restaurée</p>
-          <h2>{destination === 'showroom' ? 'Choisissez votre caillou.' : 'Votre caillou vous attend.'}</h2>
-          <p>
-            {destination === 'showroom'
-              ? 'Aucun caillou actif n’est associé à ce compte. Le parcours vous amène donc au showroom.'
-              : 'Un caillou actif est associé à ce compte. Le parcours vous amène donc au Socle.'}
-          </p>
-        </section>
-
-        <section className="foundation-scene" aria-label="Aperçu minéral provisoire">
-          <div className="scene-heading">
-            <div>
-              <p className="eyebrow">{destination === 'showroom' ? 'Destination validée' : 'Destination restaurée'}</p>
-              <h2>{destination === 'showroom' ? 'Showroom en préparation' : 'Socle en préparation'}</h2>
-            </div>
-            <p>La vraie expérience 3D arrive dans les étapes dédiées.</p>
-          </div>
-          <FoundationScene />
+          <p className="eyebrow">Destination restaurée</p>
+          <h2>Votre caillou vous attend.</h2>
+          <p>Un caillou actif est associé à ce compte. Le Socle complet sera relié au parcours d’adoption lors de l’étape suivante.</p>
         </section>
       </main>
     </div>

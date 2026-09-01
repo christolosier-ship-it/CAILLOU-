@@ -18,7 +18,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/web/validate-rock-render.mjs'],
+    files: ['scripts/web/*.mjs'],
     languageOptions: {
       globals: {
         ...globals.node,
