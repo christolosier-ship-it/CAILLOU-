@@ -65,10 +65,34 @@ begin
       '90909090-9090-4909-8909-909090909099'::uuid,
       '90909090-0002-4909-8909-909090909091'::uuid
     );
-    raise exception 'distinct cleaning unexpectedly bypassed the 12-hour cadence';
+    raise exception 'distinct cleaning unexpectedly bypassed the 1-hour cadence';
   exception when sqlstate '55000' then
     null;
   end;
+end
+$$;
+
+-- Once visible dust can exist again, the authoritative cadence must allow cleaning too.
+reset role;
+update public.user_rocks
+set last_cleaned_at = now() - interval '61 minutes'
+where id = '90909090-9090-4909-8909-909090909099'::uuid;
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '90909090-9090-4909-8909-909090909091', true);
+select * from public.register_cleaning(
+  '90909090-9090-4909-8909-909090909099'::uuid,
+  '90909090-0005-4909-8909-909090909091'::uuid
+);
+
+DO $$
+begin
+  if (select cleaning_count from public.rock_progress where user_rock_id = '90909090-9090-4909-8909-909090909099'::uuid) <> 2 then
+    raise exception 'cleaning was not accepted after the one-hour cadence';
+  end if;
+  if (select interaction_count from public.rock_progress where user_rock_id = '90909090-9090-4909-8909-909090909099'::uuid) <> 2 then
+    raise exception 'second valid cleaning did not increment interaction_count';
+  end if;
 end
 $$;
 
