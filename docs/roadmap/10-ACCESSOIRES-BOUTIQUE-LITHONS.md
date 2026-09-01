@@ -1,131 +1,77 @@
-# Étape 10 — Accessoires : jalon global
+# Étape 10 — Accessoires et boutique Lithons
 
-## Statut de ce fichier
+> Cette étape historique est désormais scindée en quatre sous-étapes exécutables :
+> `10A-PIPELINE-ACCESSOIRES-3D-CATALOGUE.md`, `10B-BOUTIQUE-LITHONS-PROPRIETE.md`,
+> `10C-MULTI-EQUIPEMENT-PLACEMENT-LIBRE.md` et `10D-PHYSIQUE-COLLISIONS-GRAVITE-PERSISTANCE.md`.
 
-Ce fichier reste le point d'entrée historique du jalon `10 — Accessoires et boutique Lithons`, mais son exécution est désormais **scindée en quatre sous-étapes** pour séparer les risques 3D, économiques, UX et physiques.
+## Objectif initial
 
-Ne pas exécuter ce fichier comme une étape monolithique. Exécuter dans l'ordre :
+Permettre à l'utilisateur d'acquérir des accessoires avec ses Lithons puis de les placer librement sur son caillou, avec plusieurs accessoires simultanés, collisions, gravité optionnelle et persistance.
 
-1. `10A` — Pipeline accessoires 3D et catalogue ;
-2. `10B` — Boutique Lithons et propriété ;
-3. `10C` — Multi-équipement et placement libre ;
-4. `10D` — Physique, collisions, gravité et persistance.
+## Résultat cible du jalon 10
 
-Les étapes 01 à 09 sont historiques et ne doivent pas être réécrites pour refléter cette évolution.
+À la fin du jalon complet :
 
-## Vision fonctionnelle consolidée
+- un catalogue d'accessoires 3D web optimisés et tracés existe ;
+- les accessoires sont achetables avec des Lithons via une transaction serveur autoritaire ;
+- la propriété d'un type d'accessoire est permanente au compte ;
+- plusieurs accessoires peuvent être placés simultanément sur un caillou ;
+- chaque instance peut être déplacée, tournée et redimensionnée manuellement ;
+- les accessoires ne traversent pas visiblement le caillou ;
+- la gravité peut être activée sur les accessoires compatibles ;
+- les placements stabilisés sont persistés dans Supabase et restaurés après reconnexion/reload.
 
-Les accessoires sont des objets cosmétiques réalistes ou quasi photoréalistes, cohérents avec les vingt cailloux et la direction artistique premium. Ils sont achetés en Lithons, restent acquis au compte et peuvent être placés librement sur ou autour du caillou adopté.
-
-Le système final doit permettre :
-
-- plusieurs accessoires simultanément sur un même caillou ;
-- déplacement manuel ;
-- rotation ;
-- agrandissement/rétrécissement dans des bornes raisonnables ;
-- collisions empêchant le passage à travers la pierre ;
-- gravité et stabilisation physique lorsque cela reste performant ;
-- persistance exacte du placement stabilisé ;
-- restauration au reload et après reconnexion ;
-- fonctionnement tactile téléphone/tablette et desktop ;
-- absence de limitation artificielle à un unique accessoire par `slot`.
-
-## Contrat de données à faire évoluer
-
-Le schéma actuel possède déjà `accessories`, `user_accessories` et `equipped_accessories`, mais `equipped_accessories` est actuellement indexée par `(user_rock_id, slot)`. Ce modèle ne correspond plus au besoin multi-instance.
-
-La cible est un modèle d'**instances d'accessoires équipés** avec un identifiant propre, reliées à :
-
-- un `user_rock_id` ;
-- un `accessory_id` possédé par l'utilisateur ;
-- un transform local au caillou : position, rotation quaternion, échelle ;
-- les métadonnées de placement utiles ;
-- timestamps de création/mise à jour.
-
-La notion de `slot` peut rester une métadonnée de catégorie/présentation si utile, mais ne doit plus être une contrainte d'unicité empêchant plusieurs accessoires simultanés.
-
-## Règles métier globales
-
-- Aucun achat en argent réel en V1.
-- Aucun loot box, rareté agressive ou mécanique aléatoire.
-- Prix fixe en Lithons.
-- Les accessoires achetés restent acquis au compte même si un caillou est jeté.
-- Un achat est autoritaire, transactionnel et idempotent côté Supabase.
-- La physique reste côté client ; Supabase persiste l'état stabilisé, il ne simule pas Rapier.
-- Les transforms persistants sont enregistrés relativement au caillou, jamais en coordonnées monde.
-- Un accessoire ne doit pas pouvoir traverser visiblement le caillou pendant ou après le placement.
-- Les assets sources lourds et formats de travail restent hors du bundle public ; le runtime consomme des GLB web autonomes.
-
-## Sous-étapes
+## Découpage retenu
 
 ### 10A — Pipeline accessoires 3D et catalogue
 
-Objectif : transformer les ressources réelles disponibles (`.blend`, `.fbx`, `.dae`, `.obj`, `.gltf/.glb`, archives et textures PBR) en assets web homogènes et auditables.
-
-À couvrir :
-
-- inventaire des ressources ;
-- conversion vers GLB autonome ;
-- reconstruction PBR si nécessaire ;
-- normalisation orientation, échelle, pivot ;
-- optimisation géométrie/textures ;
-- collider simplifié ou métadonnées nécessaires à sa génération ;
-- preview standardisée ;
-- provenance, auteur, source et licence ;
-- catalogue technique exploitable par l'application.
+- Audit des ressources source.
+- Provenance et licences.
+- Conversion Blender vers GLB web autonome.
+- PBR, textures, normalisation, pivots, budgets.
+- Preview et validation Three.js/WebGL.
+- Métadonnées utiles au placement et à la physique future.
 
 ### 10B — Boutique Lithons et propriété
 
-Objectif : livrer le catalogue commercial et l'achat robuste sans encore dépendre de la physique.
-
-À couvrir :
-
-- UI Boutique/Accessoires ;
-- solde, prix, possédé/non possédé ;
-- achat atomique côté Supabase ;
-- débit wallet + ledger + possession en une transaction ;
-- idempotence et concurrence ;
-- tests utilisateur A/B et solde insuffisant ;
-- catalogue initial limité mais réel.
+- Catalogue commercial côté Supabase.
+- Prix fixes en Lithons.
+- Achat atomique et idempotent côté serveur.
+- Ledger cohérent.
+- Propriété permanente dans `user_accessories`.
+- UI Boutique/Accessoires.
+- Aucun placement libre 3D dans cette sous-étape.
 
 ### 10C — Multi-équipement et placement libre
 
-Objectif : permettre plusieurs accessoires simultanément et leur édition manuelle.
-
-À couvrir :
-
-- évolution du modèle `equipped_accessories` vers des instances ;
-- chargement simultané de plusieurs GLB accessoires avec un seul GLB de caillou actif ;
-- sélection d'un accessoire ;
-- translation ;
-- rotation ;
-- échelle bornée ;
-- UX tactile claire ;
-- désactivation temporaire des contrôles caméra pendant manipulation ;
-- transforms exprimés dans l'espace local du caillou ;
-- sauvegarde provisoire/explicite sans dépendre encore de la gravité complète.
+- Plusieurs accessoires simultanés sur un même caillou.
+- Création d'instances équipées distinctes de la propriété du type.
+- Translation, rotation et échelle manuelles.
+- UX tactile téléphone/tablette.
+- Sélection, suppression du placement et réédition.
+- Pas encore de simulation physique complète ni persistance finale.
 
 ### 10D — Physique, collisions, gravité et persistance
 
-Objectif : donner une matérialité crédible aux accessoires sans sacrifier la performance mobile.
+- Colliders caillou/accessoires.
+- Anti-traversée visible.
+- Gravité client pour les accessoires compatibles.
+- Stabilisation et reprise de contrôle manuel.
+- Persistance Supabase des transforms finaux relatifs au caillou.
+- Restauration exacte après reload/reconnexion.
+- Validation performance et mémoire GPU sur appareils cibles.
 
-À couvrir :
+## Règles structurelles
 
-- intégrer un moteur physique adapté à React Three Fiber, cible recommandée : Rapier ;
-- collider statique du caillou ;
-- colliders simplifiés pour accessoires dynamiques ;
-- corps kinematic pendant manipulation ;
-- corps dynamic au lâcher lorsque pertinent ;
-- gravité, friction, damping et restitution calibrés ;
-- anti-traversée ;
-- stabilisation/sleep ;
-- capture du transform final ;
-- persistance Supabase ;
-- restauration sans refaire tomber les objets à chaque ouverture ;
-- budget CPU/GPU/batterie compatible avec `frameloop="demand"` autant que possible ;
-- tests avec plusieurs accessoires simultanés sur plusieurs morphologies de cailloux.
+- La possession d'un type d'accessoire est une donnée de compte, distincte d'une instance équipée.
+- Un utilisateur peut conserver ses accessoires même s'il jette son caillou.
+- Plusieurs instances peuvent coexister sur un même caillou ; ne pas imposer une exclusivité artificielle par `slot`.
+- Les transformations persistées sont relatives au caillou, jamais en coordonnées monde.
+- La physique est calculée côté client. Supabase stocke l'état final stabilisé mais ne simule rien.
+- Les Lithons n'ont aucune valeur réelle, ne sont ni achetables ni transférables.
+- Aucun achat ne peut être autorisé uniquement par le navigateur.
 
-## Hors périmètre global V1
+## Périmètre exclu du jalon 10
 
 - Paiement réel.
 - Marketplace entre utilisateurs.
@@ -156,9 +102,8 @@ Le jalon 10 est terminé lorsque :
 
 - Décision de découpage : 2026-09-01
 - Motif : ressources 3D hétérogènes + multi-équipement + placement libre + physique + persistance dépassent un objectif unique cohérent
-- État 10A : Terminée — PR #19, monocle CC BY 4.0 publié ; trois sources non vérifiées en quarantaine
-- État 10B : Terminée — PR #20, boutique Lithons et propriété permanente validées sous RLS
-- État 10B : À faire
+- État 10A : Terminée — PR #19, monocle CC BY 4.0 publié ; trois sources non vérifiées mises en quarantaine à cette date
+- État 10B : Terminée — PR #20, boutique Lithons et propriété permanente validées sous RLS ; catalogue commercial final à quatre accessoires, dont les trois ressources de 10A réintégrées après confirmation CC0
 - État 10C : À faire
 - État 10D : À faire
 - Étape suivante après jalon complet : 11
