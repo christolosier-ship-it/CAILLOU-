@@ -86,18 +86,23 @@ export function useAccessoryPlacements(userRockId: string) {
     const physicallySettled = transform.physicsSettled === true
     setPendingId(instanceId)
     setError(null)
-    setInstances((current) => current.map((instance) => instance.id === instanceId
-      ? { ...instance, ...nextTransform, stabilizedAt: physicallySettled ? instance.stabilizedAt : null }
-      : instance))
 
     try {
       if (!physicallySettled) {
+        // Confirm the kinematic edit first. Only then expose stabilizedAt=NULL to the renderer,
+        // which starts the Rapier release. This prevents the final settle write racing this RPC.
         const result = await updateAccessoryPlacement({ instanceId, transform: nextTransform })
         setInstances((current) => current.map((instance) => instance.id === instanceId
-          ? { ...instance, ...result, stabilizedAt: null }
+          ? { ...instance, ...result, stabilizedAt: null, physicsSettled: undefined }
           : instance))
         return
       }
+
+      // The physical pose is already visible inside Rapier. Reflect it optimistically so a failed
+      // final save can deterministically roll back to currentInstance and move the body back too.
+      setInstances((current) => current.map((instance) => instance.id === instanceId
+        ? { ...instance, ...nextTransform }
+        : instance))
 
       const input = { instanceId, transform: nextTransform, eventKey: crypto.randomUUID() }
       let result
