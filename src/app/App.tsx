@@ -39,7 +39,9 @@ export function App() {
   return (
     <AuthenticatedHome
       destination={state.destination}
+      activeRock={state.activeRock}
       username={state.username}
+      onServerStateChanged={refresh}
       onSignOut={signOut}
     />
   )

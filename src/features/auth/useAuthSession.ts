@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { Session } from '@supabase/supabase-js'
 
+import type { RockId } from '../../content/rockCatalog'
 import { supabase } from '../../lib/supabase/client'
+import type { ActiveRock } from '../adoption/adoptionTypes'
 import { resolveAuthenticatedDestination } from './authRules'
 
 const USERNAME_CACHE = 'caillou.auth.username'
@@ -12,7 +14,7 @@ export type AuthSessionState =
   | { status: 'loading' }
   | { status: 'signed-out'; message?: string }
   | { status: 'offline'; username?: string }
-  | { status: 'authenticated'; username: string; destination: 'showroom' | 'socle' }
+  | { status: 'authenticated'; username: string; destination: 'showroom' | 'socle'; activeRock: ActiveRock | null }
 
 export function useAuthSession() {
   const [state, setState] = useState<AuthSessionState>({ status: 'loading' })
@@ -22,19 +24,33 @@ export function useAuthSession() {
     const cachedUsername = localStorage.getItem(USERNAME_CACHE)
 
     try {
-      const [{ data: profile, error: profileError }, { data: rocks, error: rocksError }] = await Promise.all([
+      const [{ data: profile, error: profileError }, { data: rock, error: rockError }] = await Promise.all([
         supabase.from('profiles').select('username').eq('id', session.user.id).single(),
-        supabase.from('user_rocks').select('id').is('discarded_at', null).limit(1),
+        supabase
+          .from('user_rocks')
+          .select('id, specimen_id, name, adopted_at, last_cleaned_at')
+          .eq('user_id', session.user.id)
+          .is('discarded_at', null)
+          .maybeSingle(),
       ])
 
-      if (profileError || !profile || rocksError) throw profileError ?? rocksError ?? new Error('Profile missing')
+      if (profileError || !profile || rockError) throw profileError ?? rockError ?? new Error('Profile missing')
+
+      const activeRock: ActiveRock | null = rock ? {
+        id: rock.id,
+        specimenId: rock.specimen_id as RockId,
+        name: rock.name,
+        adoptedAt: rock.adopted_at,
+        lastCleanedAt: rock.last_cleaned_at,
+      } : null
 
       localStorage.setItem(USERNAME_CACHE, profile.username)
       localStorage.setItem(SESSION_SEEN, '1')
       setState({
         status: 'authenticated',
         username: profile.username,
-        destination: resolveAuthenticatedDestination((rocks?.length ?? 0) > 0),
+        destination: resolveAuthenticatedDestination(activeRock !== null),
+        activeRock,
       })
     } catch {
       setState(cachedUsername ? { status: 'offline', username: cachedUsername } : { status: 'offline' })

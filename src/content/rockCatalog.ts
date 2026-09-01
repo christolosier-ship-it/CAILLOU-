@@ -54,6 +54,12 @@ export function getRockCatalogEntry(catalogIndex: number) {
   return entry
 }
 
+export function getRockCatalogEntryById(id: RockId | string) {
+  const entry = ROCK_CATALOG.find((candidate) => candidate.id === id)
+  if (!entry) throw new Error(`Unknown rock catalog id: ${id}`)
+  return entry
+}
+
 export function getRelativeRockIndex(currentIndex: number, delta: number) {
   const catalogLength = ROCK_CATALOG.length
   return ((currentIndex + delta) % catalogLength + catalogLength) % catalogLength

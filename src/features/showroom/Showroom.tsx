@@ -5,25 +5,12 @@ import type { RockCatalogEntry } from '../../content/rockCatalog'
 import { PRODUCT_NAME } from '../../domain/foundation'
 import { ShowroomScene } from '../../scene/ShowroomScene'
 import type { RockLoadState } from '../../scene/RockModel'
+import { useReducedMotion } from '../../utils/useReducedMotion'
 
 interface ShowroomProps {
   username: string
   onSignOut: () => Promise<void>
   onAdopt?: (rock: RockCatalogEntry) => void
-}
-
-function useReducedMotion() {
-  const [reduced, setReduced] = useState(false)
-
-  useEffect(() => {
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const update = () => setReduced(media.matches)
-    update()
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
-  }, [])
-
-  return reduced
 }
 
 export function Showroom({ username, onSignOut, onAdopt }: ShowroomProps) {

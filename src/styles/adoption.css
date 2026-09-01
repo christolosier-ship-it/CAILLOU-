@@ -1,0 +1,77 @@
+.naming-shell, .pedestal-shell { min-height: 100vh; min-height: 100dvh; color: var(--color-basalt); }
+
+.naming-shell { max-width: 1240px; margin: 0 auto; padding: max(var(--space-6), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right)) max(var(--space-6), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left)); }
+.naming-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
+.naming-header h1 { margin: 2px 0 0; font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 600; }
+.naming-main { display: grid; min-height: calc(100dvh - 140px); gap: var(--space-6); align-items: center; }
+.naming-stage { position: relative; min-width: 0; min-height: 390px; aspect-ratio: 1 / 1; border-radius: var(--radius-sheet); background: var(--color-quartz); overflow: hidden; box-shadow: 0 28px 80px rgb(14 14 13 / 8%); }
+.naming-stage .showroom-canvas { position: absolute; inset: 0; }
+.naming-fallback, .pedestal-fallback { position: absolute; inset: 0; display: grid; place-items: center; background: var(--color-quartz); overflow: hidden; }
+.naming-fallback img, .pedestal-fallback img { position: absolute; width: 100%; height: 100%; object-fit: cover; filter: saturate(.65) contrast(.94); opacity: .32; }
+.naming-fallback > div, .pedestal-fallback > div { position: relative; z-index: 1; display: grid; justify-items: center; gap: var(--space-3); padding: var(--space-4); text-align: center; }
+.naming-fallback button, .pedestal-fallback button { min-height: 44px; padding: 0 var(--space-4); border: 1px solid rgb(52 51 48 / 20%); border-radius: 999px; background: var(--color-mineral-ivory); cursor: pointer; }
+.naming-panel { max-width: 540px; display: grid; gap: var(--space-4); }
+.naming-panel h2 { margin: 0; max-width: 12ch; font-size: clamp(2.4rem, 8vw, 4.6rem); font-weight: 500; letter-spacing: -.045em; line-height: .98; }
+.naming-panel > p:not(.eyebrow, .naming-note) { margin: 0; max-width: 52ch; color: var(--color-graphite); }
+.naming-panel form { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
+.naming-panel label { font-size: .84rem; font-weight: 600; color: var(--color-graphite); }
+.naming-panel input { width: 100%; min-height: 58px; padding: 0 var(--space-4); border: 1px solid rgb(52 51 48 / 20%); border-radius: 14px; color: var(--color-basalt); background: rgb(255 255 255 / 62%); font-size: 1.1rem; }
+.naming-field-meta { display: flex; justify-content: space-between; gap: var(--space-3); color: var(--color-graphite); font-size: .75rem; }
+.naming-error { margin: 0; padding: var(--space-3); border-radius: 12px; color: #6f2e25; background: rgb(153 70 56 / 10%); font-size: .86rem; }
+.naming-actions { display: grid; gap: var(--space-3); margin-top: var(--space-2); }
+.naming-actions button { min-height: 52px; padding: 0 var(--space-4); border-radius: 14px; cursor: pointer; }
+.naming-primary { border: 0; color: var(--color-mineral-ivory); background: var(--color-basalt); font-weight: 600; }
+.naming-secondary { border: 1px solid rgb(52 51 48 / 18%); background: transparent; }
+.naming-actions button:disabled { cursor: progress; opacity: .58; }
+.naming-note { margin: var(--space-2) 0 0; color: var(--color-graphite); font-size: .76rem; }
+
+.pedestal-shell { display: flex; max-width: 1280px; margin: 0 auto; padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left)); flex-direction: column; }
+.pedestal-topbar { position: relative; z-index: 4; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--space-3); }
+.pedestal-brand { display: grid; justify-items: center; font-weight: 600; letter-spacing: .04em; }
+.pedestal-brand small { color: var(--color-graphite); font-size: .68rem; font-weight: 500; letter-spacing: .02em; }
+.pedestal-utility, .pedestal-future, .pedestal-footer button { min-height: 44px; border: 1px solid rgb(52 51 48 / 14%); border-radius: 999px; background: rgb(242 239 233 / 72%); cursor: pointer; }
+.pedestal-utility { justify-self: start; padding: 0 var(--space-4); }
+.pedestal-future { width: 44px; justify-self: end; font-size: 1.3rem; }
+.pedestal-future:disabled { opacity: .72; cursor: default; }
+.pedestal-main { display: grid; min-height: 0; flex: 1; grid-template-rows: minmax(0, 1fr) auto; gap: var(--space-3); }
+.pedestal-stage { position: relative; min-height: 430px; overflow: hidden; }
+.pedestal-stage .showroom-canvas { position: absolute; inset: 0; border-radius: var(--radius-sheet); overflow: hidden; }
+.pedestal-identity { position: absolute; z-index: 3; top: var(--space-6); left: 50%; transform: translateX(-50%); width: min(90%, 620px); text-align: center; pointer-events: none; }
+.pedestal-identity h1 { margin: 3px 0 0; font-size: clamp(2.2rem, 8vw, 4.8rem); font-weight: 500; letter-spacing: -.045em; line-height: 1; }
+.pedestal-status { position: absolute; z-index: 3; left: 50%; bottom: var(--space-4); transform: translateX(-50%); width: min(92%, 34rem); margin: 0; color: var(--color-graphite); text-align: center; font-size: .78rem; pointer-events: none; }
+.pedestal-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.pedestal-actions button { min-height: 58px; padding: var(--space-2) var(--space-3); display: grid; place-content: center; gap: 1px; border: 1px solid rgb(52 51 48 / 13%); border-radius: 14px; color: var(--color-basalt); background: rgb(242 239 233 / 70%); text-align: center; }
+.pedestal-actions button:disabled { opacity: .62; cursor: not-allowed; }
+.pedestal-actions small { color: var(--color-graphite); font-size: .66rem; }
+.pedestal-footer { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: var(--space-4); padding-top: var(--space-3); color: var(--color-graphite); font-size: .72rem; }
+.pedestal-footer button { min-height: 38px; padding: 0 var(--space-3); background: transparent; }
+.pedestal-dialog-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: end center; padding: var(--space-4); background: rgb(14 14 13 / 26%); backdrop-filter: blur(4px); }
+.pedestal-dialog { width: min(100%, 560px); padding: var(--space-5); border: 1px solid rgb(52 51 48 / 16%); border-radius: var(--radius-sheet); background: var(--color-mineral-ivory); box-shadow: 0 30px 100px rgb(14 14 13 / 18%); }
+.pedestal-dialog-heading { display: flex; justify-content: space-between; align-items: start; gap: var(--space-4); }
+.pedestal-dialog h2 { margin: 3px 0 0; font-size: 2rem; font-weight: 500; }
+.pedestal-dialog-heading button { min-height: 44px; padding: 0 var(--space-3); border: 1px solid rgb(52 51 48 / 15%); border-radius: 999px; background: transparent; cursor: pointer; }
+.pedestal-dialog dl { display: grid; gap: 0; margin: var(--space-5) 0 0; }
+.pedestal-dialog dl > div { display: flex; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) 0; border-top: 1px solid rgb(52 51 48 / 10%); }
+.pedestal-dialog dt { color: var(--color-graphite); }
+.pedestal-dialog dd { margin: 0; text-align: right; font-weight: 500; }
+
+@media (min-width: 800px) {
+  .naming-shell { padding-inline: max(var(--space-8), env(safe-area-inset-left)); }
+  .naming-main { grid-template-columns: minmax(420px, 1.15fr) minmax(360px, .85fr); gap: var(--space-12); }
+  .naming-actions { grid-template-columns: 1fr 1.15fr; }
+  .pedestal-shell { padding-inline: max(var(--space-8), env(safe-area-inset-left)); }
+  .pedestal-stage { min-height: 560px; }
+  .pedestal-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+  .pedestal-dialog-backdrop { place-items: center; }
+}
+
+@media (max-width: 560px) {
+  .naming-header { align-items: flex-start; }
+  .naming-stage { min-height: 310px; }
+  .naming-main { align-content: start; }
+  .naming-panel h2 { font-size: clamp(2.35rem, 13vw, 3.6rem); }
+  .pedestal-brand small { display: none; }
+  .pedestal-utility { padding-inline: var(--space-3); }
+  .pedestal-stage { min-height: 58dvh; }
+  .pedestal-dialog-backdrop { padding-bottom: max(var(--space-4), env(safe-area-inset-bottom)); }
+}
