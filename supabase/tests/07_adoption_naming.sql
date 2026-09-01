@@ -14,6 +14,22 @@ insert into public.profiles(id, username, username_normalized) values
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '77777777-7777-4777-8777-777777777771', true);
 
+-- Validate the authoritative name constraint before any active rock exists.
+DO $$
+begin
+  begin
+    perform * from public.adopt_rock(
+      'rock-009',
+      E'Mauvais\nNom',
+      '70707070-7070-4707-8707-707070707073'::uuid
+    );
+    raise exception 'control character unexpectedly accepted in rock name';
+  exception when check_violation then
+    null;
+  end;
+end
+$$;
+
 select * from public.adopt_rock(
   'rock-007',
   'Bernard',
@@ -50,17 +66,6 @@ begin
     );
     raise exception 'second active rock unexpectedly allowed';
   exception when unique_violation then
-    null;
-  end;
-
-  begin
-    perform * from public.adopt_rock(
-      'rock-009',
-      E'Mauvais\nNom',
-      '70707070-7070-4707-8707-707070707073'::uuid
-    );
-    raise exception 'control character unexpectedly accepted in rock name';
-  exception when check_violation then
     null;
   end;
 end
