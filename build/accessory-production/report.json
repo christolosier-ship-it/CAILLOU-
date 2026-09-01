@@ -1,0 +1,191 @@
+{
+  "pipelineVersion": 1,
+  "blenderVersion": "4.5.13 LTS",
+  "blenderPinned": "4.5.13",
+  "textureTarget": [
+    1024,
+    1024
+  ],
+  "supportedSourceFormats": [
+    "blend",
+    "dae",
+    "fbx",
+    "glb",
+    "gltf",
+    "obj",
+    "rar",
+    "zip"
+  ],
+  "published": [
+    {
+      "id": "monocle",
+      "name": "Monocle",
+      "description": "Un monocle en métal patiné, parfaitement sérieux sur un caillou.",
+      "priceLithons": 90,
+      "category": "visage",
+      "sortOrder": 10,
+      "modelPath": "/assets/accessories/monocle/model.glb",
+      "previewPath": "/assets/accessory-previews/monocle.png",
+      "triangleCount": 665,
+      "dimensions": [
+        0.440386,
+        0.626706,
+        0.725703
+      ],
+      "pivot": "bounds-center",
+      "scaleMin": 0.65,
+      "scaleMax": 1.35,
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 0.18,
+        "friction": 0.68,
+        "restitution": 0.06,
+        "linearDamping": 1.6,
+        "angularDamping": 2.1
+      },
+      "provenance": {
+        "title": "Monocle",
+        "author": "Una.K.Carlstrøm",
+        "url": "https://sketchfab.com/3d-models/monocle-4f04956ecea24108869f5cbd785fd854",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "verified": true,
+        "evidence": "Le nom, les 395 triangles et les 205 sommets publiés concordent avec le fichier DAE source."
+      },
+      "source": {
+        "file": "Ressource/model.dae",
+        "format": "dae"
+      },
+      "importedFile": "model.dae",
+      "sourceSha256": "5f2ed1957c7ec133daaf246138380490ce51c6c5798f045bd1c73f2f412027cf",
+      "sourceBounds": {
+        "min": [
+          0.386906,
+          -3.068719,
+          7.183884
+        ],
+        "max": [
+          2.783053,
+          0.341198,
+          11.101418
+        ],
+        "size": [
+          2.396147,
+          3.409917,
+          3.917533
+        ]
+      },
+      "sourceTriangleCount": 395,
+      "runtimeTriangleCount": 665,
+      "normalizationScale": 0.183789116,
+      "textures": {
+        "baseColor": {
+          "source": "Ressource/lambert1_albedo.jpeg",
+          "sha256": "7f54abc67b4894e06e68ffe891cb7e90d52e527533c6f610bb4ab51725dc98a7",
+          "sourceResolution": [
+            2048,
+            2048
+          ],
+          "runtimeResolution": [
+            1024,
+            1024
+          ]
+        },
+        "roughness": {
+          "source": "Ressource/lambert1_roughness.jpeg",
+          "sha256": "f29032a25fc11f9db550ce359b357cb661bb9ee3336b04580f5595a54f8bf9e8",
+          "sourceResolution": [
+            2048,
+            2048
+          ],
+          "runtimeResolution": [
+            1024,
+            1024
+          ]
+        },
+        "normal": {
+          "source": "Ressource/lambert1_normal.png",
+          "sha256": "61b7e7203061302bd0c30324857f8fc92f5cdf0b8dbdb564fbd538f41d2c3c28",
+          "sourceResolution": [
+            2048,
+            2048
+          ],
+          "runtimeResolution": [
+            1024,
+            1024
+          ]
+        },
+        "metallic": {
+          "source": "Ressource/lambert1_metallic.jpeg",
+          "sha256": "98c02efce5c5631067f70ce16a055e36766366dbc512f6ddeee76261d1f967fb",
+          "sourceResolution": [
+            2048,
+            2048
+          ],
+          "runtimeResolution": [
+            1024,
+            1024
+          ]
+        },
+        "opacity": {
+          "source": "Ressource/lambert1_opacity.jpeg",
+          "sha256": "73cc2248f69d5e0cb6554baf348f7d4f457822a12dcc7dbca7f66b69f78fc2ff",
+          "sourceResolution": [
+            2048,
+            2048
+          ],
+          "runtimeResolution": [
+            1024,
+            1024
+          ]
+        }
+      },
+      "validation": {
+        "bytes": 2586068,
+        "mib": 2.466,
+        "meshCount": 1,
+        "materialCount": 1,
+        "embeddedImages": 3,
+        "externalDependencies": 0,
+        "triangleCountFromGlb": 665
+      }
+    }
+  ],
+  "quarantined": [
+    {
+      "id": "bow-tie",
+      "source": {
+        "file": "Ressource/BowTie.rar",
+        "format": "rar",
+        "entry": "model/BowTie.fbx"
+      },
+      "reason": "Auteur, page source et licence commerciale non vérifiables à partir des fichiers fournis.",
+      "sourceSha256": "c07d45507fa246363217ba9dee7200161ad57b23a786f211a9484115e25c23a2"
+    },
+    {
+      "id": "unidentified-circle",
+      "source": {
+        "file": "Ressource/model 2.dae",
+        "format": "dae"
+      },
+      "reason": "Le mesh interne s'appelle seulement Circle ; auteur, objet, source et licence restent non vérifiés.",
+      "sourceSha256": "3aed18aa04d5be5822d3533f59efeebf02492e3d68f63a54d194bcabbf171d69"
+    },
+    {
+      "id": "pedestal-gallery",
+      "source": {
+        "file": "Ressource/pedestal gallery v2.fbx",
+        "format": "fbx"
+      },
+      "reason": "Il s'agit d'un socle de présentation, pas d'un accessoire du caillou ; provenance et licence non vérifiées.",
+      "sourceSha256": "45fbfe7131e83ab04f201ba7787674942a6134cf0798117e4a753381002b44c9"
+    }
+  ],
+  "summary": {
+    "publishedCount": 1,
+    "quarantinedCount": 3,
+    "allStandalone": true,
+    "maxGlbMiB": 2.466
+  }
+}
