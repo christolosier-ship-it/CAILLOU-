@@ -106,11 +106,23 @@ PR dédiée. Compléter compte rendu + index. Éviter les déploiements Vercel d
 
 - Date : 2026-09-01
 - PR / commit : [PR #19](https://github.com/christolosier-ship-it/CAILLOU-/pull/19) — pipeline, catalogue et sorties validées
-- Assets retenus : `monocle`, 395 triangles source / 665 triangles runtime, GLB autonome 2,47 Mio et preview 512 px
+- Assets retenus à la clôture de 10A : `monocle`, 395 triangles source / 665 triangles runtime, GLB autonome 2,47 Mio et preview 512 px
 - Conversions : DAE vers GLB avec Blender 4.5.13 LTS épinglé ; pipeline compatible `.blend/.fbx/.dae/.obj/.gltf/.glb/.zip/.rar`
 - Optimisations : textures PBR ramenées à 1K et intégrées, bevel mesuré, un mesh/un matériau, pivot au centre des bounds
-- Licences/provenance : monocle d'Una.K.Carlstrøm sous CC BY 4.0 ; `BowTie.rar`, `model 2.dae` et le socle FBX restent en quarantaine faute de preuve exploitable
+- Licences/provenance à la clôture de 10A : monocle d'Una.K.Carlstrøm sous CC BY 4.0 ; `BowTie.rar`, `model 2.dae` et le socle FBX placés en quarantaine faute de preuve exploitable à cette date
 - Colliders prévus : convex hull, masse `0.18`, friction `0.68`, restitution `0.06`, damping documenté dans le catalogue
 - Tests : export local, audit structurel GLB, zéro dépendance externe, `npm run check` (26 tests) et reproduction + chargement Three.js/WebGL dans GitHub Actions
-- Dette : élargir le catalogue seulement après récupération d'une provenance/licence vérifiable pour les sources en quarantaine
+- Dette identifiée à la clôture : élargir le catalogue seulement après récupération d'une provenance/licence vérifiable pour les sources en quarantaine
 - Étape suivante recommandée : 10B
+
+## Addendum après 10B — état courant des ressources
+
+L'état ci-dessus reste le compte rendu historique de 10A. Pendant 10B, le propriétaire du dépôt a confirmé que les trois ressources mises en quarantaine sont sous licence CC0 1.0. Elles ont alors été repassées dans le même pipeline 10A, validées puis publiées sans modifier l'historique de la décision initiale :
+
+- `BowTie.rar` → `bow-tie` / Nœud papillon : 1 036 triangles runtime, GLB autonome ~0,252 Mio ;
+- `model 2.dae` → `round-glasses` / Lunettes rondes : 7 386 triangles runtime, GLB autonome ~1,676 Mio ; l'identification a été confirmée par le rendu de production ;
+- `pedestal gallery v2.fbx` → `pedestal-gallery` / Socle galerie : 712 triangles runtime, GLB autonome ~1,185 Mio ;
+- `monocle` reste publié à 665 triangles runtime et ~2,466 Mio ;
+- état final du pipeline après 10B : `publishedCount=4`, `quarantinedCount=0`, `allStandalone=true` ;
+- les quatre assets disposent de previews, dimensions, plages d'échelle et métadonnées collider/physique préparées pour 10C/10D ;
+- aucune logique de placement, collision ou gravité n'a été activée par 10A/10B.

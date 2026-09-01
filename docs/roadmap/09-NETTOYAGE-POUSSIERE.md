@@ -57,17 +57,30 @@ PR dédiée. Compléter le compte rendu et l'index. Documenter les paramètres r
 - PR / commit de validation : PR #17 ; candidat runtime `57ffa6110224f3a67d5839675ff1b096289214de`
 - Technique visuelle : seconde peau PBR très fine partageant la géométrie et les UV du scan ; masque procédural `CanvasTexture` 128 × 128 déterministe par spécimen ; matériau minéral mat, sans ombre ni raycast ; aucune texture source des vingt GLB n'est modifiée et aucun asset lourd n'est ajouté
 - Nettoyage local : en mode Nettoyer, `OrbitControls` est suspendu et le masque de poussière est effacé exactement aux coordonnées UV parcourues ; le renderer en `frameloop="demand"` est invalidé à chaque passage afin que l'effacement soit immédiatement visible
-- Accumulation : surface propre pendant les 12 premières heures suivant adoption ou dernier nettoyage ; apparition progressive ensuite ; plafond visuel atteint à 14 jours ; aucune jauge de propreté, santé, humeur ou sanction d'absence
+- Accumulation au moment de la clôture initiale : surface propre pendant les 12 premières heures suivant adoption ou dernier nettoyage ; apparition progressive ensuite ; plafond visuel atteint à 14 jours. Ces paramètres historiques ont été recalibrés après clôture, voir l'addendum ci-dessous.
 - Geste retenu : 320 ms minimum, 80 px de trajet cumulé, 30 px d'amplitude et 6 échantillons minimum ; tap et micro-jitter rejetés ; un geste incomplet ou annulé restaure le masque canonique au lieu de conserver une propreté non enregistrée
-- UX : `BrushCleaning` devient une vraie commande seulement lorsque de la poussière est visible ; Caresser et Nettoyer sont des modes mutuellement exclusifs ; après succès, message sobre `Surface remise dans un état réglementaire.` ; Accessoire et Jeter restent désactivés
+- UX : `BrushCleaning` devient une vraie commande seulement lorsque de la poussière est visible ; Caresser et Nettoyer sont des modes mutuellement exclusifs ; après succès, message sobre `Surface remise dans un état réglementaire.` ; Accessoire et Jeter restent désactivés dans le périmètre historique de 09
 - Reduced motion : aucune animation temporelle de poussière ni effet obligatoire ; le nettoyage repose uniquement sur le geste direct et le redraw local
 - Persistance : réutilisation de `public.register_cleaning(p_user_rock_id, p_event_key)` ; `last_cleaned_at`, `rock_progress.cleaning_count` et `interaction_count` sont autoritaires côté Supabase ; reload/reconnexion réhydratent `last_cleaned_at` et `cleaning_count` depuis les tables protégées par RLS
-- Migration Supabase : `20260901105135_harden_cleaning_cadence` ; un événement distinct est refusé avant 12 h depuis adoption/nettoyage, ce qui empêche l'inflation artificielle de `cleaning_count` ; un replay exact du même `event_key` reste idempotent
+- Migration Supabase initiale : `20260901105135_harden_cleaning_cadence` ; à la clôture de 09, un événement distinct était refusé avant 12 h depuis adoption/nettoyage ; un replay exact du même `event_key` restait idempotent
 - Économie : le nettoyage ne modifie jamais `wallets.balance`, `lifetime_earned`, `caress_count` ou `lithons_generated` et n'écrit aucune entrée dans `lithon_ledger`
-- Tests serveur : test SQL transactionnel réel validé ; premier nettoyage + replay = un seul incrément ; second événement distinct <12 h refusé ; utilisateur B refusé sur le caillou A ; rôle `anon` sans exécution ; wallet et ledger inchangés ; rollback final avec 0 fixture et 0 ledger de test
+- Tests serveur : test SQL transactionnel réel validé ; premier nettoyage + replay = un seul incrément ; utilisateur B refusé sur le caillou A ; rôle `anon` sans exécution ; wallet et ledger inchangés ; rollback final avec 0 fixture et 0 ledger de test
 - Tests automatiques du candidat : CI #74 verte ; adoption E2E #14 verte ; caresse/Lithon E2E #8 verte ; nettoyage/poussière E2E #2 verte ; showroom WebGL + téléphone/tablette #24 vert
 - Test tactile : Chrome 151.0.7922.173 sur vrai modèle 3D ; scénario validé `dust → tap rejected → UV scrub → lost response → idempotent retry → reload → 0 Lithon` ; téléphone 390 × 844 et tablette 1024 × 768 ; artifact `9797616873`
 - Vercel Preview : une seule Preview volontairement déclenchée après stabilisation ; `dpl_DUp6KcxBQri8R5q2ttQCojVzgJ9D` en état `READY` sur `preview/09-cleaning-dust` ; commit Preview `51f127ce9b01e27bf92271530f5827f40baaeb24` avec zéro différence de fichiers par rapport au candidat runtime ; build Vite/PWA réussi
 - Advisors Supabase : aucune nouvelle alerte sécurité ; avertissement Auth préexistant sur la protection contre les mots de passe compromis ; informations d'index inutilisés non bloquantes
-- Dette : aucune dette bloquante pour l'étape 09 ; les seuils et durées sont centralisés afin de pouvoir être recalibrés ; la poussière reste volontairement cosmétique et la boutique demeure hors périmètre
-- Étape suivante recommandée : 10 — Accessoires et boutique Lithons
+- Dette : aucune dette bloquante pour l'étape 09 ; les seuils et durées sont centralisés afin de pouvoir être recalibrés ; la poussière reste volontairement cosmétique
+- Étape suivante recommandée au moment de la clôture : 10 — Accessoires et boutique Lithons
+
+## Addendum post-clôture — recalibrage du 2026-09-01
+
+À la suite d'un contrôle en production après 10B, une incohérence UX a été identifiée : le backend autorisait historiquement le nettoyage après 12 h alors que le frontend attendait en plus un seuil visuel de 2 %, retardant encore l'activation réelle du bouton. La correction conserve le principe cosmétique de 09 mais remplace les paramètres temporels :
+
+- surface parfaitement propre pendant **1 heure** après adoption ou dernier nettoyage ;
+- apparition de la poussière immédiatement après cette première heure ;
+- accumulation progressive de 0 à 100 % entre **1 h et 12 h** ;
+- plafond visuel atteint à **12 heures** ;
+- suppression du seuil UX distinct de 2 % : `Nettoyer` devient actif dès que `dustAmount > 0`, donc dès que la poussière commence réellement à apparaître ;
+- cadence Supabase réalignée à **1 heure** via la migration `20260901195500_recalibrate_cleaning_cadence`, afin que le serveur autorise un nettoyage exactement dans la même fenêtre que l'interface ;
+- idempotence, isolation RLS, absence de récompense Lithon et statistiques autoritaires restent inchangées ;
+- le test unitaire couvre désormais 1 h propre, apparition immédiate après 1 h et plafond à 12 h ; le test SQL couvre le rejet avant 1 h et l'acceptation après 61 minutes.

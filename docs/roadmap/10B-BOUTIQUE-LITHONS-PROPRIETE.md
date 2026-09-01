@@ -67,10 +67,10 @@ PR dédiée. Compléter compte rendu + index. Une seule Preview Vercel volontair
 
 ## État / compte rendu
 
-**Statut : Terminée — PR #20**
+**Statut : Terminée — PR #20 fusionnée**
 
 - Date : 2026-09-01
-- PR / commit : [PR #20](https://github.com/christolosier-ship-it/CAILLOU-/pull/20) — boutique et achat autoritaire
+- PR / commit final : [PR #20](https://github.com/christolosier-ship-it/CAILLOU-/pull/20), squash-merge `2a6bc47c2257e68e282c6ea1520ee38069c40cbb`
 - Catalogue commercial final : quatre accessoires actifs et autonomes, `monocle` (90 Lithons, CC BY 4.0), `bow-tie` / Nœud papillon (70 Lithons, CC0 1.0), `round-glasses` / Lunettes rondes (80 Lithons, CC0 1.0) et `pedestal-gallery` / Socle galerie (120 Lithons, CC0 1.0)
 - Ressources réintégrées : `BowTie.rar`, `model 2.dae` et `pedestal gallery v2.fbx`, précédemment mises en quarantaine en 10A faute de provenance vérifiée, sont publiées en 10B après confirmation de leur licence CC0 ; `model 2.dae` a été identifié par rendu de production comme une paire de lunettes rondes
 - Pipeline 3D : Blender 4.5.13 LTS, GLB autonomes, previews et chargement réel Three.js/WebGL validés pour les quatre accessoires ; rapport final `publishedCount=4`, `quarantinedCount=0`, `allStandalone=true`
@@ -78,5 +78,11 @@ PR dédiée. Compléter compte rendu + index. Une seule Preview Vercel volontair
 - RLS/idempotence : writes directs révoqués, anon refusé, isolation A/B, reçu exact au retry et propriété unique par compte/type
 - UI Boutique : catalogue institutionnel responsive, solde/prix/acquis, licence affichée depuis la provenance de chaque asset, feedback accessible, aucun argent réel ni mécanique casino
 - Supabase : migration commerciale initiale + migration de publication des trois CC0 appliquées ; contrat SQL rollback complet PASS en achetant réellement le `bow-tie` dans la transaction de test ; Security Advisor sans nouvelle alerte liée à 10B
-- Contrôle restant de clôture : CI finale de la PR et Preview Vercel volontaire sur le commit candidat ; aucune fonctionnalité de placement libre, multi-équipement, collision ou gravité n'est incluse ici
-- Frontière : l'étape 10C n'est pas entamée par 10B
+- E2E du Socle : après activation de la boutique, les scénarios historiques Adoption, Caresse et Nettoyage ont été réalignés sur le contrat 10B où `Caresser` et `Accessoire` sont simultanément disponibles hors mutation ; les trois workflows passent au vert
+- Validation finale GitHub : CI, Adoption E2E, Caresse E2E, Nettoyage E2E, Audit Blender rocks, production des 20 cailloux et production/validation WebGL des accessoires tous en succès sur le candidat fusionné
+- Vercel : Preview finale 10B validée avant fusion ; déploiement production issu du merge `2a6bc47c…` en état `READY`, sans erreur runtime détectée
+- Frontière : aucune fonctionnalité de placement libre, multi-équipement, collision, gravité ou persistance de transforms n'est incluse ; l'étape 10C n'a pas été entamée par 10B
+
+## Note postérieure sur le recalibrage de l'étape 09
+
+La correction de cadence du nettoyage réalisée après la clôture de 10B ne modifie aucun contrat de boutique. Elle réaligne uniquement la poussière et `Nettoyer` : apparition après 1 h, maximum à 12 h, activation dès `dustAmount > 0` et garde-fou Supabase à 1 h. Les E2E du Socle restent attendus verts avec `Caresser + Accessoire` disponibles hors mutation et `Nettoyer` dépendant de l'état réel de poussière.

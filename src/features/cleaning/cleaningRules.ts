@@ -1,6 +1,5 @@
-export const DUST_VISIBLE_AFTER_MS = 12 * 60 * 60 * 1000
-export const DUST_FULL_AFTER_MS = 14 * 24 * 60 * 60 * 1000
-export const DUST_VISIBLE_THRESHOLD = 0.02
+export const DUST_VISIBLE_AFTER_MS = 1 * 60 * 60 * 1000
+export const DUST_FULL_AFTER_MS = 12 * 60 * 60 * 1000
 
 export const CLEANING_MIN_DURATION_MS = 320
 export const CLEANING_MIN_PATH_LENGTH_PX = 80
@@ -30,7 +29,7 @@ export function getDustAmount(
 }
 
 export function hasVisibleDust(amount: number) {
-  return amount >= DUST_VISIBLE_THRESHOLD
+  return amount > 0
 }
 
 export function isValidCleaning(metrics: CleaningMetrics) {
