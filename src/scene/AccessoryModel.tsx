@@ -1,8 +1,8 @@
 import { useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
-import { Box3, Group, Mesh, Plane, Sphere, Vector3 } from 'three'
-import type { Object3D } from 'three'
+import { Box3, Mesh, Plane, Sphere, Vector3 } from 'three'
+import type { Group, Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
