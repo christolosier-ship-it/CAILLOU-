@@ -426,24 +426,45 @@ Les fichiers GLB eux-mêmes peuvent rester dans le déploiement statique Vercel 
 
 ## 20. Accessoires 3D
 
-Les accessoires appartiennent à un pipeline distinct mais compatible avec les mêmes principes.
+Les accessoires utilisent le pipeline distinct et reproductible
+`.github/workflows/produce-accessories.yml`. Sa configuration versionnée se trouve dans
+`scripts/blender/accessory_sources.json` et son exporteur dans
+`scripts/blender/export_accessories.py`.
 
-Cible :
+Formats d'entrée supportés : `.blend`, `.fbx`, `.dae`, `.obj`, `.gltf/.glb`, `.zip` et `.rar`.
+Le format d'entrée n'est jamais servi au navigateur. Une entrée ne peut être publiée que si son
+statut vaut `published` **et** si sa provenance est marquée vérifiée. Les autres restent visibles
+dans le rapport de quarantaine sans fuite vers le catalogue runtime.
 
-- assets légers ;
-- géométrie très inférieure au caillou ;
-- textures modestes ;
-- point d'ancrage stable ;
-- aucune physique obligatoire ;
-- validation visuelle avec plusieurs formes de caillou.
+Le contrat de production d'un accessoire publié est :
 
-Ils sont placés dans :
+- Blender LTS `4.5.13`, archive officielle contrôlée par SHA-256 ;
+- un mesh et un matériau glTF principal lorsque la source le permet ;
+- PBR avec Base Color, Roughness et Normal, puis Metallic/Opacity/AO selon la matière ;
+- textures ramenées à 1K par défaut et intégrées dans le GLB ;
+- pivot local documenté, dimensions normalisées, orientation explicite ;
+- plage `scaleMin/scaleMax` ;
+- budget cible de quelques milliers à environ 15 000 triangles ;
+- collider simplifié et paramètres de masse/friction/rebond destinés au runtime physique ;
+- zéro caméra, lumière, buffer ou image externe ;
+- preview Cycles CPU légère et validation finale dans le vrai loader Three.js/WebGL.
+
+Les sorties sont placées dans :
 
 ```text
-public/assets/accessories/
+public/assets/accessories/<accessory-id>/model.glb
+public/assets/accessories/catalog.json
+public/assets/accessory-previews/<accessory-id>.png
+build/accessory-production/report.json
 ```
 
-Les métadonnées et prix en Lithons sont stockés côté Supabase.
+Le registre humain de provenance est `docs/3d/ACCESSORY-ASSET-INVENTORY.md`. Le catalogue JSON
+fait le lien avec Supabase, qui stocke les métadonnées commerciales et les prix en Lithons. Les
+GLB restent des assets statiques distribués par Vercel.
+
+Le pipeline décrit la physique mais ne la simule pas : les accessoires dynamiques utilisent une
+primitive, un convex hull ou un compound préparé ici. La simulation client et la persistance du
+transform stabilisé relèvent de l'étape 10D.
 
 ---
 

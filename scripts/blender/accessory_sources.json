@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "blenderPinned": "4.5.13",
+  "entries": [
+    {
+      "id": "monocle",
+      "status": "published",
+      "source": {
+        "file": "Ressource/model.dae",
+        "format": "dae"
+      },
+      "textures": {
+        "baseColor": "Ressource/lambert1_albedo.jpeg",
+        "metallic": "Ressource/lambert1_metallic.jpeg",
+        "roughness": "Ressource/lambert1_roughness.jpeg",
+        "normal": "Ressource/lambert1_normal.png",
+        "opacity": "Ressource/lambert1_opacity.jpeg"
+      },
+      "transform": {
+        "targetMaxDimension": 0.72,
+        "rotationDegrees": [0, 0, 0],
+        "pivot": "bounds-center",
+        "bevel": {
+          "width": 0.006,
+          "segments": 3,
+          "angleDegrees": 24
+        }
+      },
+      "catalog": {
+        "name": "Monocle",
+        "description": "Un monocle en métal patiné, parfaitement sérieux sur un caillou.",
+        "priceLithons": 90,
+        "category": "visage",
+        "sortOrder": 10,
+        "scaleMin": 0.65,
+        "scaleMax": 1.35
+      },
+      "physics": {
+        "enabled": true,
+        "collider": "convexHull",
+        "mass": 0.18,
+        "friction": 0.68,
+        "restitution": 0.06,
+        "linearDamping": 1.6,
+        "angularDamping": 2.1
+      },
+      "provenance": {
+        "title": "Monocle",
+        "author": "Una.K.Carlstrøm",
+        "url": "https://sketchfab.com/3d-models/monocle-4f04956ecea24108869f5cbd785fd854",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "verified": true,
+        "evidence": "Le nom, les 395 triangles et les 205 sommets publiés concordent avec le fichier DAE source."
+      }
+    },
+    {
+      "id": "bow-tie",
+      "status": "quarantined",
+      "source": {
+        "file": "Ressource/BowTie.rar",
+        "format": "rar",
+        "entry": "model/BowTie.fbx"
+      },
+      "textures": {
+        "baseColor": "Ressource/BowTie_BaseColor.png",
+        "metallic": "Ressource/BowTie_Metallic.png",
+        "roughness": "Ressource/BowTie_Roughness.png"
+      },
+      "quarantineReason": "Auteur, page source et licence commerciale non vérifiables à partir des fichiers fournis."
+    },
+    {
+      "id": "unidentified-circle",
+      "status": "quarantined",
+      "source": {
+        "file": "Ressource/model 2.dae",
+        "format": "dae"
+      },
+      "textures": {
+        "baseColor": "Ressource/DefaultMaterial_albedo.jpeg",
+        "metallic": "Ressource/DefaultMaterial_metallic.jpeg",
+        "roughness": "Ressource/DefaultMaterial_roughness.jpeg",
+        "normal": "Ressource/DefaultMaterial_normal.png",
+        "opacity": "Ressource/DefaultMaterial_opacity.jpeg",
+        "ao": "Ressource/DefaultMaterial_AO.jpeg"
+      },
+      "quarantineReason": "Le mesh interne s'appelle seulement Circle ; auteur, objet, source et licence restent non vérifiés."
+    },
+    {
+      "id": "pedestal-gallery",
+      "status": "quarantined",
+      "source": {
+        "file": "Ressource/pedestal gallery v2.fbx",
+        "format": "fbx"
+      },
+      "textures": {
+        "baseColor": "Ressource/pedestal_gallery_v2_Material_BaseMap.png",
+        "normal": "Ressource/pedestal_gallery_v2_Material_Normal.png",
+        "mask": "Ressource/pedestal_gallery_v2_Material_MaskMap.png"
+      },
+      "quarantineReason": "Il s'agit d'un socle de présentation, pas d'un accessoire du caillou ; provenance et licence non vérifiées."
+    }
+  ]
+}
