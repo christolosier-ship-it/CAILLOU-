@@ -1,37 +1,51 @@
-import { PRODUCT_NAME } from '../../domain/foundation'
+import { useState } from 'react'
+
+import type { RockCatalogEntry } from '../../content/rockCatalog'
+import { adoptRock } from '../adoption/adoptionApi'
+import { NamingScreen } from '../adoption/NamingScreen'
+import type { ActiveRock, AdoptRockMutation } from '../adoption/adoptionTypes'
+import { Pedestal } from '../pedestal/Pedestal'
 import { Showroom } from '../showroom/Showroom'
 
 interface AuthenticatedHomeProps {
   username: string
   destination: 'showroom' | 'socle'
+  activeRock: ActiveRock | null
+  onServerStateChanged: () => Promise<void>
   onSignOut: () => Promise<void>
+  adoptRockMutation?: AdoptRockMutation
 }
 
-export function AuthenticatedHome({ username, destination, onSignOut }: AuthenticatedHomeProps) {
-  if (destination === 'showroom') {
-    return <Showroom username={username} onSignOut={onSignOut} />
+export function AuthenticatedHome({
+  username,
+  destination,
+  activeRock,
+  onServerStateChanged,
+  onSignOut,
+  adoptRockMutation,
+}: AuthenticatedHomeProps) {
+  const [namingRock, setNamingRock] = useState<RockCatalogEntry | null>(null)
+  const mutation = adoptRockMutation ?? adoptRock
+
+  if (destination === 'socle' && activeRock) {
+    return <Pedestal activeRock={activeRock} username={username} onSignOut={onSignOut} />
   }
 
-  return (
-    <div className="app-shell authenticated-shell">
-      <header className="app-header">
-        <div>
-          <p className="eyebrow">Socle</p>
-          <h1>{PRODUCT_NAME}</h1>
-        </div>
-        <div className="account-chip">
-          <span>{username}</span>
-          <button type="button" onClick={() => void onSignOut()}>Déconnexion</button>
-        </div>
-      </header>
+  if (namingRock) {
+    return (
+      <NamingScreen
+        rock={namingRock}
+        username={username}
+        mutation={mutation}
+        onCancel={() => setNamingRock(null)}
+        onSignOut={onSignOut}
+        onAdopted={async () => {
+          await onServerStateChanged()
+          setNamingRock(null)
+        }}
+      />
+    )
+  }
 
-      <main className="foundation-layout">
-        <section className="foundation-copy">
-          <p className="eyebrow">Destination restaurée</p>
-          <h2>Votre caillou vous attend.</h2>
-          <p>Un caillou actif est associé à ce compte. Le Socle complet sera relié au parcours d’adoption lors de l’étape suivante.</p>
-        </section>
-      </main>
-    </div>
-  )
+  return <Showroom username={username} onSignOut={onSignOut} onAdopt={setNamingRock} />
 }
