@@ -1,4 +1,4 @@
-# CAILLOU™ — Roadmap d'exécution V1
+# CAILLOU™ - Roadmap d'exécution V1
 
 > **Rôle de ce dossier : mémoire opérationnelle du projet.**
 >
@@ -8,10 +8,10 @@
 
 Avant toute étape, lire et respecter :
 
-1. `CAHIER-DES-CHARGES-V1.md` — vérité fonctionnelle ;
-2. `ARCHITECTURE-TECHNIQUE.md` — vérité technique/full stack ;
-3. `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md` — vérité UI/UX/3D ;
-4. `WORKFLOW-3D-BLENDER-GITHUB.md` — vérité pipeline 3D.
+1. `CAHIER-DES-CHARGES-V1.md` - vérité fonctionnelle ;
+2. `ARCHITECTURE-TECHNIQUE.md` - vérité technique/full stack ;
+3. `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md` - vérité UI/UX/3D ;
+4. `WORKFLOW-3D-BLENDER-GITHUB.md` - vérité pipeline 3D.
 
 En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à jour les documents existants plutôt que créer une documentation concurrente.
 
@@ -31,45 +31,73 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 
 | # | Étape | Statut | Dépendances |
 |---:|---|---|---|
-| 01 | Fondation frontend et PWA | Terminée — PR #4 fusionnée | aucune |
-| 02 | Vercel, previews et garde-fous CI | Terminée — PR #5 fusionnée | 01 |
-| 03 | Supabase : schéma, RLS et contrats | Terminée — PR #7 fusionnée | 01 |
-| 04 | Auth pseudo + mot de passe | Terminée — PR #8 fusionnée | 03 |
-| 05 | Pipeline 3D de production et catalogue | Terminée — PR #10 fusionnée, 20/20 cailloux actifs | pipeline audit existant |
-| 06 | Showroom 3D des 20 cailloux | Terminée — PR #13 fusionnée, WebGL + téléphone/tablette validés | 01, 05 |
-| 07 | Adoption, nommage et Socle | Terminée — PR #14, adoption idempotente + Socle + E2E validés | 04, 06 |
-| 08 | Caresse et économie en Lithons | Terminée — PR #16, caresse 3D + économie autoritaire + E2E validés | 03, 07 |
-| 09 | Nettoyage et poussière cosmétique | Terminée — PR #17, poussière UV + nettoyage persistant + E2E validés | 07 |
-| 10A | Pipeline accessoires 3D et catalogue | Terminée — PR #19, catalogue GLB licencié et WebGL validé | 03, 05, 06 |
-| 10B | Boutique Lithons et propriété des accessoires | Terminée — PR #20, achat atomique/RLS et UI catalogue | 08, 10A |
-| 10C | Multi-équipement et placement libre | Terminée — PR #22, instances UUID + transforms locaux persistants + téléphone/tablette validés | 07, 10A, 10B |
-| 10D | Physique, collisions, gravité et persistance | Terminée — PR #23, Rapier + collisions + stabilisation persistante + téléphone/tablette validés | 06, 10C |
-| 11 | Bio, statistiques et action Jeter | À faire | 03, 07, 08, 09, 10B, 10D |
-| 12 | PWA, cache, reprise réseau et résilience | À faire | 06 à 11, y compris 10A–10D |
-| 13 | QA, sécurité, performance et release V1 | À faire | 01 à 12, y compris 10A–10D |
+| 01 | Fondation frontend et PWA | Terminée - PR #4 fusionnée | aucune |
+| 02 | Vercel, previews et garde-fous CI | Terminée - PR #5 fusionnée | 01 |
+| 03 | Supabase : schéma, RLS et contrats | Terminée - PR #7 fusionnée | 01 |
+| 04 | Auth pseudo + mot de passe | Terminée - PR #8 fusionnée | 03 |
+| 05 | Pipeline 3D de production et catalogue | Terminée - PR #10 fusionnée, 20/20 cailloux actifs | pipeline audit existant |
+| 06 | Showroom 3D des 20 cailloux | Terminée - PR #13 fusionnée, WebGL + téléphone/tablette validés | 01, 05 |
+| 07 | Adoption, nommage et Socle | Terminée - PR #14, adoption idempotente + Socle + E2E validés | 04, 06 |
+| 08 | Caresse et économie en Lithons | Terminée - PR #16, caresse 3D + économie autoritaire + E2E validés | 03, 07 |
+| 09 | Nettoyage et poussière cosmétique | Terminée - PR #17, poussière UV + nettoyage persistant + E2E validés | 07 |
+| 10A | Pipeline accessoires 3D et catalogue | Terminée - PR #19, catalogue GLB licencié et WebGL validé | 03, 05, 06 |
+| 10B | Boutique Lithons et propriété des accessoires | Terminée - PR #20, achat atomique/RLS et UI catalogue | 08, 10A |
+| 10C | Multi-équipement et placement libre | Terminée - PR #22, instances UUID + transforms locaux persistants + téléphone/tablette validés | 07, 10A, 10B |
+| 10D | Physique, collisions, gravité et persistance | Terminée - PR #23, Rapier + collisions + stabilisation persistante + téléphone/tablette validés | 06, 10C |
+| **10.5** | **UX tactile, sol physique et manutention du caillou** | **À faire** | **08, 10C, 10D** |
+| 11 | Bio, statistiques et action Jeter | À faire | 03, 07, 08, 09, 10B, **10.5** |
+| 12 | PWA, cache, reprise réseau et résilience | À faire | 06 à 11, y compris 10A-10D et **10.5** |
+| 13 | QA, sécurité, performance et release V1 | À faire | 01 à 12, y compris 10A-10D et **10.5** |
 
 ## Découpage de l'étape 10
 
-L'ancien périmètre unique `10 — Accessoires et boutique Lithons` a été exécuté en quatre sous-étapes autonomes afin de séparer les risques 3D, économiques, UX et physiques :
+L'ancien périmètre unique `10 - Accessoires et boutique Lithons` a été exécuté en quatre sous-étapes autonomes afin de séparer les risques 3D, économiques, UX et physiques :
 
 - **10A** : ingestion/conversion des ressources 3D, GLB web, PBR, optimisation, provenance/licences et colliders simplifiés ;
 - **10B** : catalogue commercial, achat transactionnel en Lithons et propriété permanente au compte ;
 - **10C** : plusieurs accessoires simultanés sur un même caillou, instances UUID, placement manuel, rotation, échelle, édition tactile et persistance des transforms manuels ;
 - **10D** : collisions, anti-traversée, gravité, stabilisation physique et persistance/reprise de l'état stabilisé.
 
-**Le jalon fonctionnel 10 est terminé.** Les quatre sous-étapes 10A à 10D sont validées. L'étape suivante est 11.
+**Le jalon fonctionnel historique 10 est terminé.** Les quatre sous-étapes 10A à 10D sont validées et restent inchangées comme historique d'exécution.
+
+## Étape 10.5 - consolidation post-10
+
+Avant de poursuivre vers l'étape 11, une étape intermédiaire est ajoutée pour améliorer l'ergonomie tactile et étendre la physique à la manutention du caillou lui-même.
+
+Document autonome :
+
+`docs/roadmap/10.5-UX-TACTILE-PHYSIQUE-ET-MANUTENTION-DU-CAILLOU.md`
+
+Décisions déjà verrouillées :
+
+- les accessoires sont verrouillés hors d'un mode d'édition explicitement activé par un bouton placé près de Bio ;
+- le déplacement, la rotation et le redimensionnement des accessoires deviennent tactiles et directs ;
+- la gravité reste désactivée pendant toute la session d'édition d'un accessoire et ne reprend qu'à la validation ;
+- le grand carré visible devient le vrai sol physique Rapier ;
+- le droit de déplacer son caillou est un déblocage permanent nommé **Permis de manutention minérale**, facturé **1000 Lithons** côté serveur ;
+- le caillou peut être déplacé et orienté librement sur les six degrés de liberté ;
+- pendant sa manipulation, caillou et accessoires sont gelés ;
+- après validation, la gravité agit sur le caillou et les accessoires afin d'éliminer les placements incohérents ;
+- la composition finale doit être stabilisée puis persistée de manière atomique et idempotente ;
+- les accessoires restent persistés dans le repère local final du caillou ;
+- les 20 cailloux devront disposer d'un collider dynamique adapté si le `trimesh` statique 10D n'est pas utilisable pour leur simulation dynamique.
+
+**La prochaine étape à exécuter est donc 10.5. L'étape 11 ne doit pas commencer avant sa clôture.**
 
 ## Frontières importantes
 
 - **Supabase est la source de vérité** pour compte, caillou adopté, progression, Lithons, achats, possession d'accessoires, placements persistants, état stabilisé et statistiques.
 - **Vercel distribue le frontend** et fournit les previews/production ; pas de backend métier Vercel V1 sans justification explicite.
-- **Le navigateur ne fait jamais autorité sur les Lithons** ni sur un achat.
+- **Le navigateur ne fait jamais autorité sur les Lithons** ni sur un achat ou un déblocage payant.
 - **Un seul GLB de caillou actif à la fois** dans le showroom. Jusqu'à huit GLB d'accessoires peuvent être chargés simultanément autour de ce caillou dans le contrat V1 actuel.
 - Les accessoires sont multi-instance côté équipement : le modèle final ne limite pas artificiellement un caillou à un accessoire par zone ou `slot`.
 - Les transforms d'accessoires persistants sont exprimés relativement au caillou, pas en coordonnées monde.
 - 10C persiste le placement manuel ; 10D conserve la même identité d'instance et ajoute Rapier, les collisions et la persistance de l'état stabilisé via `stabilized_at`.
+- 10.5 doit étendre la persistance au transform stabilisé du caillou et à la stabilisation atomique de toute la composition après manutention.
 - La physique est exécutée côté client ; Supabase persiste l'état stabilisé mais ne simule pas la physique.
 - Une pose stabilisée est restaurée directement au reload ; une pose intermédiaire non stabilisée peut reprendre son cycle physique sans prétendre qu'elle a déjà été confirmée.
+- Pendant toute manipulation tactile explicite, les corps concernés restent cinématiques ; Rapier reprend l'autorité après validation.
+- Le grand carré du Socle devient en 10.5 le sol physique fixe de référence.
 - Le caillou n'a aucun besoin vital et l'absence n'est jamais punie.
 - Les Lithons n'ont aucune valeur réelle et ne sont ni achetables ni transférables.
 
