@@ -162,6 +162,25 @@ export async function purchaseRockMovementPermit(eventKey: string): Promise<Purc
   }
 }
 
+function finiteTuple(value: unknown, length: number) {
+  if (!Array.isArray(value) || value.length !== length) return null
+  const tuple = value.map(Number)
+  return tuple.every(Number.isFinite) ? tuple : null
+}
+
+function parseAccessoryPosition(value: unknown, fallback: [number, number, number]): [number, number, number] {
+  const tuple = finiteTuple(value, 3)
+  return tuple ? [tuple[0], tuple[1], tuple[2]] : fallback
+}
+
+function parseAccessoryRotation(value: unknown, fallback: [number, number, number, number]): [number, number, number, number] {
+  const tuple = finiteTuple(value, 4)
+  if (!tuple) return fallback
+  const length = Math.hypot(tuple[0], tuple[1], tuple[2], tuple[3])
+  if (!Number.isFinite(length) || length < 0.000001) return fallback
+  return [tuple[0] / length, tuple[1] / length, tuple[2] / length, tuple[3] / length]
+}
+
 function parseCompositionAccessories(value: unknown, draft: RockCompositionDraft) {
   if (!Array.isArray(value)) return draft.accessories
   const draftById = new Map(draft.accessories.map((item) => [item.instanceId, item]))
@@ -173,8 +192,8 @@ function parseCompositionAccessories(value: unknown, draft: RockCompositionDraft
     if (!fallback) return []
     return [{
       instanceId,
-      localPosition: parseRockPosition(row.local_position),
-      localRotation: parseRockRotation(row.local_rotation),
+      localPosition: parseAccessoryPosition(row.local_position, fallback.localPosition),
+      localRotation: parseAccessoryRotation(row.local_rotation, fallback.localRotation),
       uniformScale: Number.isFinite(Number(row.uniform_scale)) ? Number(row.uniform_scale) : fallback.uniformScale,
     }]
   })
