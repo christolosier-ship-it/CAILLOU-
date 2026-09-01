@@ -274,14 +274,14 @@
       }
     },
     {
-      "id": "unidentified-circle",
-      "name": "Anneau",
-      "description": "Un grand anneau ornemental aux reflets métalliques, pensé comme une pièce libre de la collection.",
+      "id": "round-glasses",
+      "name": "Lunettes rondes",
+      "description": "De fines lunettes rondes dorées avec branches brunes, pour un caillou à l’allure délicieusement studieuse.",
       "priceLithons": 80,
-      "category": "ornement",
+      "category": "visage",
       "sortOrder": 30,
-      "modelPath": "/assets/accessories/unidentified-circle/model.glb",
-      "previewPath": "/assets/accessory-previews/unidentified-circle.png",
+      "modelPath": "/assets/accessories/round-glasses/model.glb",
+      "previewPath": "/assets/accessory-previews/round-glasses.png",
       "triangleCount": 7386,
       "dimensions": [
         0.78,
@@ -301,12 +301,12 @@
         "angularDamping": 2.0
       },
       "provenance": {
-        "title": "model 2 / Circle",
+        "title": "Round glasses / model 2",
         "author": "Auteur non identifié",
         "license": "CC0 1.0",
         "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
         "verified": true,
-        "evidence": "Licence CC0 confirmée par le propriétaire du dépôt le 2026-09-01 pour la ressource fournie ; le mesh source est nommé Circle."
+        "evidence": "Licence CC0 confirmée par le propriétaire du dépôt le 2026-09-01 pour la ressource fournie ; le rendu de production identifie sans ambiguïté une paire de lunettes rondes."
       },
       "source": {
         "file": "Ressource/model 2.dae",
@@ -397,7 +397,7 @@
         }
       },
       "validation": {
-        "bytes": 1757336,
+        "bytes": 1757288,
         "mib": 1.676,
         "meshCount": 1,
         "materialCount": 1,
@@ -409,7 +409,7 @@
     {
       "id": "pedestal-gallery",
       "name": "Socle galerie",
-      "description": "Un petit socle d’exposition qui transforme la présentation du caillou en pièce de galerie.",
+      "description": "Un petit socle d’exposition en pierre claire qui transforme le caillou en pièce de galerie.",
       "priceLithons": 120,
       "category": "socle",
       "sortOrder": 40,
