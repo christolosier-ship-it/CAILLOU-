@@ -18,12 +18,12 @@ export interface RockSurfacePointerSample {
 
 interface RockModelProps {
   path: string
-  onLoadStateChange?: (state: RockLoadState, message?: string) => void
-  onObjectReady?: (object: Object3D | null) => void
-  onSurfacePointerDown?: (sample: RockSurfacePointerSample) => void
-  onSurfacePointerMove?: (sample: RockSurfacePointerSample) => void
-  onSurfacePointerUp?: (sample: RockSurfacePointerSample) => void
-  onSurfacePointerCancel?: (sample: RockSurfacePointerSample) => void
+  onLoadStateChange?: ((state: RockLoadState, message?: string) => void) | undefined
+  onObjectReady?: ((object: Object3D | null) => void) | undefined
+  onSurfacePointerDown?: ((sample: RockSurfacePointerSample) => void) | undefined
+  onSurfacePointerMove?: ((sample: RockSurfacePointerSample) => void) | undefined
+  onSurfacePointerUp?: ((sample: RockSurfacePointerSample) => void) | undefined
+  onSurfacePointerCancel?: ((sample: RockSurfacePointerSample) => void) | undefined
 }
 
 function toSurfaceSample(event: ThreeEvent<PointerEvent>): RockSurfacePointerSample {
