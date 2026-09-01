@@ -51,13 +51,16 @@ PR dédiée. Compléter compte rendu + index. Les réglages de caméra/lumière 
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : Terminée**
 
-- Date :
-- PR / commit :
-- 20 assets validés :
-- Mémoire / performance :
-- Tests tactiles :
-- Décisions UX :
-- Dette :
-- Étape suivante recommandée : 07
+- Date de clôture : 2026-09-01
+- PR / commit de validation : PR #13 ; `02077c954fa9e7dcb3931a00d702cb04a3bb6533`
+- 20 assets validés : 20/20 spécimens accessibles, catalogue Supabase contrôlé en lecture seule à 20 actifs / 20 prêts, IDs `rock-001` à `rock-020`, 10 000 triangles par modèle
+- Chargement 3D : un seul GLB actif à la fois ; changement de spécimen abortable ; disposal explicite des géométries, matériaux et textures
+- Mémoire / performance : validation WebGL répétée sur 3 tours × 20 spécimens, soit 60 chargements/disposals ; test de changement rapide `01 → 20 → 01` validé ; mémoire résiduelle stable mesurée à 0 géométrie et 1 texture, sans croissance GPU continue détectée
+- Tests tactiles / responsive : vrai composant Showroom validé en CI en 390 × 844 et 1024 × 768 ; cibles tactiles ≥ 44 px ; drag de rotation sans changement accidentel de spécimen ; navigation clavier aller/retour validée ; reduced motion validé
+- Vercel Preview : déploiement `dpl_6LPpcvPqKmvtwstnfCnjZQZr1e18` en état `READY` ; les commits ultérieurs limités aux fixtures/tests sont ignorés avant build par le garde-fou Vercel
+- Décisions UX : navigation circulaire `01 / 20` à `20 / 20`, 20 descriptions institutionnelles distinctes, loading basé sur les previews, erreur récupérable avec retry, caméra auto-fit FOV 32°, DPR borné à 1,5, zoom borné et preset Studio fixe avec contact shadow
+- Validation automatique : CI frontend, build production, tests unitaires, validation WebGL mémoire et validation responsive téléphone/tablette tous verts avant fusion
+- Dette : aucune dette bloquante pour l'étape 06 ; l'enregistrement de l'adoption reste volontairement hors périmètre et relève de l'étape 07
+- Étape suivante recommandée : 07 — Adoption, nommage et Socle
