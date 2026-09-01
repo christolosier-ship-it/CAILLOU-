@@ -1,3 +1,4 @@
+import { BrushCleaning, ClipboardList, Gem, HandHeart, Shirt, Trash2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { getRockCatalogEntryById } from '../../content/rockCatalog'
@@ -13,7 +14,12 @@ interface PedestalProps {
   onSignOut: () => Promise<void>
 }
 
-const ACTIONS = ['Caresser', 'Nettoyer', 'Accessoire', 'Jeter'] as const
+const ACTIONS = [
+  { label: 'Caresser', Icon: HandHeart },
+  { label: 'Nettoyer', Icon: BrushCleaning },
+  { label: 'Accessoire', Icon: Shirt },
+  { label: 'Jeter', Icon: Trash2 },
+] as const
 
 function formatAdoptionDate(value: string) {
   return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(value))
@@ -31,12 +37,28 @@ export function Pedestal({ activeRock, username, onSignOut }: PedestalProps) {
   return (
     <div className="pedestal-shell">
       <header className="pedestal-topbar">
-        <button type="button" className="pedestal-utility" onClick={() => setBioOpen(true)}>Bio / Stats</button>
+        <button
+          type="button"
+          className="pedestal-utility"
+          onClick={() => setBioOpen(true)}
+          aria-label="Bio et statistiques"
+          title="Bio et statistiques"
+        >
+          <ClipboardList size={24} strokeWidth={1.75} aria-hidden="true" />
+        </button>
         <div className="pedestal-brand" aria-label={PRODUCT_NAME}>
           <span>{PRODUCT_NAME}</span>
           <small>{username}</small>
         </div>
-        <button type="button" className="pedestal-future" disabled aria-label="Emplacement réservé à une fonctionnalité future">·</button>
+        <button
+          type="button"
+          className="pedestal-future"
+          disabled
+          aria-label="Lithons — fonctionnalité à venir"
+          title="Lithons"
+        >
+          <Gem size={24} strokeWidth={1.75} aria-hidden="true" />
+        </button>
       </header>
 
       <main className="pedestal-main">
@@ -72,10 +94,15 @@ export function Pedestal({ activeRock, username, onSignOut }: PedestalProps) {
         </section>
 
         <nav className="pedestal-actions" aria-label="Actions du caillou">
-          {ACTIONS.map((action) => (
-            <button key={action} type="button" disabled aria-label={`${action} — fonctionnalité en préparation`}>
-              <span>{action}</span>
-              <small>En préparation</small>
+          {ACTIONS.map(({ label, Icon }) => (
+            <button
+              key={label}
+              type="button"
+              disabled
+              aria-label={`${label} — fonctionnalité en préparation`}
+              title={label}
+            >
+              <Icon size={28} strokeWidth={1.75} aria-hidden="true" />
             </button>
           ))}
         </nav>
