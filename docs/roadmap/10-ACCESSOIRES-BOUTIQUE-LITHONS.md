@@ -156,7 +156,7 @@ Le jalon 10 est terminé lorsque :
 
 - Décision de découpage : 2026-09-01
 - Motif : ressources 3D hétérogènes + multi-équipement + placement libre + physique + persistance dépassent un objectif unique cohérent
-- État 10A : À faire
+- État 10A : Terminée — PR #19, monocle CC BY 4.0 publié ; trois sources non vérifiées en quarantaine
 - État 10B : À faire
 - État 10C : À faire
 - État 10D : À faire

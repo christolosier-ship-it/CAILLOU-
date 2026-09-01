@@ -102,15 +102,15 @@ PR dédiée. Compléter compte rendu + index. Éviter les déploiements Vercel d
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : Terminée — PR #19**
 
-- Date :
-- PR / commit :
-- Assets retenus :
-- Conversions :
-- Optimisations :
-- Licences/provenance :
-- Colliders prévus :
-- Tests :
-- Dette :
+- Date : 2026-09-01
+- PR / commit : [PR #19](https://github.com/christolosier-ship-it/CAILLOU-/pull/19) — pipeline, catalogue et sorties validées
+- Assets retenus : `monocle`, 395 triangles source / 665 triangles runtime, GLB autonome 2,47 Mio et preview 512 px
+- Conversions : DAE vers GLB avec Blender 4.5.13 LTS épinglé ; pipeline compatible `.blend/.fbx/.dae/.obj/.gltf/.glb/.zip/.rar`
+- Optimisations : textures PBR ramenées à 1K et intégrées, bevel mesuré, un mesh/un matériau, pivot au centre des bounds
+- Licences/provenance : monocle d'Una.K.Carlstrøm sous CC BY 4.0 ; `BowTie.rar`, `model 2.dae` et le socle FBX restent en quarantaine faute de preuve exploitable
+- Colliders prévus : convex hull, masse `0.18`, friction `0.68`, restitution `0.06`, damping documenté dans le catalogue
+- Tests : export local, audit structurel GLB, zéro dépendance externe, `npm run check` (26 tests) et reproduction + chargement Three.js/WebGL dans GitHub Actions
+- Dette : élargir le catalogue seulement après récupération d'une provenance/licence vérifiable pour les sources en quarantaine
 - Étape suivante recommandée : 10B
