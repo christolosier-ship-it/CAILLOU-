@@ -1,14 +1,19 @@
 export const ROCK_NAME_MIN_LENGTH = 1
 export const ROCK_NAME_MAX_LENGTH = 32
 
-const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f-\u009f]/u
+function containsControlCharacter(value: string) {
+  return [...value].some((character) => {
+    const codePoint = character.codePointAt(0)
+    return codePoint !== undefined && (codePoint <= 31 || (codePoint >= 127 && codePoint <= 159))
+  })
+}
 
 export function normalizeRockName(raw: string) {
   return raw.trim().replace(/\s+/gu, ' ')
 }
 
 export function validateRockName(raw: string) {
-  if (CONTROL_CHARACTER_PATTERN.test(raw)) {
+  if (containsControlCharacter(raw)) {
     return 'Le nom contient un caractère non autorisé.'
   }
 
