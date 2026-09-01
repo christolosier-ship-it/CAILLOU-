@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fr" data-status="loading">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CAILLOU showroom GPU validation</title>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "/node_modules/three/build/three.module.js",
+        "three/addons/": "/node_modules/three/examples/jsm/"
+      }
+    }
+  </script>
+  <style>
+    html,body { margin:0; width:100%; height:100%; background:#e5e1d8; font-family:system-ui,sans-serif; }
+    body { display:grid; place-items:center; }
+    canvas { width:768px; max-width:100%; aspect-ratio:1; }
+    #status { position:fixed; left:16px; bottom:16px; padding:8px 12px; border-radius:999px; background:#f2efe9; font-size:12px; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="768" height="768"></canvas>
+  <div id="status">Initialisation…</div>
+  <script type="module">
+    import * as THREE from 'three'
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+
+    const html = document.documentElement
+    const status = document.querySelector('#status')
+    const canvas = document.querySelector('#canvas')
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
+    renderer.setPixelRatio(1)
+    renderer.setSize(768, 768, false)
+    renderer.shadowMap.enabled = true
+
+    const scene = new THREE.Scene()
+    scene.background = new THREE.Color('#e5e1d8')
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 100)
+    scene.add(new THREE.AmbientLight(0xffffff, 0.58))
+    const key = new THREE.DirectionalLight(0xffffff, 2.45)
+    key.position.set(4.5, 5.5, 4.2)
+    scene.add(key)
+    const fill = new THREE.DirectionalLight(0xffffff, 0.72)
+    fill.position.set(-4.2, 2.4, -2.5)
+    scene.add(fill)
+    const rim = new THREE.DirectionalLight(0xffffff, 0.62)
+    rim.position.set(1.2, 3.4, -4.4)
+    scene.add(rim)
+
+    const loader = new GLTFLoader()
+    const ids = Array.from({ length: 20 }, (_, index) => `rock-${String(index + 1).padStart(3, '0')}`)
+    const samples = []
+
+    function nextFrame() {
+      return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    }
+
+    function delay(ms, signal) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, ms)
+        signal?.addEventListener('abort', () => {
+          clearTimeout(timer)
+          reject(new DOMException('Aborted', 'AbortError'))
+        }, { once: true })
+      })
+    }
+
+    async function loadRock(id, signal, artificialDelay = 0) {
+      const path = `/public/assets/rocks/${id}/model.glb`
+      const response = await fetch(path, { signal })
+      if (!response.ok) throw new Error(`${id}: HTTP ${response.status}`)
+      const buffer = await response.arrayBuffer()
+      if (artificialDelay) await delay(artificialDelay, signal)
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      const gltf = await loader.parseAsync(buffer, new URL(path, location.href).href.replace(/[^/]+$/, ''))
+      return gltf.scene
+    }
+
+    function fitCamera(object) {
+      const sphere = new THREE.Box3().setFromObject(object).getBoundingSphere(new THREE.Sphere())
+      const fov = THREE.MathUtils.degToRad(camera.fov)
+      const distance = (sphere.radius / Math.sin(fov / 2)) * 1.18
+      const direction = new THREE.Vector3(0.62, 0.42, 0.78).normalize()
+      camera.position.copy(sphere.center).addScaledVector(direction, distance)
+      camera.near = Math.max(0.01, distance / 100)
+      camera.far = Math.max(100, distance * 20)
+      camera.lookAt(sphere.center)
+      camera.updateProjectionMatrix()
+    }
+
+    function disposeObject(root) {
+      const geometries = new Set()
+      const materials = new Set()
+      const textures = new Set()
+      root.traverse((child) => {
+        if (!child.isMesh) return
+        geometries.add(child.geometry)
+        const childMaterials = Array.isArray(child.material) ? child.material : [child.material]
+        for (const material of childMaterials) {
+          materials.add(material)
+          for (const value of Object.values(material)) if (value?.isTexture) textures.add(value)
+        }
+      })
+      for (const texture of textures) texture.dispose()
+      for (const material of materials) material.dispose()
+      for (const geometry of geometries) geometry.dispose()
+      return { geometries: geometries.size, materials: materials.size, textures: textures.size }
+    }
+
+    async function renderAndDispose(id, round) {
+      status.textContent = `Tour ${round + 1}/3 · ${id}`
+      const object = await loadRock(id)
+      scene.add(object)
+      fitCamera(object)
+      renderer.render(scene, camera)
+      await nextFrame()
+      const active = { ...renderer.info.memory }
+      const disposed = disposeObject(object)
+      scene.remove(object)
+      renderer.render(scene, camera)
+      await nextFrame()
+      renderer.render(scene, camera)
+      const after = { ...renderer.info.memory }
+      samples.push({ round, id, active, after, disposed })
+    }
+
+    async function validateRapidSwitch() {
+      status.textContent = 'Test changement rapide 01 → 20 → 01'
+      const slowController = new AbortController()
+      const slow = loadRock('rock-001', slowController.signal, 180)
+        .then((object) => {
+          disposeObject(object)
+          return 'unexpected-completion'
+        })
+        .catch((error) => error?.name === 'AbortError' ? 'aborted' : Promise.reject(error))
+      await delay(20)
+      slowController.abort()
+
+      const twenty = await loadRock('rock-020')
+      scene.add(twenty)
+      renderer.render(scene, camera)
+      disposeObject(twenty)
+      scene.remove(twenty)
+      renderer.render(scene, camera)
+
+      const one = await loadRock('rock-001')
+      scene.add(one)
+      renderer.render(scene, camera)
+      disposeObject(one)
+      scene.remove(one)
+      renderer.render(scene, camera)
+      await nextFrame()
+
+      return slow
+    }
+
+    try {
+      for (let round = 0; round < 3; round += 1) {
+        for (const id of ids) await renderAndDispose(id, round)
+      }
+
+      const rapidSwitch = await validateRapidSwitch()
+      const afterSamples = samples.map((sample) => sample.after)
+      const maxResidualGeometries = Math.max(...afterSamples.map((sample) => sample.geometries))
+      const maxResidualTextures = Math.max(...afterSamples.map((sample) => sample.textures))
+      const finalMemory = { ...renderer.info.memory }
+      const allDisposed = samples.every((sample) => sample.disposed.geometries === 1 && sample.disposed.materials >= 1 && sample.disposed.textures >= 2)
+      const stable = maxResidualGeometries <= 1 && maxResidualTextures <= 2 && finalMemory.geometries <= 1 && finalMemory.textures <= 2
+
+      window.__SHOWROOM_REPORT__ = {
+        status: stable && allDisposed && rapidSwitch === 'aborted' ? 'pass' : 'fail',
+        rounds: 3,
+        rocksPerRound: ids.length,
+        samples,
+        rapidSwitch,
+        maxResidualGeometries,
+        maxResidualTextures,
+        finalMemory,
+        allDisposed,
+      }
+
+      if (window.__SHOWROOM_REPORT__.status !== 'pass') throw new Error(`GPU residuals not stable: ${JSON.stringify(window.__SHOWROOM_REPORT__)}`)
+      html.dataset.status = 'pass'
+      status.textContent = `PASS · 60 chargements · mémoire résiduelle ${finalMemory.geometries} géométrie(s), ${finalMemory.textures} texture(s)`
+    } catch (error) {
+      html.dataset.status = 'fail'
+      html.dataset.error = error instanceof Error ? error.message : String(error)
+      status.textContent = 'FAIL'
+      console.error(error)
+    }
+  </script>
+</body>
+</html>

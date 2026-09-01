@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { getRelativeRockIndex, ROCK_CATALOG } from '../../content/rockCatalog'
+import { getRelativeRockIndex, getRockCatalogEntry } from '../../content/rockCatalog'
 import type { RockCatalogEntry } from '../../content/rockCatalog'
 import { PRODUCT_NAME } from '../../domain/foundation'
 import { ShowroomScene } from '../../scene/ShowroomScene'
@@ -33,7 +33,7 @@ export function Showroom({ username, onSignOut, onAdopt }: ShowroomProps) {
   const [retryKey, setRetryKey] = useState(0)
   const [isRotating, setIsRotating] = useState(false)
   const reducedMotion = useReducedMotion()
-  const selectedRock = ROCK_CATALOG[selectedIndex] ?? ROCK_CATALOG[0]
+  const selectedRock = getRockCatalogEntry(selectedIndex + 1)
 
   const formattedIndex = useMemo(
     () => String(selectedRock.catalogIndex).padStart(2, '0'),
