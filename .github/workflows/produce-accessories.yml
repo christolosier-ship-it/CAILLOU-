@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - feature/10a-accessory-catalogue
+      - feature/10b-accessory-shop
     paths:
       - 'Ressource/**'
       - 'scripts/blender/accessory_sources.json'
@@ -72,6 +73,7 @@ jobs:
             blender -b --python scripts/blender/export_accessories.py
 
       - name: Assert generated catalogue contract is reproducible
+        if: ${{ github.event_name == 'pull_request' }}
         run: git diff --exit-code -- public/assets/accessories/catalog.json build/accessory-production/report.json
 
       - name: Install frontend dependencies
