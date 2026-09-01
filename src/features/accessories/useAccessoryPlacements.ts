@@ -6,6 +6,7 @@ import {
   loadAccessoryPlacements,
   removeAccessoryPlacement,
   stabilizeAccessoryPlacement,
+  updateAccessoryPlacement,
 } from './accessoryPlacementApi'
 import {
   MAX_EQUIPPED_ACCESSORIES,
@@ -82,14 +83,23 @@ export function useAccessoryPlacements(userRockId: string) {
     if (!currentInstance) return
 
     const nextTransform = clampAccessoryTransform(transform, currentInstance.scaleMin, currentInstance.scaleMax)
-    const input = { instanceId, transform: nextTransform, eventKey: crypto.randomUUID() }
+    const physicallySettled = transform.physicsSettled === true
     setPendingId(instanceId)
     setError(null)
     setInstances((current) => current.map((instance) => instance.id === instanceId
-      ? { ...instance, ...nextTransform, stabilizedAt: null }
+      ? { ...instance, ...nextTransform, stabilizedAt: physicallySettled ? instance.stabilizedAt : null }
       : instance))
 
     try {
+      if (!physicallySettled) {
+        const result = await updateAccessoryPlacement({ instanceId, transform: nextTransform })
+        setInstances((current) => current.map((instance) => instance.id === instanceId
+          ? { ...instance, ...result, stabilizedAt: null }
+          : instance))
+        return
+      }
+
+      const input = { instanceId, transform: nextTransform, eventKey: crypto.randomUUID() }
       let result
       try {
         result = await stabilizeAccessoryPlacement(input)
@@ -99,13 +109,13 @@ export function useAccessoryPlacements(userRockId: string) {
       }
 
       setInstances((current) => current.map((instance) => instance.id === instanceId
-        ? { ...instance, ...result }
+        ? { ...instance, ...result, physicsSettled: undefined }
         : instance))
     } catch (nextError) {
       setInstances((current) => current.map((instance) => instance.id === instanceId ? currentInstance : instance))
       setError(nextError instanceof Error
-        ? `${nextError.message} La dernière pose confirmée a été restaurée.`
-        : 'La pose physique n’a pas pu être confirmée ; le dernier état serveur a été restauré.')
+        ? `${nextError.message} Le dernier état serveur connu a été restauré.`
+        : 'La pose n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
     } finally {
       setPendingId(null)
     }

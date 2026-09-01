@@ -63,6 +63,14 @@ function bodyTransform(body: RapierRigidBody, uniformScale: number): AccessoryTr
   }
 }
 
+function transformKey(instance: EquippedAccessoryInstance) {
+  return [
+    ...instance.localPosition,
+    ...instance.localRotation,
+    instance.uniformScale,
+  ].map((value) => Number(value).toFixed(5)).join('|')
+}
+
 function constrainToRockSurface(
   worldTarget: Vector3,
   rockObject: Object3D | null | undefined,
@@ -104,6 +112,7 @@ export function AccessoryModel({
   const dragRef = useRef<DragState | null>(null)
   const simulatingRef = useRef(false)
   const settlementInFlightRef = useRef(false)
+  const handledUnsettledTransformRef = useRef<string | null>(null)
   const disposedCallbackRef = useRef(onDisposed)
   const loadCallbackRef = useRef(onLoadStateChange)
   const camera = useThree((state) => state.camera)
@@ -183,6 +192,15 @@ export function AccessoryModel({
     }
   }, [instance.id, instance.modelPath, invalidate])
 
+  const startDynamicSettlement = useCallback((body: RapierRigidBody) => {
+    settlementInFlightRef.current = false
+    setPhysicsSimulating(true)
+    body.setLinvel({ x: 0, y: -0.02, z: 0 }, true)
+    body.setAngvel({ x: 0, y: 0, z: 0 }, true)
+    body.wakeUp()
+    invalidate()
+  }, [invalidate, setPhysicsSimulating])
+
   useEffect(() => {
     const body = bodyRef.current
     if (!body || dragRef.current || simulatingRef.current) return
@@ -227,17 +245,15 @@ export function AccessoryModel({
         w: instance.localRotation[3],
       }, false)
     } else {
-      onTransformCommit(instance.id, transform)
+      handledUnsettledTransformRef.current = transformKey({ ...instance, ...transform })
+      onTransformCommit(instance.id, { ...transform, physicsSettled: true })
     }
 
     setPhysicsSimulating(false)
     settlementInFlightRef.current = false
     invalidate()
   }, [
-    instance.id,
-    instance.localPosition,
-    instance.localRotation,
-    instance.uniformScale,
+    instance,
     invalidate,
     onTransformCommit,
     setPhysicsSimulating,
@@ -248,6 +264,80 @@ export function AccessoryModel({
     const timer = window.setTimeout(() => persistCurrentTransform(), ACCESSORY_SETTLE_TIMEOUT_MS)
     return () => window.clearTimeout(timer)
   }, [persistCurrentTransform, simulating])
+
+  useEffect(() => {
+    if (!object || instance.stabilizedAt !== null) return
+    const body = bodyRef.current
+    if (!body || dragRef.current) return
+
+    const nextKey = transformKey(instance)
+    if (handledUnsettledTransformRef.current === nextKey) return
+    handledUnsettledTransformRef.current = nextKey
+
+    if (simulatingRef.current) {
+      body.setLinvel({ x: 0, y: 0, z: 0 }, false)
+      body.setAngvel({ x: 0, y: 0, z: 0 }, false)
+      body.sleep()
+      setPhysicsSimulating(false)
+    }
+
+    const constrained = constrainToRockSurface(
+      new Vector3(...instance.localPosition),
+      rockObject,
+      selectionRadius * instance.uniformScale * 0.72,
+    )
+    body.setTranslation({ x: constrained.x, y: constrained.y, z: constrained.z }, false)
+    body.setRotation({
+      x: instance.localRotation[0],
+      y: instance.localRotation[1],
+      z: instance.localRotation[2],
+      w: instance.localRotation[3],
+    }, false)
+
+    if (physics.enabled && physics.dynamic) {
+      startDynamicSettlement(body)
+    } else {
+      onTransformCommit(instance.id, {
+        localPosition: [constrained.x, constrained.y, constrained.z],
+        localRotation: instance.localRotation,
+        uniformScale: instance.uniformScale,
+        physicsSettled: true,
+      })
+    }
+  }, [
+    instance,
+    object,
+    onTransformCommit,
+    physics.dynamic,
+    physics.enabled,
+    rockObject,
+    selectionRadius,
+    setPhysicsSimulating,
+    startDynamicSettlement,
+  ])
+
+  useEffect(() => {
+    if (instance.stabilizedAt == null || !simulatingRef.current) return
+    const body = bodyRef.current
+    if (!body) return
+    body.setLinvel({ x: 0, y: 0, z: 0 }, false)
+    body.setAngvel({ x: 0, y: 0, z: 0 }, false)
+    body.setTranslation({
+      x: instance.localPosition[0],
+      y: instance.localPosition[1],
+      z: instance.localPosition[2],
+    }, false)
+    body.setRotation({
+      x: instance.localRotation[0],
+      y: instance.localRotation[1],
+      z: instance.localRotation[2],
+      w: instance.localRotation[3],
+    }, false)
+    body.sleep()
+    handledUnsettledTransformRef.current = null
+    setPhysicsSimulating(false)
+    invalidate()
+  }, [instance.localPosition, instance.localRotation, instance.stabilizedAt, invalidate, setPhysicsSimulating])
 
   const beginDrag = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation()
@@ -304,16 +394,11 @@ export function AccessoryModel({
     if (target?.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
 
     if (physics.enabled && physics.dynamic) {
-      settlementInFlightRef.current = false
-      setPhysicsSimulating(true)
-      body.setLinvel({ x: 0, y: -0.02, z: 0 }, true)
-      body.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      body.wakeUp()
-      invalidate()
+      startDynamicSettlement(body)
       return
     }
 
-    onTransformCommit(instance.id, bodyTransform(body, instance.uniformScale))
+    onTransformCommit(instance.id, { ...bodyTransform(body, instance.uniformScale), physicsSettled: true })
   }
 
   const cancelDrag = (event: ThreeEvent<PointerEvent>) => {
