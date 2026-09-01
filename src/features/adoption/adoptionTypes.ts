@@ -1,4 +1,5 @@
 import type { RockCatalogEntry, RockId } from '../../content/rockCatalog'
+import type { RockPosition, RockRotation } from '../rockMovement/rockMovementTypes'
 
 export interface ActiveRock {
   id: string
@@ -6,6 +7,9 @@ export interface ActiveRock {
   name: string
   adoptedAt: string
   lastCleanedAt: string | null
+  posePosition: RockPosition
+  poseRotation: RockRotation
+  poseStabilizedAt: string | null
 }
 
 export interface AdoptRockInput {
