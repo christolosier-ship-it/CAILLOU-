@@ -35,13 +35,13 @@ function finiteTuple(value: Json | null, length: number): number[] | null {
 export function parseLocalPosition(value: Json | null): AccessoryLocalPosition | null {
   const numbers = finiteTuple(value, 3)
   if (!numbers) return null
-  return [numbers[0], numbers[1], numbers[2]]
+  return [numbers[0]!, numbers[1]!, numbers[2]!]
 }
 
 export function parseLocalRotation(value: Json | null): AccessoryLocalRotation | null {
   const numbers = finiteTuple(value, 4)
   if (!numbers) return null
-  const quaternion = new Quaternion(numbers[0], numbers[1], numbers[2], numbers[3])
+  const quaternion = new Quaternion(numbers[0]!, numbers[1]!, numbers[2]!, numbers[3]!)
   const length = quaternion.length()
   if (!Number.isFinite(length) || length < 0.98 || length > 1.02) return null
   quaternion.normalize()
@@ -78,7 +78,7 @@ export function defaultAccessoryTransform(
   ordinal = 0,
 ): AccessoryTransform {
   const lanes = [0, -0.18, 0.18, -0.34, 0.34]
-  const x = lanes[Math.abs(ordinal) % lanes.length]
+  const x = lanes[Math.abs(ordinal) % lanes.length] ?? 0
   const localPosition: AccessoryLocalPosition = accessory.category === 'socle'
     ? [x, -0.88, 0]
     : accessory.category === 'tenue'
