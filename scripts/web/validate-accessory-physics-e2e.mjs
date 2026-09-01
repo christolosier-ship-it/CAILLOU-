@@ -64,6 +64,9 @@ try {
   await page.waitForSelector('.accessory-editor', { timeout: 30_000 })
   await page.waitForFunction(() => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-loaded-count') ?? '0') === 2, { timeout: 30_000 })
   await page.waitForFunction(() => document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-probe-settled') === 'true', { timeout: 20_000 })
+  await page.$eval('.accessory-editor-fine', (element) => {
+    if (element instanceof HTMLDetailsElement) element.open = true
+  })
 
   const phone = await state()
   if (phone.instanceCount !== 2 || phone.loadedCount !== 2) {
@@ -84,8 +87,8 @@ try {
     throw new Error('phone tactile precision edit did not survive physics integration')
   }
 
-  const phoneTargets = await page.$$eval('.accessory-editor button', (buttons) => buttons.every((button) => {
-    const rect = button.getBoundingClientRect()
+  const phoneTargets = await page.$$eval('.accessory-editor button, .accessory-editor summary', (targets) => targets.every((target) => {
+    const rect = target.getBoundingClientRect()
     return rect.width >= 44 && rect.height >= 44
   }))
   if (!phoneTargets) throw new Error('one or more phone physics editor targets are below 44px')
@@ -114,6 +117,7 @@ try {
     phoneTouchEdit: true,
     tabletTouchEdit: true,
     saveCount: tablet.saveCount,
+    fineControlsSecondary: true,
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
