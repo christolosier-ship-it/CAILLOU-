@@ -109,13 +109,15 @@ function computeObjectLocalBounds(root: Object3D): PlacementBounds {
     }
   })
 
-  if (bounds.isEmpty()) {
-    return { min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] }
-  }
+  if (bounds.isEmpty()) return { min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] }
   return {
     min: [bounds.min.x, bounds.min.y, bounds.min.z],
     max: [bounds.max.x, bounds.max.y, bounds.max.z],
   }
+}
+
+function samePosition(left: readonly number[], right: readonly number[], epsilon = 0.00001) {
+  return left.length === right.length && left.every((value, index) => Math.abs(value - (right[index] ?? value)) <= epsilon)
 }
 
 function AutoFitCamera({ object }: { object: Object3D | null }) {
@@ -126,7 +128,6 @@ function AutoFitCamera({ object }: { object: Object3D | null }) {
 
   useLayoutEffect(() => {
     if (!object || !(camera instanceof PerspectiveCamera)) return
-
     const box = new Box3().setFromObject(object)
     if (box.isEmpty()) return
 
@@ -149,7 +150,6 @@ function AutoFitCamera({ object }: { object: Object3D | null }) {
       controls.maxDistance = distance * 1.45
       controls.update()
     }
-
     invalidate()
   }, [camera, controls, invalidate, object, size.height, size.width])
 
@@ -171,11 +171,7 @@ function RockGestureController({
   const pointersRef = useRef(new Map<number, GesturePoint>())
   const poseRef = useRef(pose)
   const previousSingleRef = useRef<GesturePoint | null>(null)
-  const multiBaselineRef = useRef<{
-    distance: number
-    angle: number
-    pose: RockPose
-  } | null>(null)
+  const multiBaselineRef = useRef<{ distance: number; angle: number; pose: RockPose } | null>(null)
 
   useEffect(() => {
     poseRef.current = pose
@@ -186,21 +182,18 @@ function RockGestureController({
     const points = () => [...pointersRef.current.values()]
     const distance = (items: GesturePoint[]) => Math.hypot(items[1]!.x - items[0]!.x, items[1]!.y - items[0]!.y)
     const angle = (items: GesturePoint[]) => Math.atan2(items[1]!.y - items[0]!.y, items[1]!.x - items[0]!.x)
-
     const worldPerPixel = () => {
       const target = new Vector3(...poseRef.current.position)
       const cameraDistance = Math.max(0.5, camera.position.distanceTo(target))
       if (!(camera instanceof PerspectiveCamera)) return cameraDistance / Math.max(320, canvas.clientHeight)
       return 2 * cameraDistance * Math.tan(MathUtils.degToRad(camera.fov) / 2) / Math.max(1, canvas.clientHeight)
     }
-
     const publish = (next: RockPose) => {
       const normalized = normalizeRockPose(next)
       poseRef.current = normalized
       onPoseChange(normalized)
       invalidate()
     }
-
     const resetBaseline = () => {
       const items = points()
       if (items.length >= 2) {
@@ -218,18 +211,12 @@ function RockGestureController({
         multiBaselineRef.current = null
       }
     }
-
     const onPointerDown = (event: PointerEvent) => {
       event.preventDefault()
       pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-      try {
-        canvas.setPointerCapture(event.pointerId)
-      } catch {
-        // Pointer capture may already belong to a nested R3F target.
-      }
+      try { canvas.setPointerCapture(event.pointerId) } catch { /* capture is optional */ }
       resetBaseline()
     }
-
     const onPointerMove = (event: PointerEvent) => {
       if (!pointersRef.current.has(event.pointerId)) return
       event.preventDefault()
@@ -242,8 +229,7 @@ function RockGestureController({
         if (mode === 'rock-position') {
           const delta = distance(items) - baseline.distance
           const view = camera.getWorldDirection(new Vector3()).normalize()
-          const base = new Vector3(...baseline.pose.position)
-          base.addScaledVector(view, -delta * scale * 1.35)
+          const base = new Vector3(...baseline.pose.position).addScaledVector(view, -delta * scale * 1.35)
           publish({ ...baseline.pose, position: clampRockPosition([base.x, base.y, base.z]) })
         } else {
           const twist = angle(items) - baseline.angle
@@ -281,14 +267,11 @@ function RockGestureController({
         publish({ ...poseRef.current, rotation: [next.x, next.y, next.z, next.w] })
       }
     }
-
     const onPointerEnd = (event: PointerEvent) => {
       pointersRef.current.delete(event.pointerId)
       try {
         if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
-      } catch {
-        // Nothing to release.
-      }
+      } catch { /* nothing to release */ }
       resetBaseline()
     }
 
@@ -330,11 +313,7 @@ function ManipulationController({
   const invalidate = useThree((state) => state.invalidate)
   const pointersRef = useRef(new Map<number, GesturePoint>())
   const previousSingleRef = useRef<GesturePoint | null>(null)
-  const baselineRef = useRef<{
-    distance: number
-    angle: number
-    snapshot: ManipulationSnapshot
-  } | null>(null)
+  const baselineRef = useRef<{ distance: number; angle: number; snapshot: ManipulationSnapshot } | null>(null)
   const stateRef = useRef({ target, tool, rockPose, rockBounds, accessories })
 
   useEffect(() => {
@@ -347,6 +326,13 @@ function ManipulationController({
     const distance = (items: GesturePoint[]) => Math.hypot(items[1]!.x - items[0]!.x, items[1]!.y - items[0]!.y)
     const angle = (items: GesturePoint[]) => Math.atan2(items[1]!.y - items[0]!.y, items[1]!.x - items[0]!.x)
 
+    const selectedInstance = () => {
+      const current = stateRef.current
+      return current.target.kind === 'accessory'
+        ? current.accessories.find((candidate) => candidate.id === current.target.instanceId) ?? null
+        : null
+    }
+
     const snapshot = (): ManipulationSnapshot | null => {
       const current = stateRef.current
       if (current.target.kind === 'rock') {
@@ -356,7 +342,7 @@ function ManipulationController({
           scale: 1,
         }
       }
-      const instance = current.accessories.find((candidate) => candidate.id === current.target.instanceId)
+      const instance = selectedInstance()
       if (!instance) return null
       const world = accessoryLocalToWorld(instance.id, instance, current.rockPose)
       return {
@@ -366,27 +352,33 @@ function ManipulationController({
       }
     }
 
-    const publishRock = (next: ManipulationSnapshot) => {
+    const publish = (next: ManipulationSnapshot) => {
       const current = stateRef.current
-      if (current.target.kind !== 'rock' || !onRockPoseChange) return
-      const normalized = normalizeRockPose({
-        position: [next.position.x, next.position.y, next.position.z],
-        rotation: [next.rotation.x, next.rotation.y, next.rotation.z, next.rotation.w],
-      })
-      const grounded = current.rockBounds
-        ? clampWorldPositionAboveGround(normalized.position, normalized.rotation, current.rockBounds, PEDESTAL_GROUND_Y)
-        : normalized.position
-      onRockPoseChange(normalizeRockPose({ position: grounded, rotation: normalized.rotation }))
-      invalidate()
-    }
+      const rotation: [number, number, number, number] = [
+        next.rotation.x,
+        next.rotation.y,
+        next.rotation.z,
+        next.rotation.w,
+      ]
 
-    const publishAccessory = (next: ManipulationSnapshot) => {
-      const current = stateRef.current
-      if (current.target.kind !== 'accessory' || !onAccessoryTransformChange) return
-      const instance = current.accessories.find((candidate) => candidate.id === current.target.instanceId)
+      if (current.target.kind === 'rock') {
+        if (!onRockPoseChange) return
+        const normalized = normalizeRockPose({
+          position: [next.position.x, next.position.y, next.position.z],
+          rotation,
+        })
+        const grounded = current.rockBounds
+          ? clampWorldPositionAboveGround(normalized.position, normalized.rotation, current.rockBounds, PEDESTAL_GROUND_Y)
+          : normalized.position
+        onRockPoseChange(normalizeRockPose({ position: grounded, rotation: normalized.rotation }))
+        invalidate()
+        return
+      }
+
+      if (!onAccessoryTransformChange) return
+      const instance = selectedInstance()
       if (!instance) return
       const safeScale = Math.max(instance.scaleMin, Math.min(instance.scaleMax, next.scale))
-      const rotation: [number, number, number, number] = [next.rotation.x, next.rotation.y, next.rotation.z, next.rotation.w]
       const bounds = accessoryBoundsFromDimensions(instance.dimensions, safeScale)
       const grounded = clampWorldPositionAboveGround(
         [next.position.x, next.position.y, next.position.z],
@@ -394,30 +386,17 @@ function ManipulationController({
         bounds,
         PEDESTAL_GROUND_Y,
       )
-      const preliminary = clampAccessoryTransform(accessoryWorldToLocal({
+      const local = accessoryWorldToLocal({
         instanceId: instance.id,
         worldPosition: grounded,
         worldRotation: rotation,
         uniformScale: safeScale,
-      }, current.rockPose), instance.scaleMin, instance.scaleMax)
-      const checkedWorld = accessoryLocalToWorld(instance.id, preliminary, current.rockPose)
-      const checkedGround = clampWorldPositionAboveGround(
-        checkedWorld.worldPosition,
-        checkedWorld.worldRotation,
-        bounds,
-        PEDESTAL_GROUND_Y,
+      }, current.rockPose)
+      onAccessoryTransformChange(
+        instance.id,
+        clampAccessoryTransform(local, instance.scaleMin, instance.scaleMax),
       )
-      const finalTransform = clampAccessoryTransform(accessoryWorldToLocal({
-        ...checkedWorld,
-        worldPosition: checkedGround,
-      }, current.rockPose), instance.scaleMin, instance.scaleMax)
-      onAccessoryTransformChange(instance.id, finalTransform)
       invalidate()
-    }
-
-    const publish = (next: ManipulationSnapshot) => {
-      if (stateRef.current.target.kind === 'rock') publishRock(next)
-      else publishAccessory(next)
     }
 
     const worldPerPixel = () => {
@@ -451,11 +430,7 @@ function ManipulationController({
     const onPointerDown = (event: PointerEvent) => {
       event.preventDefault()
       pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-      try {
-        canvas.setPointerCapture(event.pointerId)
-      } catch {
-        // The DOM canvas remains the gesture surface even if capture is unavailable.
-      }
+      try { canvas.setPointerCapture(event.pointerId) } catch { /* capture is optional */ }
       resetBaseline()
     }
 
@@ -473,11 +448,10 @@ function ManipulationController({
         if (currentTool === 'position') {
           const delta = distance(items) - baseline.distance
           const view = camera.getWorldDirection(new Vector3()).normalize()
-          const next = {
+          publish({
             ...baseline.snapshot,
             position: baseline.snapshot.position.clone().addScaledVector(view, -delta * scalePerPixel * 1.35),
-          }
-          publish(next)
+          })
         } else if (currentTool === 'orientation') {
           const twist = angle(items) - baseline.angle
           const axis = camera.getWorldDirection(new Vector3()).normalize()
@@ -506,17 +480,21 @@ function ManipulationController({
       if (currentTool === 'position') {
         const right = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
         const up = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
-        const nextPosition = current.position.clone()
-          .addScaledVector(right, dx * scalePerPixel)
-          .addScaledVector(up, -dy * scalePerPixel)
-        publish({ ...current, position: nextPosition })
+        publish({
+          ...current,
+          position: current.position.clone()
+            .addScaledVector(right, dx * scalePerPixel)
+            .addScaledVector(up, -dy * scalePerPixel),
+        })
       } else {
         const cameraUp = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
         const cameraRight = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
         const yaw = new Quaternion().setFromAxisAngle(cameraUp, dx * 0.008)
         const pitch = new Quaternion().setFromAxisAngle(cameraRight, dy * 0.008)
-        const nextRotation = yaw.multiply(pitch).multiply(current.rotation.clone()).normalize()
-        publish({ ...current, rotation: nextRotation })
+        publish({
+          ...current,
+          rotation: yaw.multiply(pitch).multiply(current.rotation.clone()).normalize(),
+        })
       }
     }
 
@@ -524,9 +502,7 @@ function ManipulationController({
       pointersRef.current.delete(event.pointerId)
       try {
         if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
-      } catch {
-        // Nothing to release.
-      }
+      } catch { /* nothing to release */ }
       resetBaseline()
     }
 
@@ -549,6 +525,7 @@ function ManipulationController({
 function RockPhysicsBody({
   object,
   pose,
+  bounds,
   visualGroup,
   manipulating,
   globalSettling,
@@ -556,6 +533,7 @@ function RockPhysicsBody({
 }: {
   object: Object3D
   pose: RockPose
+  bounds: PlacementBounds
   visualGroup: Group | null
   manipulating: boolean
   globalSettling: boolean
@@ -571,6 +549,26 @@ function RockPhysicsBody({
     return clone
   }, [object])
 
+  const enforceHardFloor = useCallback(() => {
+    const body = bodyRef.current
+    if (!body) return false
+    const position = body.translation()
+    const rotation = body.rotation()
+    const grounded = clampWorldPositionAboveGround(
+      [position.x, position.y, position.z],
+      [rotation.x, rotation.y, rotation.z, rotation.w],
+      bounds,
+      PEDESTAL_GROUND_Y,
+    )
+    if (grounded[1] <= position.y + 0.000001) return false
+
+    body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
+    const velocity = body.linvel()
+    if (velocity.y < 0) body.setLinvel({ x: velocity.x, y: 0, z: velocity.z }, true)
+    invalidate()
+    return true
+  }, [bounds, invalidate])
+
   const syncVisual = useCallback(() => {
     const body = bodyRef.current
     if (!body || !visualGroup) return
@@ -582,13 +580,18 @@ function RockPhysicsBody({
     invalidate()
   }, [invalidate, visualGroup])
 
-  useAfterPhysicsStep(syncVisual)
+  useAfterPhysicsStep(() => {
+    if (globalSettling) enforceHardFloor()
+    syncVisual()
+  })
 
   useEffect(() => {
     const body = bodyRef.current
     if (!body || globalSettling) return
-    const translation = { x: pose.position[0], y: pose.position[1], z: pose.position[2] }
-    const rotation = { x: pose.rotation[0], y: pose.rotation[1], z: pose.rotation[2], w: pose.rotation[3] }
+    const grounded = clampWorldPositionAboveGround(pose.position, pose.rotation, bounds, PEDESTAL_GROUND_Y)
+    const safePose = normalizeRockPose({ position: grounded, rotation: pose.rotation })
+    const translation = { x: safePose.position[0], y: safePose.position[1], z: safePose.position[2] }
+    const rotation = { x: safePose.rotation[0], y: safePose.rotation[1], z: safePose.rotation[2], w: safePose.rotation[3] }
     if (manipulating) {
       body.setNextKinematicTranslation(translation)
       body.setNextKinematicRotation(rotation)
@@ -597,34 +600,45 @@ function RockPhysicsBody({
       body.setRotation(rotation, false)
     }
     if (visualGroup) {
-      visualGroup.position.set(...pose.position)
-      visualGroup.quaternion.set(...pose.rotation).normalize()
+      visualGroup.position.set(...safePose.position)
+      visualGroup.quaternion.set(...safePose.rotation).normalize()
       visualGroup.updateMatrixWorld(true)
     }
     invalidate()
-  }, [globalSettling, invalidate, manipulating, pose, visualGroup])
+  }, [bounds, globalSettling, invalidate, manipulating, pose, visualGroup])
 
   const report = useCallback(() => {
     const body = bodyRef.current
     if (!body || !globalSettling || reportedRef.current) return
     reportedRef.current = true
+    enforceHardFloor()
     body.setLinvel({ x: 0, y: 0, z: 0 }, false)
     body.setAngvel({ x: 0, y: 0, z: 0 }, false)
     body.sleep()
     const position = body.translation()
     const rotation = body.rotation()
+    const grounded = clampWorldPositionAboveGround(
+      [position.x, position.y, position.z],
+      [rotation.x, rotation.y, rotation.z, rotation.w],
+      bounds,
+      PEDESTAL_GROUND_Y,
+    )
+    if (!samePosition(grounded, [position.x, position.y, position.z])) {
+      body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, false)
+    }
     onSettled(normalizeRockPose({
-      position: [position.x, position.y, position.z],
+      position: grounded,
       rotation: [rotation.x, rotation.y, rotation.z, rotation.w],
     }))
     syncVisual()
-  }, [globalSettling, onSettled, syncVisual])
+  }, [bounds, enforceHardFloor, globalSettling, onSettled, syncVisual])
 
   useEffect(() => {
     reportedRef.current = false
     if (!globalSettling) return
     const body = bodyRef.current
     if (body) {
+      enforceHardFloor()
       body.setLinvel({ x: 0, y: -0.03, z: 0 }, true)
       body.setAngvel({ x: 0, y: 0, z: 0 }, true)
       body.wakeUp()
@@ -632,7 +646,7 @@ function RockPhysicsBody({
     const timer = window.setTimeout(report, ROCK_SETTLE_TIMEOUT_MS)
     invalidate()
     return () => window.clearTimeout(timer)
-  }, [globalSettling, invalidate, report])
+  }, [enforceHardFloor, globalSettling, invalidate, report])
 
   return (
     <RigidBody
@@ -650,7 +664,7 @@ function RockPhysicsBody({
       angularDamping={2.2}
       ccd={globalSettling}
       canSleep
-      additionalSolverIterations={globalSettling ? 4 : 1}
+      additionalSolverIterations={globalSettling ? 6 : 1}
       onSleep={report}
     >
       <primitive object={colliderObject} />
@@ -718,6 +732,14 @@ export function ShowroomScene({
   const orbitMode = interactionMode === 'orbit'
 
   useEffect(() => {
+    if (!rockBounds || globalSettling || placementRockTarget || !onRockPoseDraft) return
+    const grounded = clampWorldPositionAboveGround(rockPose.position, rockPose.rotation, rockBounds, PEDESTAL_GROUND_Y)
+    if (!samePosition(grounded, rockPose.position)) {
+      onRockPoseDraft(normalizeRockPose({ position: grounded, rotation: rockPose.rotation }))
+    }
+  }, [globalSettling, onRockPoseDraft, placementRockTarget, rockBounds, rockPose])
+
+  useEffect(() => {
     if (!globalSettling) return
     finalRockRef.current = null
     finalAccessoriesRef.current = new Map()
@@ -750,15 +772,9 @@ export function ShowroomScene({
   return (
     <div
       className="showroom-canvas"
-      onPointerDown={() => {
-        if (orbitMode) onInteractionChange(true)
-      }}
-      onPointerUp={() => {
-        if (orbitMode) onInteractionChange(false)
-      }}
-      onPointerCancel={() => {
-        if (orbitMode) onInteractionChange(false)
-      }}
+      onPointerDown={() => { if (orbitMode) onInteractionChange(true) }}
+      onPointerUp={() => { if (orbitMode) onInteractionChange(false) }}
+      onPointerCancel={() => { if (orbitMode) onInteractionChange(false) }}
       onContextMenu={(event) => event.preventDefault()}
     >
       <Canvas
@@ -784,11 +800,7 @@ export function ShowroomScene({
           >
             <PedestalGround />
 
-            <group
-              ref={setVisualGroup}
-              position={rockPose.position}
-              quaternion={rockPose.rotation}
-            >
+            <group ref={setVisualGroup} position={rockPose.position} quaternion={rockPose.rotation}>
               <RockModel
                 key={`${rock.id}-${retryKey}`}
                 path={rock.modelPath}
@@ -804,10 +816,11 @@ export function ShowroomScene({
               />
             </group>
 
-            {object && visualGroup ? (
+            {object && visualGroup && rockBounds ? (
               <RockPhysicsBody
                 object={object}
                 pose={rockPose}
+                bounds={rockBounds}
                 visualGroup={visualGroup}
                 manipulating={legacyRockManipulationMode || placementRockTarget}
                 globalSettling={globalSettling}
