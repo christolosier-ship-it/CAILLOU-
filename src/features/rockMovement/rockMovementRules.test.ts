@@ -12,7 +12,7 @@ const EPSILON = 0.00001
 
 function expectTupleClose(actual: number[], expected: number[]) {
   expect(actual).toHaveLength(expected.length)
-  actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index], 5))
+  actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 5))
 }
 
 describe('rock movement rules', () => {
