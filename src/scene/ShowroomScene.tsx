@@ -322,8 +322,8 @@ function ManipulationController({
   rockPose: RockPose
   rockBounds: PlacementBounds | null
   accessories: EquippedAccessoryInstance[]
-  onRockPoseChange?: (pose: RockPose) => void
-  onAccessoryTransformChange?: (instanceId: string, transform: AccessoryTransform) => void
+  onRockPoseChange?: ((pose: RockPose) => void) | undefined
+  onAccessoryTransformChange?: ((instanceId: string, transform: AccessoryTransform) => void) | undefined
 }) {
   const camera = useThree((state) => state.camera)
   const gl = useThree((state) => state.gl)
