@@ -21,6 +21,14 @@ import type { RegisterCleaningInput, RegisterCleaningMutation } from '../cleanin
 import { PlacementPanel } from '../placement/PlacementPanel'
 import { persistAccessoryWorldTransform, persistRockCompositionWorld } from '../placement/placementPersistence'
 import type { SettledWorldComposition } from '../placement/placementPersistence'
+import {
+  addPlacementSessionAccessory,
+  buildPlacementSettlementPlan,
+  createPlacementSession,
+  removePlacementSessionAccessory,
+  updatePlacementSession,
+} from '../placement/placementSession'
+import type { PlacementSessionState, PlacementSettlementPlan } from '../placement/placementSession'
 import type { PlacementTarget, PlacementTool, PlacementTransform } from '../placement/placementTypes'
 import type { RockPose } from '../rockMovement/rockMovementTypes'
 import { useRockMovementPermit } from '../rockMovement/useRockMovementPermit'
@@ -114,6 +122,8 @@ export function Pedestal({
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null)
   const [placementTarget, setPlacementTarget] = useState<PlacementTarget | null>(null)
   const [placementTool, setPlacementTool] = useState<PlacementTool>('position')
+  const [placementSession, setPlacementSession] = useState<PlacementSessionState | null>(null)
+  const [settlementPlan, setSettlementPlan] = useState<PlacementSettlementPlan | null>(null)
   const [accessoryRenderError, setAccessoryRenderError] = useState<string | null>(null)
   const [rockMovementError, setRockMovementError] = useState<string | null>(null)
   const [compositionPending, setCompositionPending] = useState(false)
@@ -170,8 +180,8 @@ const {
   const cleaningMode = mode === 'cleaning'
   const placementMode = mode === 'placement'
   const settlingMode = mode === 'settling'
-  const accessorySettling = settlingMode && placementTarget?.kind === 'accessory'
-  const globalSettling = settlingMode && placementTarget?.kind === 'rock'
+  const accessorySettling = settlingMode && settlementPlan !== null && !settlementPlan.rock
+  const globalSettling = settlingMode && settlementPlan?.rock === true
   const mutationBlocked = caressPending
     || cleaningPending
     || retryInput !== null
@@ -192,14 +202,13 @@ const {
       rotation: [...activeRock.poseRotation] as RockPose['rotation'],
     }
     canonicalRockPoseRef.current = canonical
-    if (!(placementMode && placementTarget?.kind === 'rock') && !globalSettling) setRockPose(canonical)
+    if (!placementMode && !settlingMode) setRockPose(canonical)
   }, [
     activeRock.id,
     activeRock.posePosition,
     activeRock.poseRotation,
-    globalSettling,
     placementMode,
-    placementTarget,
+    settlingMode,
   ])
 
   useEffect(() => () => {
@@ -371,6 +380,9 @@ const {
     gestureRef.current = null
     setPlacementTarget(null)
     setSelectedAccessoryId(null)
+    setPlacementSession(null)
+    setSettlementPlan(null)
+    setRockPose(canonicalRockPoseRef.current)
     setRockMovementError(null)
     setAccessoryShopOpen(false)
     setMode((current) => {
@@ -386,6 +398,9 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
   if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
   setSelectedAccessoryId(null)
   setPlacementTarget(null)
+  setPlacementSession(null)
+  setSettlementPlan(null)
+  setRockPose(canonicalRockPoseRef.current)
   setMode('orbit')
   setShopFocus(focus)
   setAccessoryShopOpen(true)
@@ -399,6 +414,7 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
   const handlePlacementAdd = useCallback(async (item: AccessoryCatalogItem) => {
     const created = await placeAccessory(item)
     setAccessoryRenderError(null)
+    setPlacementSession((current) => current ? addPlacementSessionAccessory(current, created) : current)
     setSelectedAccessoryId(created.id)
     setPlacementTarget({ kind: 'accessory', instanceId: created.id })
     setPlacementTool('position')
@@ -415,6 +431,7 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
     if (mutationBlocked || mode !== 'placement') return
     void removeAccessory(instanceId).then((removed) => {
       if (!removed) return
+      setPlacementSession((current) => current ? removePlacementSessionAccessory(current, instanceId) : current)
       setSelectedAccessoryId(null)
       setPlacementTarget(null)
       setPlacementTool('position')
@@ -431,8 +448,16 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
     setPlacementTarget(null)
     setPlacementTool('position')
     setRockMovementError(null)
-    setMode((current) => current === 'placement' ? 'orbit' : 'placement')
-  }, [mode, mutationBlocked])
+    setSettlementPlan(null)
+    if (mode === 'placement') {
+      setPlacementSession(null)
+      setRockPose(canonicalRockPoseRef.current)
+      setMode('orbit')
+      return
+    }
+    setPlacementSession(createPlacementSession(rockPose, accessoryInstances))
+    setMode('placement')
+  }, [accessoryInstances, mode, mutationBlocked, rockPose])
 
   const selectRockForPlacement = useCallback(() => {
     if (mutationBlocked) return
@@ -454,22 +479,43 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
   }, [mutationBlocked, placementTarget])
 
 
+  const handleRockPlacementDraft = useCallback((pose: RockPose) => {
+    setRockPose(pose)
+    setPlacementSession((current) => current ? updatePlacementSession(current, { kind: 'rock' }, {
+      position: [...pose.position],
+      rotation: [...pose.rotation],
+      scale: 1,
+    }) : current)
+  }, [])
+
+  const handleAccessoryPlacementDraft = useCallback((instanceId: string, transform: PlacementTransform) => {
+    setPlacementSession((current) => current
+      ? updatePlacementSession(current, { kind: 'accessory', instanceId }, transform)
+      : current)
+  }, [])
+
 
 const handlePlacementDone = useCallback(() => {
   if (mutationBlocked || mode !== 'placement') return
-  setMode(placementTarget ? 'settling' : 'orbit')
-}, [mode, mutationBlocked, placementTarget])
+  const plan = buildPlacementSettlementPlan(placementSession)
+  if (!plan) {
+    setPlacementSession(null)
+    setPlacementTarget(null)
+    setSelectedAccessoryId(null)
+    setMode('orbit')
+    return
+  }
+  setSettlementPlan(plan)
+  setMode('settling')
+}, [mode, mutationBlocked, placementSession])
 
 
 const handleAccessorySettled = useCallback((instanceId: string, transform: PlacementTransform) => {
-  if (globalSettling || accessoryPersistenceRef.current.has(instanceId)) return
+  if (settlingMode || accessoryPersistenceRef.current.has(instanceId)) return
   if (!accessoryInstances.some((instance) => instance.id === instanceId)) return
   accessoryPersistenceRef.current.add(instanceId)
   setAccessoryPersistenceCount(accessoryPersistenceRef.current.size)
   setAccessoryRenderError(null)
-  const targetedSettlement = accessorySettling
-    && placementTarget?.kind === 'accessory'
-    && placementTarget.instanceId === instanceId
 
   void persistAccessoryWorldTransform({
     instanceId,
@@ -478,13 +524,6 @@ const handleAccessorySettled = useCallback((instanceId: string, transform: Place
     eventKey: crypto.randomUUID(),
   }).then((result) => {
     acceptStabilizedAccessory(result)
-    if (targetedSettlement) {
-      setPlacementTarget(null)
-      setSelectedAccessoryId(null)
-      setPlacementTool('position')
-      setMode('orbit')
-      navigator.vibrate?.(16)
-    }
   }).catch(async (error) => {
     setAccessoryRenderError(error instanceof Error
       ? `${error.message} Le dernier état serveur connu a été restauré.`
@@ -494,12 +533,6 @@ const handleAccessorySettled = useCallback((instanceId: string, transform: Place
     } catch {
       // Keep the last visible canonical state if the reread is offline.
     }
-    if (targetedSettlement) {
-      setPlacementTarget(null)
-      setSelectedAccessoryId(null)
-      setPlacementTool('position')
-      setMode('orbit')
-    }
   }).finally(() => {
     accessoryPersistenceRef.current.delete(instanceId)
     setAccessoryPersistenceCount(accessoryPersistenceRef.current.size)
@@ -507,11 +540,9 @@ const handleAccessorySettled = useCallback((instanceId: string, transform: Place
 }, [
   acceptStabilizedAccessory,
   accessoryInstances,
-  globalSettling,
-  accessorySettling,
-  placementTarget,
   refreshAccessoryPlacements,
   rockPose,
+  settlingMode,
 ])
 
   const handlePermitPurchase = useCallback(async () => {
@@ -525,7 +556,7 @@ const handleAccessorySettled = useCallback((instanceId: string, transform: Place
 
 
 const handleCompositionSettled = useCallback((composition: SettledWorldComposition) => {
-  if (compositionPending || !globalSettling) return
+  if (compositionPending || !settlingMode || !settlementPlan) return
   setCompositionPending(true)
   setRockMovementError(null)
   void persistRockCompositionWorld({
@@ -536,6 +567,8 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
     acceptComposition(result)
     setRockPose(result.rockPose)
     canonicalRockPoseRef.current = result.rockPose
+    setPlacementSession(null)
+    setSettlementPlan(null)
     setPlacementTarget(null)
     setSelectedAccessoryId(null)
     setPlacementTool('position')
@@ -547,6 +580,8 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
       ? `${error.message} Le dernier état serveur connu a été restauré.`
       : 'La manutention n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
     setRockPose(canonicalRockPoseRef.current)
+    setPlacementSession(null)
+    setSettlementPlan(null)
     setPlacementTarget(null)
     setSelectedAccessoryId(null)
     setPlacementTool('position')
@@ -564,8 +599,9 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
   acceptComposition,
   activeRock.id,
   compositionPending,
-  globalSettling,
   onServerStateChanged,
+  settlementPlan,
+  settlingMode,
   refreshAccessoryPlacements,
 ])
 
@@ -687,10 +723,12 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
             onInteractionChange={() => undefined}
             interactionMode={mode}
             rockPose={rockPose}
-            onRockPoseDraft={setRockPose}
+            onRockPoseDraft={handleRockPlacementDraft}
             onCompositionSettled={handleCompositionSettled}
             placementTarget={placementTarget}
             placementTool={placementTool}
+            placementSession={placementSession}
+            settlementPlan={settlementPlan}
             dustAmount={dustAmount}
             dustRevision={dustRevision}
             onSurfacePointerDown={handleSurfaceStart}
@@ -699,6 +737,7 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
             onSurfacePointerCancel={cancelSurfaceGesture}
             accessories={accessoryInstances}
             selectedAccessoryId={selectedAccessoryId}
+            onAccessoryPlacementDraft={handleAccessoryPlacementDraft}
             onAccessorySettled={handleAccessorySettled}
             onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
