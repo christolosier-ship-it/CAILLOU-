@@ -136,10 +136,12 @@ function AutoFitCamera({ object }: { object: Object3D | null }) {
 function RockGestureController({
   mode,
   pose,
+  geometry,
   onPoseChange,
 }: {
   mode: 'rock-position' | 'rock-orientation'
   pose: RockPose
+  geometry: PlacementGeometry | null
   onPoseChange: (pose: RockPose) => void
 }) {
   const camera = useThree((state) => state.camera)
@@ -166,11 +168,22 @@ function RockGestureController({
       return 2 * cameraDistance * Math.tan(MathUtils.degToRad(camera.fov) / 2) / Math.max(1, canvas.clientHeight)
     }
     const publish = (next: RockPose) => {
-      const normalized = normalizeRockPose(next)
-      poseRef.current = normalized
-      onPoseChange(normalized)
-      invalidate()
-    }
+  const normalized = normalizeRockPose(next)
+  if (!geometry) return
+  const constrained = normalizeRockPose({
+    position: constrainPlacementPosition(
+      normalized.position,
+      normalized.rotation,
+      1,
+      geometry,
+    ),
+    rotation: normalized.rotation,
+  })
+  poseRef.current = constrained
+  onPoseChange(constrained)
+  invalidate()
+}
+
     const resetBaseline = () => {
       const items = points()
       if (items.length >= 2) {
@@ -263,7 +276,7 @@ function RockGestureController({
       canvas.removeEventListener('pointerup', onPointerEnd)
       canvas.removeEventListener('pointercancel', onPointerEnd)
     }
-  }, [camera, gl, invalidate, mode, onPoseChange])
+  }, [camera, geometry, gl, invalidate, mode, onPoseChange])
 
   return null
 }
@@ -863,6 +876,7 @@ export function ShowroomScene({
               <RockGestureController
                 mode={interactionMode}
                 pose={rockPose}
+                geometry={rockGeometry}
                 onPoseChange={onRockPoseDraft}
               />
             ) : null}
