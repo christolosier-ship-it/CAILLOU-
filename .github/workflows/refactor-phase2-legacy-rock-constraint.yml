@@ -29,83 +29,56 @@ jobs:
 
           path = Path('src/scene/ShowroomScene.tsx')
           text = path.read_text()
+          controller_start = text.index('function RockGestureController({')
+          controller_end = text.index('\nfunction ManipulationController({', controller_start)
+          controller = text[controller_start:controller_end]
 
-          old_signature = """function RockGestureController({
-            mode,
-            pose,
-            onPoseChange,
-          }: {
-            mode: 'rock-position' | 'rock-orientation'
-            pose: RockPose
-            onPoseChange: (pose: RockPose) => void
-          }) {
-          """
-          new_signature = """function RockGestureController({
-            mode,
-            pose,
-            geometry,
-            onPoseChange,
-          }: {
-            mode: 'rock-position' | 'rock-orientation'
-            pose: RockPose
-            geometry: PlacementGeometry | null
-            onPoseChange: (pose: RockPose) => void
-          }) {
-          """
-          if old_signature not in text:
-              raise SystemExit('RockGestureController signature anchor missing')
-          text = text.replace(old_signature, new_signature, 1)
+          marker = "  pose,\n  onPoseChange,\n}: {"
+          if marker not in controller:
+              raise SystemExit('RockGestureController signature marker missing')
+          controller = controller.replace(marker, "  pose,\n  geometry,\n  onPoseChange,\n}: {", 1)
 
-          old_publish = """    const publish = (next: RockPose) => {
-              const normalized = normalizeRockPose(next)
-              poseRef.current = normalized
-              onPoseChange(normalized)
-              invalidate()
-            }
-          """
-          new_publish = """    const publish = (next: RockPose) => {
-              const normalized = normalizeRockPose(next)
-              if (!geometry) return
-              const constrained = normalizeRockPose({
-                position: constrainPlacementPosition(
-                  normalized.position,
-                  normalized.rotation,
-                  1,
-                  geometry,
-                ),
-                rotation: normalized.rotation,
-              })
-              poseRef.current = constrained
-              onPoseChange(constrained)
-              invalidate()
-            }
-          """
-          if old_publish not in text:
-              raise SystemExit('RockGestureController publish anchor missing')
-          text = text.replace(old_publish, new_publish, 1)
+          marker = "  pose: RockPose\n  onPoseChange: (pose: RockPose) => void"
+          if marker not in controller:
+              raise SystemExit('RockGestureController props marker missing')
+          controller = controller.replace(marker, "  pose: RockPose\n  geometry: PlacementGeometry | null\n  onPoseChange: (pose: RockPose) => void", 1)
 
-          old_deps = "  }, [camera, gl, invalidate, mode, onPoseChange])"
-          new_deps = "  }, [camera, geometry, gl, invalidate, mode, onPoseChange])"
-          if old_deps not in text:
-              raise SystemExit('RockGestureController deps anchor missing')
-          text = text.replace(old_deps, new_deps, 1)
+          publish_start = controller.index('    const publish = (next: RockPose) => {')
+          publish_end = controller.index('    const resetBaseline = () => {', publish_start)
+          constrained_publish = """    const publish = (next: RockPose) => {
+            const normalized = normalizeRockPose(next)
+            if (!geometry) return
+            const constrained = normalizeRockPose({
+              position: constrainPlacementPosition(
+                normalized.position,
+                normalized.rotation,
+                1,
+                geometry,
+              ),
+              rotation: normalized.rotation,
+            })
+            poseRef.current = constrained
+            onPoseChange(constrained)
+            invalidate()
+          }
 
-          old_call = """              <RockGestureController
-                mode={interactionMode}
-                pose={rockPose}
-                onPoseChange={onRockPoseDraft}
-              />
           """
-          new_call = """              <RockGestureController
-                mode={interactionMode}
-                pose={rockPose}
-                geometry={rockGeometry}
-                onPoseChange={onRockPoseDraft}
-              />
-          """
-          if old_call not in text:
-              raise SystemExit('RockGestureController call anchor missing')
-          text = text.replace(old_call, new_call, 1)
+          controller = controller[:publish_start] + constrained_publish + controller[publish_end:]
+
+          deps = '  }, [camera, gl, invalidate, mode, onPoseChange])'
+          if deps not in controller:
+              raise SystemExit('RockGestureController deps marker missing')
+          controller = controller.replace(deps, '  }, [camera, geometry, gl, invalidate, mode, onPoseChange])', 1)
+          text = text[:controller_start] + controller + text[controller_end:]
+
+          call_marker = "                pose={rockPose}\n                onPoseChange={onRockPoseDraft}"
+          if call_marker not in text:
+              raise SystemExit('RockGestureController call marker missing')
+          text = text.replace(
+              call_marker,
+              "                pose={rockPose}\n                geometry={rockGeometry}\n                onPoseChange={onRockPoseDraft}",
+              1,
+          )
 
           path.write_text(text)
       - name: Validate phase 2 correction
