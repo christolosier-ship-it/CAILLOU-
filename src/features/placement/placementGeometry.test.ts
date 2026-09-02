@@ -42,7 +42,7 @@ describe('PlacementGeometry', () => {
     mesh.rotation.set(0, Math.PI / 6, 0)
     root.add(mesh)
     const geometry = createPlacementGeometry(root)
-    expect(geometry.supportPoints.length).toBeGreaterThan(8)
+    expect(geometry.supportPoints).toHaveLength(8)
     expect(geometry.colliderBounds.min[0]).toBeLessThan(0)
     expect(geometry.colliderBounds.max[0]).toBeGreaterThan(1)
   })
