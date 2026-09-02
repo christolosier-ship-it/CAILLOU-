@@ -449,7 +449,7 @@ export function Pedestal({
     setRockMovementError(null)
     setSelectedAccessoryId((current) => current && accessoryInstances.some((instance) => instance.id === current)
       ? current
-      : accessoryInstances[0].id)
+      : accessoryInstances[0]?.id ?? null)
     setMode('accessory')
   }, [accessoryInstances, handleAccessoryDone, mode, mutationBlocked])
 
