@@ -49,6 +49,12 @@ function vectorChanged(left, right, epsilon = 0.001) {
     && left.some((value, index) => Math.abs(value - right[index]) > epsilon)
 }
 
+function vectorClose(left, right, epsilon = 0.0001) {
+  return Array.isArray(left) && Array.isArray(right)
+    && left.length === right.length
+    && left.every((value, index) => Math.abs(value - right[index]) <= epsilon)
+}
+
 async function dispatchSinglePointer(dx, dy, xRatio = 0.22, yRatio = 0.2) {
   await page.$eval('.pedestal-stage canvas', (canvas, deltaX, deltaY, relativeX, relativeY) => {
     const rect = canvas.getBoundingClientRect()
@@ -124,16 +130,32 @@ try {
   }
 
   const initialMonocle = initial.transforms.find((item) => item.id.endsWith('0001'))
-  if (!initialMonocle) throw new Error('monocle missing from initial transform set')
+  const initialGlasses = initial.transforms.find((item) => item.id.endsWith('0002'))
+  if (!initialMonocle || !initialGlasses) throw new Error('initial accessories missing from transform set')
+  if (!vectorClose(initialMonocle.position, initialGlasses.position)) {
+    throw new Error('fixture must start with an intentional accessory/accessory intersection')
+  }
 
-  await page.click('#placement-select-monocle')
-  const draftsBeforePosition = (await state()).draftCount
-  await dispatchSinglePointer(72, -34)
-  await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, draftsBeforePosition)
   await settleAfterDraft(initial.saveCount)
   let current = await state()
   let monocle = current.transforms.find((item) => item.id.endsWith('0001'))
-  if (!monocle || !vectorChanged(monocle.position, initialMonocle.position)) {
+  const frozenGlasses = current.transforms.find((item) => item.id.endsWith('0002'))
+  if (!monocle || !vectorChanged(monocle.position, initialMonocle.position, 0.005)) {
+    throw new Error('Rapier did not resolve the intentional accessory intersection after Terminer')
+  }
+  if (!frozenGlasses || !vectorClose(frozenGlasses.position, initialGlasses.position)) {
+    throw new Error('the non-target accessory moved while the selected intersection was settling')
+  }
+
+  await page.click('#placement-select-monocle')
+  const beforePosition = [...monocle.position]
+  const draftsBeforePosition = current.draftCount
+  await dispatchSinglePointer(72, -34)
+  await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, draftsBeforePosition)
+  await settleAfterDraft(current.saveCount)
+  current = await state()
+  monocle = current.transforms.find((item) => item.id.endsWith('0001'))
+  if (!monocle || !vectorChanged(monocle.position, beforePosition)) {
     throw new Error('canvas position gesture was not persisted after settlement')
   }
 
@@ -227,6 +249,9 @@ try {
   const report = {
     status: 'pass',
     simultaneousInstances: initial.instanceCount,
+    intentionalIntersectionDuringEditing: true,
+    rapierResolvedIntersection: true,
+    nonTargetFrozenDuringSettlement: true,
     phoneCanvasPosition: true,
     twoFingerTwist: true,
     twoFingerScale: true,
@@ -243,7 +268,7 @@ try {
 
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] multi-accessory E2E PASS: 2 GLB + unified canvas gestures + settled persistence + exact reload + GPU disposal')
+  console.log('[CAILLOU] multi-accessory E2E PASS: intersection editing + Rapier resolution + unified gestures + settled persistence + reload + GPU disposal')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})
