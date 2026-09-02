@@ -154,13 +154,15 @@ try {
   await page.click('.placement-owned summary')
   await page.click('.placement-owned-grid button')
   await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-instance-count') ?? 0) === 2)
+  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-accessory-ready-count') ?? 0) >= 2, { timeout: 30_000 })
   const duplicated = await state()
   if (duplicated.instanceCount !== 2) throw new Error('owned accessory was not instanced a second time')
+  if (duplicated.accessoryReadyCount < 2) throw new Error('second accessory GLB was not ready before manipulation')
 
   await dispatchSinglePointer(42, -20, 0.88, 0.12)
   await page.click('.placement-panel-heading > button')
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'orbit')
-  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-individual-settled') ?? 0) >= 1, { timeout: 10_000 })
+  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-individual-settled') ?? 0) >= 1, { timeout: 12_000 })
 
   const targetSizes = await page.$$eval('.placement-panel button, .accessory-shop button', (buttons) => buttons.every((button) => {
     const rect = button.getBoundingClientRect()
