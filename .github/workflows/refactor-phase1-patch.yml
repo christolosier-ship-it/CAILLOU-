@@ -1,0 +1,98 @@
+name: Refactor phase 1 patch
+
+on:
+  push:
+    branches:
+      - refactor/harmonisation-sol-placement
+    paths:
+      - .github/workflows/refactor-phase1-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-showroom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout refactor branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/harmonisation-sol-placement
+
+      - name: Attach the visible floor to the physical pedestal
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/scene/ShowroomScene.tsx')
+          text = path.read_text()
+
+          old_import = """  PEDESTAL_GROUND_SIZE,
+            PEDESTAL_GROUND_THICKNESS,
+            PEDESTAL_GROUND_Y,
+          """.replace('          ', '')
+          new_import = """  PEDESTAL_GROUND_CENTER_Y,
+            PEDESTAL_GROUND_COLOR,
+            PEDESTAL_GROUND_FRICTION,
+            PEDESTAL_GROUND_HALF_EXTENTS,
+            PEDESTAL_GROUND_RESTITUTION,
+            PEDESTAL_GROUND_SIZE,
+            PEDESTAL_GROUND_THICKNESS,
+            PEDESTAL_GROUND_Y,
+          """.replace('          ', '')
+          if old_import not in text:
+              raise SystemExit('rockMovement import anchor not found')
+          text = text.replace(old_import, new_import, 1)
+
+          old_floor = """function PedestalGround() {
+            return (
+              <RigidBody
+                type=\"fixed\"
+                colliders={false}
+                position={[0, PEDESTAL_GROUND_Y - PEDESTAL_GROUND_THICKNESS / 2, 0]}
+                friction={0.94}
+                restitution={0.01}
+              >
+                <CuboidCollider args={[PEDESTAL_GROUND_SIZE / 2, PEDESTAL_GROUND_THICKNESS / 2, PEDESTAL_GROUND_SIZE / 2]} />
+              </RigidBody>
+            )
+          }
+          """.replace('          ', '')
+          new_floor = """function PedestalGround() {
+            return (
+              <RigidBody
+                type=\"fixed\"
+                colliders={false}
+                position={[0, PEDESTAL_GROUND_CENTER_Y, 0]}
+                friction={PEDESTAL_GROUND_FRICTION}
+                restitution={PEDESTAL_GROUND_RESTITUTION}
+              >
+                <CuboidCollider args={PEDESTAL_GROUND_HALF_EXTENTS} />
+                <mesh name=\"CAILLOU_PEDESTAL_FLOOR\" receiveShadow>
+                  <boxGeometry args={[PEDESTAL_GROUND_SIZE, PEDESTAL_GROUND_THICKNESS, PEDESTAL_GROUND_SIZE]} />
+                  <meshStandardMaterial color={PEDESTAL_GROUND_COLOR} roughness={0.96} metalness={0.02} />
+                </mesh>
+              </RigidBody>
+            )
+          }
+          """.replace('          ', '')
+          if old_floor not in text:
+              raise SystemExit('PedestalGround anchor not found')
+          text = text.replace(old_floor, new_floor, 1)
+
+          shadow_anchor = 'position={[0, PEDESTAL_GROUND_Y, 0]}'
+          if shadow_anchor not in text:
+              raise SystemExit('ContactShadows anchor not found')
+          text = text.replace(shadow_anchor, 'position={[0, PEDESTAL_GROUND_Y + 0.002, 0]}', 1)
+
+          path.write_text(text)
+
+      - name: Verify and commit patch
+        run: |
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/scene/ShowroomScene.tsx
+          git commit -m "refactor(scene): unifier le sol physique et visuel"
+          git push origin HEAD:refactor/harmonisation-sol-placement
