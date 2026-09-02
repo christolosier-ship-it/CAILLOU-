@@ -97,6 +97,18 @@ function Fixture() {
     return instance ? accessoryLocalToWorld(instance.id, instance, pose) : null
   }, [instances, pose, selectedAccessoryId])
 
+  const handleRockLoadState = useCallback((state: 'loading' | 'ready' | 'error') => {
+    setRockReady(state === 'ready')
+  }, [])
+
+  const handleInteraction = useCallback(() => undefined, [])
+  const handleAccessorySelectNoop = useCallback(() => undefined, [])
+
+  const handleAccessoryLoadState = useCallback((id: string, state: 'loading' | 'ready' | 'error') => {
+    if (state !== 'ready') return
+    setReadyAccessories((current) => current.includes(id) ? current : [...current, id])
+  }, [])
+
   const handleDraft = useCallback((instanceId: string, transform: AccessoryTransform) => {
     setInstances((current) => current.map((instance) => instance.id === instanceId
       ? { ...instance, ...transform, stabilizedAt: null }
@@ -138,8 +150,8 @@ function Fixture() {
             rock={rock}
             retryKey={0}
             reducedMotion={false}
-            onLoadStateChange={(state) => setRockReady(state === 'ready')}
-            onInteractionChange={() => undefined}
+            onLoadStateChange={handleRockLoadState}
+            onInteractionChange={handleInteraction}
             interactionMode={mode}
             rockPose={pose}
             onRockPoseDraft={setPose}
@@ -148,12 +160,10 @@ function Fixture() {
             placementTool={tool}
             accessories={instances}
             selectedAccessoryId={selectedAccessoryId}
-            onAccessorySelect={() => undefined}
+            onAccessorySelect={handleAccessorySelectNoop}
             onAccessoryTransformDraft={handleDraft}
             onAccessoryTransformCommit={handleCommit}
-            onAccessoryLoadStateChange={(id, state) => {
-              if (state === 'ready') setReadyAccessories((current) => current.includes(id) ? current : [...current, id])
-            }}
+            onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
 
           {mode === 'placement' ? (
