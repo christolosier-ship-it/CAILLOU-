@@ -2,7 +2,7 @@ import { Quaternion, Vector3 } from 'three'
 
 import { PEDESTAL_FLOOR_SIZE, PEDESTAL_FLOOR_TOP_Y } from './pedestalFloor'
 import type { PlacementGeometry } from './placementGeometry'
-import type { PlacementVector3 } from './placementTypes'
+import type { PlacementTransform, PlacementVector3 } from './placementTypes'
 
 export const PLACEMENT_CONTACT_EPSILON = 0.002
 
@@ -96,4 +96,20 @@ export function constrainPlacementPosition(
     Math.max(position[1], minimumY),
     constrainAxis(position[2], envelope.minZ, envelope.maxZ, pedestal.minZ, pedestal.maxZ),
   ]
+}
+
+
+export function constrainTransformToPedestal(
+  transform: PlacementTransform,
+  geometry: PlacementGeometry,
+): PlacementTransform {
+  return {
+    ...transform,
+    position: constrainPlacementPosition(
+      transform.position,
+      transform.rotation,
+      transform.scale,
+      geometry,
+    ),
+  }
 }

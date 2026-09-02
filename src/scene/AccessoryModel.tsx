@@ -15,6 +15,7 @@ import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/
 import { constrainPlacementPosition } from '../features/placement/placementConstraints'
 import { createPlacementGeometry } from '../features/placement/placementGeometry'
 import type { PlacementGeometry } from '../features/placement/placementGeometry'
+import type { PlacementTransform } from '../features/placement/placementTypes'
 import {
   ROCK_SETTLE_TIMEOUT_MS,
   accessoryLocalToWorld,
@@ -40,6 +41,7 @@ interface AccessoryModelProps {
   onTransformDraft?: (instanceId: string, transform: AccessoryTransform) => void
   onTransformCommit: (instanceId: string, transform: AccessoryTransform) => void
   onGlobalSettled?: (transform: WorldAccessoryTransform) => void
+  placementTransform?: PlacementTransform | null
   onPlacementGeometryReady?: (instanceId: string, geometry: PlacementGeometry | null) => void
   onLoadStateChange?: ((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => void) | undefined
   onDisposed?: ((instanceId: string, report: DisposalReport) => void) | undefined
@@ -73,6 +75,7 @@ export function AccessoryModel({
   globalSettling = false,
   onTransformCommit,
   onGlobalSettled,
+  placementTransform = null,
   onPlacementGeometryReady,
   onLoadStateChange,
   onDisposed,
@@ -163,10 +166,17 @@ export function AccessoryModel({
     }
   }, [instance.id, instance.modelPath, invalidate, onPlacementGeometryReady])
 
-  const worldFromInstance = useCallback(
-    () => accessoryLocalToWorld(instance.id, instance, rockPose),
-    [instance, rockPose],
-  )
+  const worldFromInstance = useCallback((): WorldAccessoryTransform => {
+    if (placementTransform) {
+      return {
+        instanceId: instance.id,
+        worldPosition: [...placementTransform.position],
+        worldRotation: [...placementTransform.rotation],
+        uniformScale: placementTransform.scale,
+      }
+    }
+    return accessoryLocalToWorld(instance.id, instance, rockPose)
+  }, [instance, placementTransform, rockPose])
 
   const enforceHardFloor = useCallback(() => {
     const body = bodyRef.current
@@ -381,18 +391,19 @@ export function AccessoryModel({
       : compositionFrozen
         ? 'kinematicPosition'
         : 'fixed'
-  const world = accessoryLocalToWorld(instance.id, instance, rockPose)
+  const world = worldFromInstance()
+  const renderScale = placementTransform?.scale ?? instance.uniformScale
   const collider = physics.enabled ? physics.collider : 'hull'
 
   return (
     <RigidBody
-      key={`${instance.id}-${instance.uniformScale.toFixed(4)}`}
+      key={`${instance.id}-${renderScale.toFixed(4)}`}
       ref={bodyRef}
       type={bodyType}
       colliders={collider}
       position={world.worldPosition}
       quaternion={world.worldRotation}
-      scale={instance.uniformScale}
+      scale={renderScale}
       mass={physics.mass}
       friction={physics.friction}
       restitution={physics.restitution}
