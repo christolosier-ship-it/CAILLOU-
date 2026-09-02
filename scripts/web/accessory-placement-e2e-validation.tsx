@@ -9,6 +9,9 @@ import { PlacementBody } from '../../src/features/placement/PlacementBody'
 import type { PlacementBodyPhysicsConfig } from '../../src/features/placement/PlacementBody'
 import type { PlacementGeometry } from '../../src/features/placement/placementGeometry'
 import { worldAccessoryToPersistence } from '../../src/features/placement/placementPersistence'
+import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
+import { buildPlacementSettlementPlan, createPlacementSession, removePlacementSessionAccessory, updatePlacementSession } from '../../src/features/placement/placementSession'
+import type { PlacementSessionState, PlacementSettlementPlan } from '../../src/features/placement/placementSession'
 import type { PlacementTool, PlacementTransform } from '../../src/features/placement/placementTypes'
 import { DEFAULT_ROCK_POSE } from '../../src/features/rockMovement/rockMovementRules'
 import { ShowroomScene } from '../../src/scene/ShowroomScene'
@@ -186,6 +189,8 @@ function AccessoryPlacementFixture() {
   const [mode, setMode] = useState<'placement' | 'settling' | 'orbit'>('placement')
   const [loadedIds, setLoadedIds] = useState<string[]>([])
   const [draftCount, setDraftCount] = useState(0)
+  const [placementSession, setPlacementSession] = useState<PlacementSessionState>(() => createPlacementSession(DEFAULT_ROCK_POSE, INITIAL_INSTANCES))
+  const [settlementPlan, setSettlementPlan] = useState<PlacementSettlementPlan | null>(null)
   const [saveCount, setSaveCount] = useState(0)
   const [disposeCount, setDisposeCount] = useState(0)
   const [disposedGeometries, setDisposedGeometries] = useState(0)
@@ -198,30 +203,51 @@ function AccessoryPlacementFixture() {
     setMode('placement')
   }, [])
 
-  const handleDraft = useCallback(() => {
+  const handleDraft = useCallback((instanceId: string, transform: PlacementTransform) => {
+    setPlacementSession((current) => updatePlacementSession(current, { kind: 'accessory', instanceId }, transform))
     setDraftCount((current) => current + 1)
   }, [])
 
-  const handleSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
-    const persisted = worldAccessoryToPersistence(instanceId, transform, DEFAULT_ROCK_POSE)
-    const commit = (current: EquippedAccessoryInstance[]) => current.map((instance) => instance.id === instanceId
-      ? {
-          ...instance,
-          ...persisted,
-          updatedAt: '2026-09-02T20:00:00.000Z',
-          stabilizedAt: '2026-09-02T20:00:00.000Z',
-        }
-      : instance)
-    setInstances(commit)
-    serverInstances.current = commit(serverInstances.current)
-    setSaveCount((current) => current + 1)
+  const commitSettledAccessories = useCallback((world: SettledWorldComposition) => {
+    const dirtyIds = new Set(settlementPlan?.accessoryIds ?? [])
+    const worldById = new Map(world.accessories.map((accessory) => [accessory.instanceId, accessory.transform]))
+    const commit = (current: EquippedAccessoryInstance[]) => current.map((instance) => {
+      if (!dirtyIds.has(instance.id)) return instance
+      const transform = worldById.get(instance.id)
+      if (!transform) return instance
+      const persisted = worldAccessoryToPersistence(instance.id, transform, DEFAULT_ROCK_POSE)
+      return {
+        ...instance,
+        ...persisted,
+        updatedAt: '2026-09-02T20:00:00.000Z',
+        stabilizedAt: '2026-09-02T20:00:00.000Z',
+      }
+    })
+    const next = commit(serverInstances.current)
+    serverInstances.current = cloneInstances(next)
+    setInstances(cloneInstances(next))
+    setPlacementSession(createPlacementSession(DEFAULT_ROCK_POSE, next))
+    setSaveCount((current) => current + dirtyIds.size)
+    setSettlementPlan(null)
     setMode('orbit')
+  }, [settlementPlan])
+
+  const handleSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
+    setPlacementSession((current) => updatePlacementSession(current, { kind: 'accessory', instanceId }, transform))
   }, [])
+
+  const requestSettlement = useCallback(() => {
+    const plan = buildPlacementSettlementPlan(placementSession)
+    if (!plan) return
+    setSettlementPlan(plan)
+    setMode('settling')
+  }, [placementSession])
 
   const removeInstance = useCallback((instanceId: string) => {
     const next = serverInstances.current.filter((instance) => instance.id !== instanceId)
     serverInstances.current = cloneInstances(next)
     setInstances(cloneInstances(next))
+    setPlacementSession((current) => removePlacementSessionAccessory(current, instanceId))
     setSelectedId(next[0]?.id ?? '')
     setMode('orbit')
   }, [])
@@ -248,6 +274,8 @@ function AccessoryPlacementFixture() {
 
     window.setTimeout(() => {
       setInstances(canonical)
+      setPlacementSession(createPlacementSession(DEFAULT_ROCK_POSE, canonical))
+      setSettlementPlan(null)
       setSelectedId(canonical[0]?.id ?? '')
       setTool('position')
       setMode('placement')
@@ -270,11 +298,14 @@ function AccessoryPlacementFixture() {
             rockPose={DEFAULT_ROCK_POSE}
             placementTarget={mode === 'orbit' || !selectedId ? null : { kind: 'accessory', instanceId: selectedId }}
             placementTool={tool}
+            placementSession={placementSession}
+            settlementPlan={settlementPlan}
             accessories={instances}
             selectedAccessoryId={selectedId || null}
             onAccessorySelect={select}
             onAccessoryPlacementDraft={handleDraft}
             onAccessorySettled={handleSettled}
+            onCompositionSettled={commitSettledAccessories}
             onAccessoryLoadStateChange={handleLoadState}
             onAccessoryDisposed={handleDisposed}
           />
@@ -285,7 +316,7 @@ function AccessoryPlacementFixture() {
             <button id="placement-position" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('position') }}>Position</button>
             <button id="placement-orientation" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('orientation') }}>Orientation</button>
             <button id="placement-size" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('size') }}>Taille</button>
-            <button id="placement-settle" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('settling')}>Lâcher</button>
+            <button id="placement-settle" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={requestSettlement}>Lâcher</button>
             <button id="placement-remove" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => selectedId && removeInstance(selectedId)}>Retirer</button>
           </div>
         </section>

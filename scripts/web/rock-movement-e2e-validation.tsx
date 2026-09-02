@@ -5,6 +5,8 @@ import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
 import { worldCompositionToPersistence } from '../../src/features/placement/placementPersistence'
 import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
+import { buildPlacementSettlementPlan, createPlacementSession, updatePlacementSession } from '../../src/features/placement/placementSession'
+import type { PlacementSessionState, PlacementSettlementPlan } from '../../src/features/placement/placementSession'
 import type { PlacementTarget, PlacementTool } from '../../src/features/placement/placementTypes'
 import type { RockCompositionDraft, RockPose } from '../../src/features/rockMovement/rockMovementTypes'
 import { ShowroomScene } from '../../src/scene/ShowroomScene'
@@ -60,6 +62,8 @@ function Fixture() {
   const [mode, setMode] = useState<Mode>('placement')
   const [tool, setTool] = useState<PlacementTool>('position')
   const [pose, setPose] = useState<RockPose>(INITIAL_POSE)
+  const [placementSession, setPlacementSession] = useState<PlacementSessionState>(() => createPlacementSession(INITIAL_POSE, [INSTANCE]))
+  const [settlementPlan, setSettlementPlan] = useState<PlacementSettlementPlan | null>(null)
   const [settled, setSettled] = useState<RockCompositionDraft | null>(null)
   const [rockReady, setRockReady] = useState(false)
   const [accessoryReady, setAccessoryReady] = useState(false)
@@ -73,12 +77,32 @@ function Fixture() {
   }, [])
 
 
+const handleRockDraft = useCallback((nextPose: RockPose) => {
+  setPose(nextPose)
+  setPlacementSession((current) => updatePlacementSession(current, ROCK_TARGET, {
+    position: [...nextPose.position],
+    rotation: [...nextPose.rotation],
+    scale: 1,
+  }))
+}, [])
+
 const handleSettled = useCallback((world: SettledWorldComposition) => {
   const draft = worldCompositionToPersistence(world)
   setSettled(draft)
   setPose(draft.rockPose)
+  setPlacementSession(createPlacementSession(draft.rockPose, [
+    { ...INSTANCE, ...(draft.accessories[0] ?? {}) },
+  ]))
+  setSettlementPlan(null)
   setMode('orbit')
 }, [])
+
+const requestSettlement = useCallback(() => {
+  const plan = buildPlacementSettlementPlan(placementSession)
+  if (!plan) return
+  setSettlementPlan(plan)
+  setMode('settling')
+}, [placementSession])
 
   return (
     <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'settling' ? ' is-composition-settling' : ''}`}>
@@ -92,17 +116,19 @@ const handleSettled = useCallback((world: SettledWorldComposition) => {
             onInteractionChange={() => undefined}
             interactionMode={mode}
             rockPose={pose}
-            onRockPoseDraft={setPose}
+            onRockPoseDraft={handleRockDraft}
             onCompositionSettled={handleSettled}
             placementTarget={mode === 'orbit' ? null : ROCK_TARGET}
             placementTool={tool}
+            placementSession={placementSession}
+            settlementPlan={settlementPlan}
             accessories={[INSTANCE]}
             onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
           <div className="rock-e2e-controls" style={{ position: 'absolute', zIndex: 30, left: 12, bottom: 12, display: 'flex', gap: 8 }}>
             <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('position') }}>Position</button>
             <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('orientation') }}>Orientation</button>
-            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('settling')}>Lâcher</button>
+            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={requestSettlement}>Lâcher</button>
           </div>
         </section>
       </main>
