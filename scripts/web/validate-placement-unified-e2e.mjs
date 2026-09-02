@@ -253,6 +253,9 @@ async function state() {
     rockPosition: JSON.parse(element.getAttribute('data-rock-position') ?? '[0,0,0]'),
     rockRotation: JSON.parse(element.getAttribute('data-rock-rotation') ?? '[0,0,0,1]'),
     instanceCount: Number(element.getAttribute('data-instance-count') ?? 0),
+    sessionAccessories: JSON.parse(element.getAttribute('data-session-accessories') ?? '{}'),
+    sessionDirtyRock: element.getAttribute('data-session-dirty-rock') === 'true',
+    sessionDirtyAccessories: JSON.parse(element.getAttribute('data-session-dirty-accessories') ?? '[]'),
     selectedWorldPosition: JSON.parse(element.getAttribute('data-selected-world-position') ?? 'null'),
     selectedWorldRotation: JSON.parse(element.getAttribute('data-selected-world-rotation') ?? 'null'),
     selectedScale: Number(element.getAttribute('data-selected-scale') ?? 0),
@@ -361,11 +364,17 @@ try {
   await page.click('.placement-targets > button:first-child')
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') === 'rock')
   const beforeRockMove = await state()
+  const accessoriesBeforeRockMove = JSON.stringify(beforeRockMove.sessionAccessories)
   await dispatchSinglePointer(62, -38)
   await page.waitForFunction((before) => {
     const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-rock-position') ?? '[0,0,0]')
     return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, beforeRockMove.rockPosition)
+  const afterRockMove = await state()
+  if (!afterRockMove.sessionDirtyRock) throw new Error('rock draft was not marked dirty in PlacementSession')
+  if (JSON.stringify(afterRockMove.sessionAccessories) !== accessoriesBeforeRockMove) {
+    throw new Error('moving the rock changed accessory world drafts during editing')
+  }
 
 
 for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
@@ -396,6 +405,38 @@ await page.waitForFunction((before) => {
 }, {}, beforeRockTwist)
 const rockAfterTwist = await state()
 assertInsidePedestal('during rock two-finger twist', ROCK_018_SUPPORT_POINTS, rockAfterTwist.rockPosition, rockAfterTwist.rockRotation)
+
+  // Regression #31: switching targets must retain every draft and rock edits must not drag accessories.
+  await page.click('.placement-targets > button:nth-child(2)')
+  await page.waitForFunction(() => (document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') ?? '').includes('000000000001'))
+  const accessoryBeforeCrossTargetDraft = await state()
+  await dispatchSinglePointer(74, -31, 0.12, 0.16)
+  await page.waitForFunction((before) => {
+    const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-world-position') ?? 'null')
+    return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+  }, {}, accessoryBeforeCrossTargetDraft.selectedWorldPosition)
+  const accessoryDraftBeforeSwitch = await state()
+  const draftedAccessoryId = accessoryDraftBeforeSwitch.target
+  if (!accessoryDraftBeforeSwitch.sessionDirtyAccessories.includes(draftedAccessoryId)) {
+    throw new Error('accessory draft was not retained by PlacementSession')
+  }
+
+  await page.click('.placement-targets > button:first-child')
+  await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') === 'rock')
+  const rockAfterTargetSwitch = await state()
+  assertVectorClose('rock draft survives accessory switch', rockAfterTargetSwitch.rockPosition, rockAfterTwist.rockPosition)
+  assertQuaternionEquivalent('rock orientation survives accessory switch', rockAfterTargetSwitch.rockRotation, rockAfterTwist.rockRotation)
+  assertVectorClose(
+    'accessory world draft remains cached while rock is active',
+    rockAfterTargetSwitch.sessionAccessories[draftedAccessoryId]?.position,
+    accessoryDraftBeforeSwitch.selectedWorldPosition,
+  )
+
+  await page.click('.placement-targets > button:nth-child(2)')
+  await page.waitForFunction((instanceId) => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') === instanceId, {}, draftedAccessoryId)
+  const accessoryAfterReturn = await state()
+  assertVectorClose('accessory draft survives target round-trip', accessoryAfterReturn.selectedWorldPosition, accessoryDraftBeforeSwitch.selectedWorldPosition)
+  assertQuaternionEquivalent('accessory rotation survives target round-trip', accessoryAfterReturn.selectedWorldRotation, accessoryDraftBeforeSwitch.selectedWorldRotation)
 
   await page.click('.placement-panel-heading > button')
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'orbit', { timeout: 15_000 })
@@ -517,6 +558,8 @@ assertInsidePedestal('rehydrated accessory pose', MONOCLE_SUPPORT_POINTS, rehydr
     permitPriceLithons: 1000,
     shopHasNoDirectPlacement: true,
     sharedCanvasPositionGesture: true,
+    rockMoveLeavesAccessoryDraftsFixed: true,
+    crossTargetDraftRetention: true,
     fourBorderStressRock: true,
     fourBorderStressAccessory: true,
     canvasRockOrientation: true,

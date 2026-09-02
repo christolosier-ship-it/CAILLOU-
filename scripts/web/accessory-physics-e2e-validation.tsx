@@ -7,8 +7,11 @@ import { createRoot } from 'react-dom/client'
 import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import { ACCESSORY_WORLD_GRAVITY } from '../../src/features/accessories/accessoryPhysics'
 import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
+import { buildPlacementSettlementPlan, createPlacementSession, updatePlacementSession } from '../../src/features/placement/placementSession'
+import type { PlacementSessionState, PlacementSettlementPlan } from '../../src/features/placement/placementSession'
 import type { PlacementTool, PlacementTransform } from '../../src/features/placement/placementTypes'
-import { DEFAULT_ROCK_POSE, accessoryLocalToWorld } from '../../src/features/rockMovement/rockMovementRules'
+import { DEFAULT_ROCK_POSE } from '../../src/features/rockMovement/rockMovementRules'
 import { ShowroomScene } from '../../src/scene/ShowroomScene'
 import '../../src/styles/global.css'
 import '../../src/styles/showroom.css'
@@ -145,41 +148,54 @@ function PhysicsFixture() {
   const [mode, setMode] = useState<'placement' | 'settling' | 'orbit'>('placement')
   const [loadedIds, setLoadedIds] = useState<string[]>([])
   const [draftCount, setDraftCount] = useState(0)
-  const [lastDraft, setLastDraft] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
+  const [placementSession, setPlacementSession] = useState<PlacementSessionState>(() => createPlacementSession(DEFAULT_ROCK_POSE, INITIAL_INSTANCES))
+  const [settlementPlan, setSettlementPlan] = useState<PlacementSettlementPlan | null>(null)
   const [settledCount, setSettledCount] = useState(0)
   const [lastSettled, setLastSettled] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
   const [probe, setProbe] = useState({ collision: 0, settled: false, finalY: 1 })
 
-  const selectedWorld = useMemo(() => {
-    if (lastDraft?.instanceId === selectedId) return lastDraft.transform
-    const instance = INITIAL_INSTANCES.find((candidate) => candidate.id === selectedId)
-    if (!instance) return null
-    const world = accessoryLocalToWorld(instance.id, instance, DEFAULT_ROCK_POSE)
-    return {
-      position: world.worldPosition,
-      rotation: world.worldRotation,
-      scale: world.uniformScale,
-    }
-  }, [lastDraft, selectedId])
+  const selectedWorld = useMemo(() => placementSession.accessories[selectedId] ?? null, [placementSession, selectedId])
 
   const select = useCallback((instanceId: string) => {
     setSelectedId(instanceId)
     setTool('position')
     setMode('placement')
-    setLastDraft(null)
   }, [])
 
   const handleDraft = useCallback((instanceId: string, transform: PlacementTransform) => {
-    setLastDraft({ instanceId, transform })
+    setPlacementSession((current) => updatePlacementSession(current, { kind: 'accessory', instanceId }, transform))
     setDraftCount((current) => current + 1)
   }, [])
 
   const handleSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
     setLastSettled({ instanceId, transform })
+    setPlacementSession((current) => updatePlacementSession(current, { kind: 'accessory', instanceId }, transform))
     setSettledCount((current) => current + 1)
-    setLastDraft({ instanceId, transform })
-    setMode('orbit')
   }, [])
+
+  const handleCompositionSettled = useCallback((world: SettledWorldComposition) => {
+    const plannedIds = settlementPlan?.accessoryIds ?? []
+    const lastId = plannedIds.at(-1)
+    const last = world.accessories.find((candidate) => candidate.instanceId === lastId)
+    if (last) setLastSettled({ instanceId: last.instanceId, transform: last.transform })
+    if (plannedIds.length > 0) setSettledCount((current) => current + plannedIds.length)
+    setPlacementSession((current) => {
+      let next = current
+      for (const accessory of world.accessories) {
+        next = updatePlacementSession(next, { kind: 'accessory', instanceId: accessory.instanceId }, accessory.transform)
+      }
+      return { ...next, dirtyRock: false, dirtyAccessoryIds: [] }
+    })
+    setSettlementPlan(null)
+    setMode('orbit')
+  }, [settlementPlan])
+
+  const requestSettlement = useCallback(() => {
+    const plan = buildPlacementSettlementPlan(placementSession)
+    if (!plan) return
+    setSettlementPlan(plan)
+    setMode('settling')
+  }, [placementSession])
 
   const handleLoadState = useCallback((instanceId: string, state: 'loading' | 'ready' | 'error') => {
     setLoadedIds((current) => {
@@ -204,11 +220,14 @@ function PhysicsFixture() {
             rockPose={DEFAULT_ROCK_POSE}
             placementTarget={mode === 'orbit' ? null : { kind: 'accessory', instanceId: selectedId }}
             placementTool={tool}
+            placementSession={placementSession}
+            settlementPlan={settlementPlan}
             accessories={INITIAL_INSTANCES}
             selectedAccessoryId={selectedId}
             onAccessorySelect={select}
             onAccessoryPlacementDraft={handleDraft}
             onAccessorySettled={handleSettled}
+            onCompositionSettled={handleCompositionSettled}
             onAccessoryLoadStateChange={handleLoadState}
           />
           <div className="physics-fixture-controls" style={{ position: 'absolute', zIndex: 30, right: 8, bottom: 8, display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: 280 }}>
@@ -216,7 +235,7 @@ function PhysicsFixture() {
             <button id="physics-select-glasses" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => select(INITIAL_INSTANCES[1]!.id)}>Lunettes</button>
             <button id="physics-position" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('position') }}>Position</button>
             <button id="physics-orientation" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('orientation') }}>Orientation</button>
-            <button id="physics-settle" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('settling')}>Lâcher</button>
+            <button id="physics-settle" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={requestSettlement}>Lâcher</button>
           </div>
         </section>
       </main>
@@ -238,6 +257,7 @@ function PhysicsFixture() {
         data-selected-scale={String(selectedWorld?.scale ?? 0)}
         data-last-settled-position={JSON.stringify(lastSettled?.transform.position ?? null)}
         data-last-settled-rotation={JSON.stringify(lastSettled?.transform.rotation ?? null)}
+        data-session-accessories={JSON.stringify(placementSession.accessories)}
       />
     </div>
   )
