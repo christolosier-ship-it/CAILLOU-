@@ -140,8 +140,8 @@ function RockGestureController({
   useEffect(() => {
     const canvas = gl.domElement
     const points = () => [...pointersRef.current.values()]
-    const distance = (items: GesturePoint[]) => Math.hypot(items[1].x - items[0].x, items[1].y - items[0].y)
-    const angle = (items: GesturePoint[]) => Math.atan2(items[1].y - items[0].y, items[1].x - items[0].x)
+    const distance = (items: GesturePoint[]) => Math.hypot(items[1]!.x - items[0]!.x, items[1]!.y - items[0]!.y)
+    const angle = (items: GesturePoint[]) => Math.atan2(items[1]!.y - items[0]!.y, items[1]!.x - items[0]!.x)
 
     const worldPerPixel = () => {
       const target = new Vector3(...poseRef.current.position)
@@ -167,7 +167,7 @@ function RockGestureController({
         }
         previousSingleRef.current = null
       } else if (items.length === 1) {
-        previousSingleRef.current = items[0]
+        previousSingleRef.current = items[0] ?? null
         multiBaselineRef.current = null
       } else {
         previousSingleRef.current = null
@@ -213,6 +213,7 @@ function RockGestureController({
 
       if (items.length !== 1) return
       const current = items[0]
+      if (!current) return
       const previous = previousSingleRef.current
       previousSingleRef.current = current
       if (!previous) return
@@ -353,6 +354,7 @@ function RockPhysicsBody({
 
   return (
     <RigidBody
+      key={globalSettling ? 'rock-dynamic' : manipulating ? 'rock-kinematic' : 'rock-fixed'}
       ref={bodyRef}
       type={globalSettling ? 'dynamic' : manipulating ? 'kinematicPosition' : 'fixed'}
       colliders="hull"
@@ -367,7 +369,7 @@ function RockPhysicsBody({
       ccd={globalSettling}
       canSleep
       additionalSolverIterations={globalSettling ? 4 : 1}
-      onSleep={globalSettling ? report : undefined}
+      onSleep={report}
     >
       <primitive object={colliderObject} />
     </RigidBody>
