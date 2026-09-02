@@ -13,6 +13,11 @@ import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/
 import { accessoryBoundsFromDimensions, clampWorldPositionAboveGround } from '../features/placement/placementRules'
 import type { PlacementBounds, PlacementTarget, PlacementTool } from '../features/placement/placementTypes'
 import {
+  PEDESTAL_GROUND_CENTER_Y,
+  PEDESTAL_GROUND_COLOR,
+  PEDESTAL_GROUND_FRICTION,
+  PEDESTAL_GROUND_HALF_EXTENTS,
+  PEDESTAL_GROUND_RESTITUTION,
   PEDESTAL_GROUND_SIZE,
   PEDESTAL_GROUND_THICKNESS,
   PEDESTAL_GROUND_Y,
@@ -677,11 +682,15 @@ function PedestalGround() {
     <RigidBody
       type="fixed"
       colliders={false}
-      position={[0, PEDESTAL_GROUND_Y - PEDESTAL_GROUND_THICKNESS / 2, 0]}
-      friction={0.94}
-      restitution={0.01}
+      position={[0, PEDESTAL_GROUND_CENTER_Y, 0]}
+      friction={PEDESTAL_GROUND_FRICTION}
+      restitution={PEDESTAL_GROUND_RESTITUTION}
     >
-      <CuboidCollider args={[PEDESTAL_GROUND_SIZE / 2, PEDESTAL_GROUND_THICKNESS / 2, PEDESTAL_GROUND_SIZE / 2]} />
+      <CuboidCollider args={PEDESTAL_GROUND_HALF_EXTENTS} />
+      <mesh name="CAILLOU_PEDESTAL_FLOOR" receiveShadow>
+        <boxGeometry args={[PEDESTAL_GROUND_SIZE, PEDESTAL_GROUND_THICKNESS, PEDESTAL_GROUND_SIZE]} />
+        <meshStandardMaterial color={PEDESTAL_GROUND_COLOR} roughness={0.96} metalness={0.02} />
+      </mesh>
     </RigidBody>
   )
 }
@@ -873,7 +882,7 @@ export function ShowroomScene({
         {object ? (
           <ContactShadows
             key={`${rock.id}-${retryKey}-shadow`}
-            position={[0, PEDESTAL_GROUND_Y, 0]}
+            position={[0, PEDESTAL_GROUND_Y + 0.002, 0]}
             opacity={0.3}
             scale={PEDESTAL_GROUND_SIZE}
             blur={2.6}
