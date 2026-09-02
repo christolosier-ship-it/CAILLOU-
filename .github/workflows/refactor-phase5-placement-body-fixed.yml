@@ -1,0 +1,66 @@
+name: Execute refactor phase 5 placement body fixed
+
+on:
+  push:
+    branches:
+      - refactor/harmonisation-sol-placement
+    paths:
+      - .github/workflows/refactor-phase5-placement-body-fixed.yml
+
+permissions:
+  contents: write
+
+jobs:
+  phase5:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/harmonisation-sol-placement
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Apply corrected common PlacementBody refactor
+        shell: python
+        run: |
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/refactor-phase5-placement-body.yml').read_text()
+          start = workflow.index('      - name: Apply common PlacementBody refactor')
+          end = workflow.index('      - name: Validate phase 5', start)
+          section = workflow[start:end]
+          script = section.split('        run: |\n', 1)[1]
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in script.splitlines())
+
+          replacements = {
+              'geometry_anchor = dedent(': 'geometry_anchor = (',
+              'geometry_replacement = geometry_anchor + dedent(': 'geometry_replacement = geometry_anchor + (',
+              'settled_anchor = dedent(': 'settled_anchor = (',
+              'settled_replacement = settled_anchor + dedent(': 'settled_replacement = settled_anchor + (',
+              'old_render = dedent(': 'old_render = (',
+              'new_render = dedent(': 'new_render = (',
+          }
+          for old, new in replacements.items():
+              if old not in script:
+                  raise SystemExit(f'phase5 script patch anchor missing: {old}')
+              script = script.replace(old, new, 1)
+
+          exec(compile(script, 'phase5-transform.py', 'exec'))
+      - name: Validate phase 5
+        run: |
+          npm run check
+          git diff --check
+          test "$(grep -R "<PlacementBody" -n src/scene/ShowroomScene.tsx src/scene/AccessoryModel.tsx | wc -l)" -eq 2
+          ! grep -n "function RockPhysicsBody" src/scene/ShowroomScene.tsx
+          ! grep -n "useAfterPhysicsStep" src/scene/ShowroomScene.tsx src/scene/AccessoryModel.tsx
+          ! grep -n "<RigidBody" src/scene/AccessoryModel.tsx
+          grep -n "state={bodyState}" src/scene/AccessoryModel.tsx
+          grep -n "state={globalSettling ? 'settling'" src/scene/ShowroomScene.tsx
+      - name: Commit phase 5 product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/features/placement/PlacementBody.tsx src/features/placement/placementBodyState.ts src/features/placement/placementBodyState.test.ts src/scene/AccessoryModel.tsx src/scene/ShowroomScene.tsx
+          git commit -m "refactor(placement): unifier le cycle physique Rapier"
+          git push origin HEAD:refactor/harmonisation-sol-placement
