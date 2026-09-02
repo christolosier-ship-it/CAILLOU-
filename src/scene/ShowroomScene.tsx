@@ -1,7 +1,6 @@
 import { ContactShadows, OrbitControls } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { CuboidCollider, Physics, RigidBody, useAfterPhysicsStep } from '@react-three/rapier'
-import type { RapierRigidBody } from '@react-three/rapier'
+import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Box3, MathUtils, PerspectiveCamera, Quaternion, Sphere, Vector3 } from 'three'
 import type { Group, Object3D } from 'three'
@@ -10,6 +9,8 @@ import type { RockCatalogEntry } from '../content/rockCatalog'
 import { ACCESSORY_WORLD_GRAVITY } from '../features/accessories/accessoryPhysics'
 import { clampAccessoryTransform } from '../features/accessories/accessoryPlacementRules'
 import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
+import { PlacementBody } from '../features/placement/PlacementBody'
+import type { PlacementBodyPhysicsConfig } from '../features/placement/PlacementBody'
 import { constrainPlacementPosition, constrainTransformToPedestal } from '../features/placement/placementConstraints'
 import type { PlacementGeometry } from '../features/placement/placementGeometry'
 import { resolvePlacementGesture } from '../features/placement/placementGesturePolicy'
@@ -287,163 +288,21 @@ function PlacementController({
   return null
 }
 
-function RockPhysicsBody({
-  object,
-  pose,
-  bounds,
-  visualGroup,
-  manipulating,
-  globalSettling,
-  onSettled,
-}: {
-  object: Object3D
-  pose: RockPose
-  bounds: PlacementGeometry
-  visualGroup: Group | null
-  manipulating: boolean
-  globalSettling: boolean
-  onSettled: (pose: RockPose) => void
-}) {
-  const bodyRef = useRef<RapierRigidBody>(null)
-  const reportedRef = useRef(false)
-  const invalidate = useThree((state) => state.invalidate)
-  const colliderObject = useMemo(() => {
-    const clone = object.clone(true)
-    clone.name = 'CAILLOU_DYNAMIC_HULL_COLLIDER'
-    clone.visible = false
-    return clone
-  }, [object])
 
-  const enforceHardFloor = useCallback(() => {
-    const body = bodyRef.current
-    if (!body) return false
-    const position = body.translation()
-    const rotation = body.rotation()
-    const currentPosition: [number, number, number] = [position.x, position.y, position.z]
-    const grounded = constrainPlacementPosition(
-      currentPosition,
-      [rotation.x, rotation.y, rotation.z, rotation.w],
-      1,
-      bounds,
-    )
-    if (samePosition(grounded, currentPosition)) return false
-
-    const changedX = Math.abs(grounded[0] - position.x) > 0.000001
-    const changedY = Math.abs(grounded[1] - position.y) > 0.000001
-    const changedZ = Math.abs(grounded[2] - position.z) > 0.000001
-    body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
-    const velocity = body.linvel()
-    body.setLinvel({
-      x: changedX ? 0 : velocity.x,
-      y: changedY && velocity.y < 0 ? 0 : velocity.y,
-      z: changedZ ? 0 : velocity.z,
-    }, true)
-    invalidate()
-    return true
-  }, [bounds, invalidate])
-
-  const syncVisual = useCallback(() => {
-    const body = bodyRef.current
-    if (!body || !visualGroup) return
-    const translation = body.translation()
-    const rotation = body.rotation()
-    visualGroup.position.set(translation.x, translation.y, translation.z)
-    visualGroup.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w).normalize()
-    visualGroup.updateMatrixWorld(true)
-    invalidate()
-  }, [invalidate, visualGroup])
-
-  useAfterPhysicsStep(() => {
-    if (globalSettling) enforceHardFloor()
-    syncVisual()
-  })
-
-  useEffect(() => {
-    const body = bodyRef.current
-    if (!body || globalSettling) return
-    const grounded = constrainPlacementPosition(pose.position, pose.rotation, 1, bounds)
-    const safePose = normalizeRockPose({ position: grounded, rotation: pose.rotation })
-    const translation = { x: safePose.position[0], y: safePose.position[1], z: safePose.position[2] }
-    const rotation = { x: safePose.rotation[0], y: safePose.rotation[1], z: safePose.rotation[2], w: safePose.rotation[3] }
-    if (manipulating) {
-      body.setNextKinematicTranslation(translation)
-      body.setNextKinematicRotation(rotation)
-    } else {
-      body.setTranslation(translation, false)
-      body.setRotation(rotation, false)
-    }
-    if (visualGroup) {
-      visualGroup.position.set(...safePose.position)
-      visualGroup.quaternion.set(...safePose.rotation).normalize()
-      visualGroup.updateMatrixWorld(true)
-    }
-    invalidate()
-  }, [bounds, globalSettling, invalidate, manipulating, pose, visualGroup])
-
-  const report = useCallback(() => {
-    const body = bodyRef.current
-    if (!body || !globalSettling || reportedRef.current) return
-    reportedRef.current = true
-    enforceHardFloor()
-    body.setLinvel({ x: 0, y: 0, z: 0 }, false)
-    body.setAngvel({ x: 0, y: 0, z: 0 }, false)
-    body.sleep()
-    const position = body.translation()
-    const rotation = body.rotation()
-        const grounded = constrainPlacementPosition(
-    [position.x, position.y, position.z],
-    [rotation.x, rotation.y, rotation.z, rotation.w],
-    1,
-    bounds,
-  )
-
-    if (!samePosition(grounded, [position.x, position.y, position.z])) {
-      body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, false)
-    }
-    onSettled(normalizeRockPose({
-      position: grounded,
-      rotation: [rotation.x, rotation.y, rotation.z, rotation.w],
-    }))
-    syncVisual()
-  }, [bounds, enforceHardFloor, globalSettling, onSettled, syncVisual])
-
-  useEffect(() => {
-    reportedRef.current = false
-    if (!globalSettling) return
-    const body = bodyRef.current
-    if (body) {
-      enforceHardFloor()
-      body.setLinvel({ x: 0, y: -0.03, z: 0 }, true)
-      body.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      body.wakeUp()
-    }
-    const timer = window.setTimeout(report, ROCK_SETTLE_TIMEOUT_MS)
-    invalidate()
-    return () => window.clearTimeout(timer)
-  }, [enforceHardFloor, globalSettling, invalidate, report])
-
-  return (
-    <RigidBody
-      key={globalSettling ? 'rock-dynamic' : manipulating ? 'rock-kinematic' : 'rock-fixed'}
-      ref={bodyRef}
-      type={globalSettling ? 'dynamic' : manipulating ? 'kinematicPosition' : 'fixed'}
-      colliders="hull"
-      includeInvisible
-      position={pose.position}
-      quaternion={pose.rotation}
-      mass={6}
-      friction={0.9}
-      restitution={0.015}
-      linearDamping={1.8}
-      angularDamping={2.2}
-      ccd={globalSettling}
-      canSleep
-      additionalSolverIterations={globalSettling ? 6 : 1}
-      onSleep={report}
-    >
-      <primitive object={colliderObject} />
-    </RigidBody>
-  )
+const ROCK_PLACEMENT_BODY_PHYSICS: PlacementBodyPhysicsConfig = {
+  collider: 'hull',
+  mass: 6,
+  friction: 0.9,
+  restitution: 0.015,
+  linearDamping: 1.8,
+  angularDamping: 2.2,
+  gravityScale: 1,
+  ccd: false,
+  settlingCcd: true,
+  baseSolverIterations: 1,
+  settlingSolverIterations: 6,
+  settleTimeoutMs: ROCK_SETTLE_TIMEOUT_MS,
+  settleLinearVelocityY: -0.03,
 }
 
 function PedestalGround() {
@@ -511,6 +370,20 @@ export function ShowroomScene({
       return next
     })
   }, [])
+
+  const rockColliderObject = useMemo(() => {
+    if (!object) return null
+    const clone = object.clone(true)
+    clone.name = 'CAILLOU_DYNAMIC_HULL_COLLIDER'
+    clone.visible = false
+    return clone
+  }, [object])
+  const handleRockPhysicsTransform = useCallback((transform: PlacementTransform) => {
+    if (!visualGroup) return
+    visualGroup.position.set(...transform.position)
+    visualGroup.quaternion.set(...transform.rotation).normalize()
+    visualGroup.updateMatrixWorld(true)
+  }, [visualGroup])
   const surfaceMode = interactionMode === 'caress' || interactionMode === 'cleaning'
   const cleaningMode = interactionMode === 'cleaning'
   const placementMode = interactionMode === 'placement'
@@ -550,6 +423,13 @@ export function ShowroomScene({
     finalRockRef.current = pose
     tryReportComposition()
   }, [tryReportComposition])
+
+  const handleRockBodySettled = useCallback((transform: PlacementTransform) => {
+    handleRockSettled(normalizeRockPose({
+      position: [...transform.position],
+      rotation: [...transform.rotation],
+    }))
+  }, [handleRockSettled])
 
   const handleAccessorySettled = useCallback((transform: WorldAccessoryTransform) => {
     finalAccessoriesRef.current.set(transform.instanceId, transform)
@@ -677,16 +557,23 @@ export function ShowroomScene({
               />
             </group>
 
-            {object && visualGroup && rockGeometry ? (
-              <RockPhysicsBody
-                object={object}
-                pose={rockPose}
-                bounds={rockGeometry}
-                visualGroup={visualGroup}
-                manipulating={placementRockTarget}
-                globalSettling={globalSettling}
-                onSettled={handleRockSettled}
-              />
+            {rockColliderObject && rockGeometry ? (
+              <PlacementBody
+                bodyKey="rock"
+                state={globalSettling ? 'settling' : placementRockTarget ? 'editing' : 'fixed'}
+                transform={{
+                  position: [...rockPose.position],
+                  rotation: [...rockPose.rotation],
+                  scale: 1,
+                }}
+                geometry={rockGeometry}
+                physics={ROCK_PLACEMENT_BODY_PHYSICS}
+                includeInvisible
+                onTransformFrame={handleRockPhysicsTransform}
+                onSettled={handleRockBodySettled}
+              >
+                <primitive object={rockColliderObject} />
+              </PlacementBody>
             ) : null}
 
             {accessories.map((instance) => (

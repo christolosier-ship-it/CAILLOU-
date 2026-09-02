@@ -1,8 +1,6 @@
 import { useThree } from '@react-three/fiber'
-import { RigidBody, useAfterPhysicsStep } from '@react-three/rapier'
-import type { RapierRigidBody } from '@react-three/rapier'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Box3, Quaternion, Sphere } from 'three'
+import { Box3, Sphere } from 'three'
 import type { Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
@@ -12,7 +10,10 @@ import {
   parseAccessoryPhysics,
 } from '../features/accessories/accessoryPhysics'
 import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
-import { constrainPlacementPosition } from '../features/placement/placementConstraints'
+import { PlacementBody } from '../features/placement/PlacementBody'
+import type { PlacementBodyPhysicsConfig } from '../features/placement/PlacementBody'
+import type { PlacementBodyState } from '../features/placement/placementBodyState'
+import { constrainTransformToPedestal } from '../features/placement/placementConstraints'
 import { createPlacementGeometry } from '../features/placement/placementGeometry'
 import type { PlacementGeometry } from '../features/placement/placementGeometry'
 import type { PlacementTransform } from '../features/placement/placementTypes'
@@ -37,18 +38,6 @@ interface AccessoryModelProps {
   onPlacementGeometryReady?: (instanceId: string, geometry: PlacementGeometry | null) => void
   onLoadStateChange?: ((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => void) | undefined
   onDisposed?: ((instanceId: string, report: DisposalReport) => void) | undefined
-}
-
-function bodyWorldTransform(body: RapierRigidBody, instanceId: string, uniformScale: number): WorldAccessoryTransform {
-  const position = body.translation()
-  const rotation = body.rotation()
-  const quaternion = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w).normalize()
-  return {
-    instanceId,
-    worldPosition: [position.x, position.y, position.z],
-    worldRotation: [quaternion.x, quaternion.y, quaternion.z, quaternion.w],
-    uniformScale,
-  }
 }
 
 function transformKey(instance: EquippedAccessoryInstance) {
@@ -76,19 +65,11 @@ export function AccessoryModel({
   const [selectionRadius, setSelectionRadius] = useState(0.5)
   const [placementGeometry, setPlacementGeometry] = useState<PlacementGeometry | null>(null)
   const [simulating, setSimulating] = useState(false)
-  const bodyRef = useRef<RapierRigidBody>(null)
-  const simulatingRef = useRef(false)
-  const settlementInFlightRef = useRef(false)
   const handledUnsettledTransformRef = useRef<string | null>(null)
-  const globalReportedRef = useRef(false)
   const disposedCallbackRef = useRef(onDisposed)
   const loadCallbackRef = useRef(onLoadStateChange)
   const invalidate = useThree((state) => state.invalidate)
   const physics = useMemo(() => parseAccessoryPhysics(instance.physics, instance.category), [instance.category, instance.physics])
-  const setPhysicsSimulating = useCallback((next: boolean) => {
-    simulatingRef.current = next
-    setSimulating(next)
-  }, [])
 
   useEffect(() => {
     disposedCallbackRef.current = onDisposed
@@ -170,245 +151,117 @@ export function AccessoryModel({
     return accessoryLocalToWorld(instance.id, instance, rockPose)
   }, [instance, placementTransform, rockPose])
 
-  const enforceHardFloor = useCallback(() => {
-    const body = bodyRef.current
-    if (!body) return false
-    const world = bodyWorldTransform(body, instance.id, instance.uniformScale)
-    if (!placementGeometry) return false
-    const grounded = constrainPlacementPosition(
-      world.worldPosition,
-      world.worldRotation,
-      instance.uniformScale,
-      placementGeometry,
-    )
-    const changedX = Math.abs(grounded[0] - world.worldPosition[0]) > 0.000001
-    const changedY = Math.abs(grounded[1] - world.worldPosition[1]) > 0.000001
-    const changedZ = Math.abs(grounded[2] - world.worldPosition[2]) > 0.000001
-    if (!changedX && !changedY && !changedZ) return false
-
-    body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
-    const velocity = body.linvel()
-    body.setLinvel({
-      x: changedX ? 0 : velocity.x,
-      y: changedY && velocity.y < 0 ? 0 : velocity.y,
-      z: changedZ ? 0 : velocity.z,
-    }, true)
-    invalidate()
-    return true
-  }, [instance.id, instance.uniformScale, invalidate, placementGeometry])
-
-  useAfterPhysicsStep(() => {
-    if (simulatingRef.current || globalSettling) enforceHardFloor()
-  })
-
-  useEffect(() => {
-    const body = bodyRef.current
-    if (!body || simulatingRef.current || globalSettling) return
-    const world = worldFromInstance()
-    const position = { x: world.worldPosition[0], y: world.worldPosition[1], z: world.worldPosition[2] }
-    const rotation = {
-      x: world.worldRotation[0],
-      y: world.worldRotation[1],
-      z: world.worldRotation[2],
-      w: world.worldRotation[3],
-    }
-    if (body.isKinematic()) {
-      body.setNextKinematicTranslation(position)
-      body.setNextKinematicRotation(rotation)
-    } else {
-      body.setTranslation(position, false)
-      body.setRotation(rotation, false)
-    }
-    invalidate()
-  }, [globalSettling, invalidate, rockPose, worldFromInstance])
-
-  const startDynamicSettlement = useCallback(() => {
-    settlementInFlightRef.current = false
-    setPhysicsSimulating(true)
-  }, [setPhysicsSimulating])
+  const renderScale = placementTransform?.scale ?? instance.uniformScale
+  const world = worldFromInstance()
+  const bodyTransform: PlacementTransform = {
+    position: [...world.worldPosition],
+    rotation: [...world.worldRotation],
+    scale: renderScale,
+  }
+  const bodyState: PlacementBodyState = globalSettling
+    ? 'settling'
+    : simulating && physics.dynamic
+      ? 'settling'
+      : compositionFrozen
+        ? 'editing'
+        : 'fixed'
+  const bodyPhysics = useMemo<PlacementBodyPhysicsConfig>(() => ({
+    collider: physics.enabled ? physics.collider : 'hull',
+    mass: physics.mass,
+    friction: physics.friction,
+    restitution: physics.restitution,
+    linearDamping: physics.linearDamping,
+    angularDamping: physics.angularDamping,
+    gravityScale: globalSettling ? 1 : physics.gravityScale,
+    ccd: physics.ccd,
+    settlingCcd: globalSettling || physics.ccd,
+    baseSolverIterations: physics.dynamic ? 2 : 0,
+    settlingSolverIterations: 2,
+    settleTimeoutMs: globalSettling ? ROCK_SETTLE_TIMEOUT_MS : ACCESSORY_SETTLE_TIMEOUT_MS,
+    settleLinearVelocityY: -0.02,
+  }), [globalSettling, physics])
 
   useEffect(() => {
-    if (!simulating || globalSettling) return
-    const body = bodyRef.current
-    if (!body) return
-    body.setLinvel({ x: 0, y: -0.02, z: 0 }, true)
-    body.setAngvel({ x: 0, y: 0, z: 0 }, true)
-    body.wakeUp()
-    invalidate()
-  }, [globalSettling, invalidate, simulating])
-
-  const persistCurrentTransform = useCallback(() => {
-    const body = bodyRef.current
-    if (!body || settlementInFlightRef.current || !simulatingRef.current || globalSettling) return
-    settlementInFlightRef.current = true
-    enforceHardFloor()
-
-    const local = accessoryWorldToLocal(bodyWorldTransform(body, instance.id, instance.uniformScale), rockPose)
-    body.setLinvel({ x: 0, y: 0, z: 0 }, false)
-    body.setAngvel({ x: 0, y: 0, z: 0 }, false)
-    body.sleep()
-
-    if (!isAccessoryTransformWithinPhysicsBounds(local.localPosition)) {
-      const fallback = worldFromInstance()
-      body.setTranslation({ x: fallback.worldPosition[0], y: fallback.worldPosition[1], z: fallback.worldPosition[2] }, false)
-      body.setRotation({
-        x: fallback.worldRotation[0],
-        y: fallback.worldRotation[1],
-        z: fallback.worldRotation[2],
-        w: fallback.worldRotation[3],
-      }, false)
-    } else {
-      handledUnsettledTransformRef.current = transformKey({ ...instance, ...local })
-      onTransformCommit(instance.id, { ...local, physicsSettled: true })
-    }
-
-    setPhysicsSimulating(false)
-    settlementInFlightRef.current = false
-    invalidate()
-  }, [enforceHardFloor, globalSettling, instance, invalidate, onTransformCommit, rockPose, setPhysicsSimulating, worldFromInstance])
-
-  useEffect(() => {
-    if (!simulating || globalSettling) return
-    const timer = window.setTimeout(persistCurrentTransform, ACCESSORY_SETTLE_TIMEOUT_MS)
-    return () => window.clearTimeout(timer)
-  }, [globalSettling, persistCurrentTransform, simulating])
-
-  useEffect(() => {
-    if (!object || instance.stabilizedAt !== null || compositionFrozen || globalSettling) return
-    const body = bodyRef.current
-    if (!body) return
-
+    if (!object || !placementGeometry || instance.stabilizedAt !== null || compositionFrozen || globalSettling) return
     const nextKey = transformKey(instance)
     if (handledUnsettledTransformRef.current === nextKey) return
     handledUnsettledTransformRef.current = nextKey
 
-    if (simulatingRef.current) {
-      body.setLinvel({ x: 0, y: 0, z: 0 }, false)
-      body.setAngvel({ x: 0, y: 0, z: 0 }, false)
-      body.sleep()
-      setPhysicsSimulating(false)
-    }
-
-    const world = worldFromInstance()
-    body.setTranslation({ x: world.worldPosition[0], y: world.worldPosition[1], z: world.worldPosition[2] }, false)
-    body.setRotation({
-      x: world.worldRotation[0],
-      y: world.worldRotation[1],
-      z: world.worldRotation[2],
-      w: world.worldRotation[3],
-    }, false)
-
     if (physics.enabled && physics.dynamic) {
-      startDynamicSettlement()
-    } else {
-            if (!placementGeometry) return
-    const grounded = constrainPlacementPosition(
-      world.worldPosition,
-      world.worldRotation,
-      instance.uniformScale,
-      placementGeometry,
-    )
-    const local = accessoryWorldToLocal({ ...world, worldPosition: grounded }, rockPose)
-
-      onTransformCommit(instance.id, { ...local, physicsSettled: true })
+      setSimulating(true)
+      return
     }
+
+    const canonicalWorld = worldFromInstance()
+    const safe = constrainTransformToPedestal({
+      position: [...canonicalWorld.worldPosition],
+      rotation: [...canonicalWorld.worldRotation],
+      scale: instance.uniformScale,
+    }, placementGeometry)
+    const local = accessoryWorldToLocal({
+      instanceId: instance.id,
+      worldPosition: [...safe.position],
+      worldRotation: [...safe.rotation],
+      uniformScale: safe.scale,
+    }, rockPose)
+    onTransformCommit(instance.id, { ...local, physicsSettled: true })
   }, [
     compositionFrozen,
     globalSettling,
-    placementGeometry,
     instance,
     object,
     onTransformCommit,
     physics.dynamic,
     physics.enabled,
+    placementGeometry,
     rockPose,
-    setPhysicsSimulating,
-    startDynamicSettlement,
     worldFromInstance,
   ])
 
   useEffect(() => {
-    if (instance.stabilizedAt == null || !simulatingRef.current || globalSettling) return
-    const body = bodyRef.current
-    if (!body) return
-    const world = worldFromInstance()
-    body.setLinvel({ x: 0, y: 0, z: 0 }, false)
-    body.setAngvel({ x: 0, y: 0, z: 0 }, false)
-    body.setTranslation({ x: world.worldPosition[0], y: world.worldPosition[1], z: world.worldPosition[2] }, false)
-    body.setRotation({
-      x: world.worldRotation[0],
-      y: world.worldRotation[1],
-      z: world.worldRotation[2],
-      w: world.worldRotation[3],
-    }, false)
-    body.sleep()
+    if (instance.stabilizedAt == null || !simulating || globalSettling) return
     handledUnsettledTransformRef.current = null
-    setPhysicsSimulating(false)
+    setSimulating(false)
     invalidate()
-  }, [globalSettling, instance.stabilizedAt, invalidate, setPhysicsSimulating, worldFromInstance])
-
-  const reportGlobalSettlement = useCallback(() => {
-    const body = bodyRef.current
-    if (!body || !globalSettling || globalReportedRef.current) return
-    globalReportedRef.current = true
-    enforceHardFloor()
-    body.setLinvel({ x: 0, y: 0, z: 0 }, false)
-    body.setAngvel({ x: 0, y: 0, z: 0 }, false)
-    body.sleep()
-    onGlobalSettled?.(bodyWorldTransform(body, instance.id, instance.uniformScale))
-    invalidate()
-  }, [enforceHardFloor, globalSettling, instance.id, instance.uniformScale, invalidate, onGlobalSettled])
+  }, [globalSettling, instance.stabilizedAt, invalidate, simulating])
 
   useEffect(() => {
-    globalReportedRef.current = false
     if (!globalSettling) return
-    setPhysicsSimulating(false)
-    const body = bodyRef.current
-    if (body) {
-      body.setLinvel({ x: 0, y: -0.02, z: 0 }, true)
-      body.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      body.wakeUp()
+    setSimulating(false)
+  }, [globalSettling])
+
+  const handleBodySettled = useCallback((transform: PlacementTransform) => {
+    const settledWorld: WorldAccessoryTransform = {
+      instanceId: instance.id,
+      worldPosition: [...transform.position],
+      worldRotation: [...transform.rotation],
+      uniformScale: transform.scale,
     }
-    const timer = window.setTimeout(reportGlobalSettlement, ROCK_SETTLE_TIMEOUT_MS)
+    if (globalSettling) {
+      onGlobalSettled?.(settledWorld)
+      return
+    }
+    if (!simulating) return
+
+    const local = accessoryWorldToLocal(settledWorld, rockPose)
+    if (isAccessoryTransformWithinPhysicsBounds(local.localPosition)) {
+      handledUnsettledTransformRef.current = transformKey({ ...instance, ...local })
+      onTransformCommit(instance.id, { ...local, physicsSettled: true })
+    }
+    setSimulating(false)
     invalidate()
-    return () => window.clearTimeout(timer)
-  }, [globalSettling, invalidate, reportGlobalSettlement, setPhysicsSimulating])
+  }, [globalSettling, instance, invalidate, onGlobalSettled, onTransformCommit, rockPose, simulating])
 
-  if (!object) return null
-
-  const bodyType = globalSettling
-    ? 'dynamic'
-    : simulating && physics.dynamic
-      ? 'dynamic'
-      : compositionFrozen
-        ? 'kinematicPosition'
-        : 'fixed'
-  const world = worldFromInstance()
-  const renderScale = placementTransform?.scale ?? instance.uniformScale
-  const collider = physics.enabled ? physics.collider : 'hull'
+  if (!object || !placementGeometry) return null
 
   return (
-    <RigidBody
-      key={`${instance.id}-${renderScale.toFixed(4)}`}
-      ref={bodyRef}
-      type={bodyType}
-      colliders={collider}
-      position={world.worldPosition}
-      quaternion={world.worldRotation}
-      scale={renderScale}
-      mass={physics.mass}
-      friction={physics.friction}
-      restitution={physics.restitution}
-      linearDamping={physics.linearDamping}
-      angularDamping={physics.angularDamping}
-      gravityScale={globalSettling ? 1 : physics.gravityScale}
-      ccd={globalSettling || physics.ccd}
-      canSleep
-      additionalSolverIterations={globalSettling || physics.dynamic ? 2 : 0}
-      onSleep={() => {
-        if (globalSettling) reportGlobalSettlement()
-        else if (simulatingRef.current) persistCurrentTransform()
-      }}
+    <PlacementBody
+      bodyKey={`accessory:${instance.id}`}
+      state={bodyState}
+      transform={bodyTransform}
+      geometry={placementGeometry}
+      physics={bodyPhysics}
+      onSettled={handleBodySettled}
     >
       <primitive object={object} />
       {selected ? (
@@ -417,6 +270,6 @@ export function AccessoryModel({
           <meshBasicMaterial wireframe transparent opacity={0.2} depthTest={false} />
         </mesh>
       ) : null}
-    </RigidBody>
+    </PlacementBody>
   )
 }
