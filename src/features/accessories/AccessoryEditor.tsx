@@ -67,7 +67,7 @@ export function AccessoryEditor({
   return (
     <section
       className="accessory-editor"
-      aria-label="Placement libre des accessoires"
+      aria-label="Placement tactile des accessoires"
       data-selected-accessory={selected.id}
       data-position={selected.localPosition.join(',')}
       data-rotation={selected.localRotation.join(',')}
@@ -75,7 +75,7 @@ export function AccessoryEditor({
     >
       <header className="accessory-editor-heading">
         <div>
-          <p className="eyebrow">Placement libre</p>
+          <p className="eyebrow">Édition tactile</p>
           <h2>{selected.name}</h2>
           <p>{instances.length}/{maxInstances} instances sur ce caillou</p>
         </div>
@@ -100,69 +100,72 @@ export function AccessoryEditor({
       </div>
 
       <p className="accessory-editor-hint">
-        Faites glisser l’objet pour un déplacement large. Les commandes X/Y/Z donnent le réglage précis, y compris en profondeur.
+        Un doigt place l’objet sur le caillou ou le sol. Pincez pour changer sa taille et tournez deux doigts pour l’orienter.
       </p>
 
-      <div className="accessory-editor-control-grid">
-        <fieldset>
-          <legend>Position</legend>
-          {AXES.map((axis) => (
-            <div className="accessory-axis-row" key={`move-${axis}`}>
-              <span>{axisLabel(axis)}</span>
-              <button
-                type="button"
-                aria-label={`Déplacer ${axisLabel(axis)} négatif`}
-                disabled={busy}
-                onClick={() => applyNudge(axis, -1)}
-              >−</button>
-              <button
-                type="button"
-                aria-label={`Déplacer ${axisLabel(axis)} positif`}
-                disabled={busy}
-                onClick={() => applyNudge(axis, 1)}
-              >+</button>
-            </div>
-          ))}
-        </fieldset>
+      <details className="accessory-editor-fine">
+        <summary>Réglage fin X / Y / Z</summary>
+        <div className="accessory-editor-control-grid">
+          <fieldset>
+            <legend>Position</legend>
+            {AXES.map((axis) => (
+              <div className="accessory-axis-row" key={`move-${axis}`}>
+                <span>{axisLabel(axis)}</span>
+                <button
+                  type="button"
+                  aria-label={`Déplacer ${axisLabel(axis)} négatif`}
+                  disabled={busy}
+                  onClick={() => applyNudge(axis, -1)}
+                >−</button>
+                <button
+                  type="button"
+                  aria-label={`Déplacer ${axisLabel(axis)} positif`}
+                  disabled={busy}
+                  onClick={() => applyNudge(axis, 1)}
+                >+</button>
+              </div>
+            ))}
+          </fieldset>
 
-        <fieldset>
-          <legend>Rotation fine</legend>
-          {AXES.map((axis) => (
-            <div className="accessory-axis-row" key={`rotate-${axis}`}>
-              <span>{axisLabel(axis)}</span>
-              <button
-                type="button"
-                aria-label={`Tourner ${axisLabel(axis)} négatif`}
-                disabled={busy}
-                onClick={() => applyRotation(axis, -1)}
-              >−</button>
-              <button
-                type="button"
-                aria-label={`Tourner ${axisLabel(axis)} positif`}
-                disabled={busy}
-                onClick={() => applyRotation(axis, 1)}
-              >+</button>
-            </div>
-          ))}
-        </fieldset>
-      </div>
+          <fieldset>
+            <legend>Rotation</legend>
+            {AXES.map((axis) => (
+              <div className="accessory-axis-row" key={`rotate-${axis}`}>
+                <span>{axisLabel(axis)}</span>
+                <button
+                  type="button"
+                  aria-label={`Tourner ${axisLabel(axis)} négatif`}
+                  disabled={busy}
+                  onClick={() => applyRotation(axis, -1)}
+                >−</button>
+                <button
+                  type="button"
+                  aria-label={`Tourner ${axisLabel(axis)} positif`}
+                  disabled={busy}
+                  onClick={() => applyRotation(axis, 1)}
+                >+</button>
+              </div>
+            ))}
+          </fieldset>
+        </div>
 
-      <div className="accessory-editor-scale">
-        <span>Taille</span>
-        <button
-          type="button"
-          aria-label="Réduire l’accessoire"
-          disabled={busy || selected.uniformScale <= selected.scaleMin}
-          onClick={() => applyScale(-1)}
-        >−</button>
-        <output>{selected.uniformScale.toFixed(2)}×</output>
-        <button
-          type="button"
-          aria-label="Agrandir l’accessoire"
-          disabled={busy || selected.uniformScale >= selected.scaleMax}
-          onClick={() => applyScale(1)}
-        >+</button>
-      </div>
+        <div className="accessory-editor-scale">
+          <span>Taille</span>
+          <button
+            type="button"
+            aria-label="Réduire l’accessoire"
+            disabled={busy || selected.uniformScale <= selected.scaleMin}
+            onClick={() => applyScale(-1)}
+          >−</button>
+          <output>{selected.uniformScale.toFixed(2)}×</output>
+          <button
+            type="button"
+            aria-label="Agrandir l’accessoire"
+            disabled={busy || selected.uniformScale >= selected.scaleMax}
+            onClick={() => applyScale(1)}
+          >+</button>
+        </div>
+      </details>
 
       {message ? <p className="accessory-editor-message" role="status">{message}</p> : null}
 

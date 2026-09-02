@@ -13,6 +13,7 @@ import '../../src/styles/showroom.css'
 import '../../src/styles/adoption.css'
 import '../../src/styles/caress.css'
 import '../../src/styles/cleaning.css'
+import '../../src/styles/rock-movement.css'
 
 const ACTIVE_ROCK: ActiveRock = {
   id: '88888888-8888-4888-8888-888888888888',
@@ -20,6 +21,9 @@ const ACTIVE_ROCK: ActiveRock = {
   name: 'Bernard',
   adoptedAt: new Date().toISOString(),
   lastCleanedAt: null,
+  posePosition: [0, 0, 0],
+  poseRotation: [0, 0, 0, 1],
+  poseStabilizedAt: new Date().toISOString(),
 }
 
 const INITIAL_ECONOMY: RockEconomySnapshot = {

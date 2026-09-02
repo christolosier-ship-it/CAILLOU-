@@ -10,6 +10,7 @@ import './styles/caress.css'
 import './styles/cleaning.css'
 import './styles/accessories.css'
 import './styles/accessory-placement.css'
+import './styles/rock-movement.css'
 
 registerPwa()
 

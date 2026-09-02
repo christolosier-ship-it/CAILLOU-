@@ -8,6 +8,7 @@ import '../../src/styles/showroom.css'
 import '../../src/styles/adoption.css'
 import '../../src/styles/caress.css'
 import '../../src/styles/cleaning.css'
+import '../../src/styles/rock-movement.css'
 
 function AdoptionFixture() {
   const [activeRock, setActiveRock] = useState<ActiveRock | null>(null)
@@ -28,6 +29,9 @@ function AdoptionFixture() {
       name,
       adoptedAt: new Date().toISOString(),
       lastCleanedAt: null,
+      posePosition: [0, 0, 0],
+      poseRotation: [0, 0, 0, 1],
+      poseStabilizedAt: new Date().toISOString(),
     }
     receipts.current.set(eventKey, adopted)
     serverRock.current = adopted

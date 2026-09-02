@@ -10,6 +10,7 @@ import '../../src/styles/showroom.css'
 import '../../src/styles/adoption.css'
 import '../../src/styles/caress.css'
 import '../../src/styles/cleaning.css'
+import '../../src/styles/rock-movement.css'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const ADOPTED_AT = new Date(Date.now() - 30 * DAY_MS).toISOString()
@@ -64,6 +65,9 @@ function CleaningFixture() {
     name: 'Proprement',
     adoptedAt: ADOPTED_AT,
     lastCleanedAt: hydrated.lastCleanedAt,
+    posePosition: [0, 0, 0],
+    poseRotation: [0, 0, 0, 1],
+    poseStabilizedAt: INITIAL_CLEANED_AT,
   }
   const economy: RockEconomySnapshot = {
     balance: serverBalance.current,
