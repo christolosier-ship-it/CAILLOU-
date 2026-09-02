@@ -177,7 +177,7 @@ try {
   }
   assertRockAboveGround('after rock Rapier settlement', rockAfterRapier.globalRockPosition, rockAfterRapier.globalRockRotation)
 
-  await page.click('#reopen-placement')
+  await page.$eval('#reopen-placement', (button) => button.click())
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
   await page.click('.placement-targets > button:nth-child(2)')
   await page.waitForFunction(() => (document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') ?? '').includes('000000000001'))
