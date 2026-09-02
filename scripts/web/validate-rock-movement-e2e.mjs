@@ -73,7 +73,6 @@ try {
     const value = JSON.parse(document.querySelector('#rock-movement-e2e-state')?.getAttribute('data-rock-position') ?? '[0,0,0]')
     return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, initial.position)
-  const afterPosition = await state()
 
   await page.click('button:nth-of-type(2)')
   await page.waitForFunction(() => document.querySelector('#rock-movement-e2e-state')?.getAttribute('data-mode') === 'rock-orientation')
