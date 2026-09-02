@@ -56,6 +56,11 @@ async function touch(selector) {
   await page.touchscreen.tap(target.x + target.width / 2, target.y + target.height / 2)
 }
 
+async function openFineControls() {
+  const isOpen = await page.$eval('.accessory-editor-fine', (element) => element.hasAttribute('open'))
+  if (!isOpen) await touch('.accessory-editor-fine summary')
+}
+
 try {
   await page.setCacheEnabled(false)
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
@@ -78,6 +83,7 @@ try {
   const first = initial.transforms.find((item) => item.id === initial.selectedId)
   if (!first) throw new Error('selected accessory missing from initial transform set')
 
+  await openFineControls()
   await touch('button[aria-label="Déplacer X positif"]')
   await page.waitForFunction(() => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') >= 1)
   let current = await state()
@@ -108,11 +114,17 @@ try {
     throw new Error('client and simulated server transforms diverged before reload')
   }
 
-  const phoneTargets = await page.$$eval('.accessory-editor button', (buttons) => buttons.every((button) => {
-    const rect = button.getBoundingClientRect()
-    return rect.width >= 44 && rect.height >= 44
-  }))
-  if (!phoneTargets) throw new Error('one or more phone placement targets are below 44px')
+  const phoneTargets = await page.$$eval('.accessory-editor button, .accessory-editor summary', (targets) => targets
+    .filter((target) => {
+      const rect = target.getBoundingClientRect()
+      const style = getComputedStyle(target)
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
+    })
+    .every((target) => {
+      const rect = target.getBoundingClientRect()
+      return rect.width >= 44 && rect.height >= 44
+    }))
+  if (!phoneTargets) throw new Error('one or more visible phone placement targets are below 44px')
   await page.screenshot({ path: `${outputDir}/placement-phone.png`, fullPage: true })
 
   const disposeBeforeReload = current.disposeCount
@@ -131,6 +143,7 @@ try {
   // Keep touch/mobile emulation enabled while widening to tablet. Toggling isMobile/hasTouch
   // makes Puppeteer reload the page and would invalidate the persistence counters we are testing.
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
+  await openFineControls()
   const savesBeforeTablet = afterReload.saveCount
   await touch('button[aria-label="Déplacer Z positif"]')
   await page.waitForFunction((expected) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') > expected, {}, savesBeforeTablet)
