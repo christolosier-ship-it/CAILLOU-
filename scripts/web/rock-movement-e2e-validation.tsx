@@ -59,6 +59,14 @@ function Fixture() {
   const [rockReady, setRockReady] = useState(false)
   const [accessoryReady, setAccessoryReady] = useState(false)
 
+  const handleRockLoadState = useCallback((state: 'loading' | 'ready' | 'error') => {
+    setRockReady(state === 'ready')
+  }, [])
+
+  const handleAccessoryLoadState = useCallback((_: string, state: 'loading' | 'ready' | 'error') => {
+    setAccessoryReady(state === 'ready')
+  }, [])
+
   const handleSettled = useCallback((draft: RockCompositionDraft) => {
     setSettled(draft)
     setPose(draft.rockPose)
@@ -73,7 +81,7 @@ function Fixture() {
             rock={rock}
             retryKey={0}
             reducedMotion={false}
-            onLoadStateChange={(state) => setRockReady(state === 'ready')}
+            onLoadStateChange={handleRockLoadState}
             onInteractionChange={() => undefined}
             interactionMode={mode}
             rockPose={pose}
@@ -82,7 +90,7 @@ function Fixture() {
             accessories={[INSTANCE]}
             onAccessorySelect={() => undefined}
             onAccessoryTransformCommit={() => undefined}
-            onAccessoryLoadStateChange={(_, state) => setAccessoryReady(state === 'ready')}
+            onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
           <div className="rock-e2e-controls" style={{ position: 'absolute', zIndex: 30, left: 12, bottom: 12, display: 'flex', gap: 8 }}>
             <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('rock-position')}>Position</button>
