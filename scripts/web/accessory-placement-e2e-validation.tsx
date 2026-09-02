@@ -117,7 +117,7 @@ function AccessoryPlacementFixture() {
     setMode('placement')
   }, [])
 
-  const handleDraft = useCallback((_instanceId: string, _transform: PlacementTransform) => {
+  const handleDraft = useCallback(() => {
     setDraftCount((current) => current + 1)
   }, [])
 
@@ -153,7 +153,8 @@ function AccessoryPlacementFixture() {
     })
   }, [])
 
-  const handleDisposed = useCallback((_instanceId: string, report: DisposalReport) => {
+  const handleDisposed = useCallback((instanceId: string, report: DisposalReport) => {
+    void instanceId
     setDisposeCount((current) => current + 1)
     setDisposedGeometries((current) => current + report.geometries)
   }, [])
