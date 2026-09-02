@@ -1,0 +1,443 @@
+name: Execute refactor phase 7 physics fixture migration
+
+on:
+  push:
+    branches:
+      - refactor/harmonisation-sol-placement
+    paths:
+      - .github/workflows/refactor-phase7-physics-fixture.yml
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-physics-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/harmonisation-sol-placement
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Rewrite historical physics fixture on the unified controller
+        shell: bash
+        run: |
+          cat > scripts/web/accessory-physics-e2e-validation.tsx <<'EOF'
+          import { Canvas } from '@react-three/fiber'
+          import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
+          import type { RapierRigidBody } from '@react-three/rapier'
+          import { Suspense, useCallback, useMemo, useRef, useState } from 'react'
+          import { createRoot } from 'react-dom/client'
+
+          import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
+          import { ACCESSORY_WORLD_GRAVITY } from '../../src/features/accessories/accessoryPhysics'
+          import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+          import type { PlacementTool, PlacementTransform } from '../../src/features/placement/placementTypes'
+          import { DEFAULT_ROCK_POSE, accessoryLocalToWorld } from '../../src/features/rockMovement/rockMovementRules'
+          import { ShowroomScene } from '../../src/scene/ShowroomScene'
+          import '../../src/styles/global.css'
+          import '../../src/styles/showroom.css'
+          import '../../src/styles/adoption.css'
+          import '../../src/styles/accessories.css'
+          import '../../src/styles/accessory-placement.css'
+
+          const rock = getRockCatalogEntryById('rock-012')
+
+          const INITIAL_INSTANCES: EquippedAccessoryInstance[] = [
+            {
+              id: '10d10000-0000-4000-8000-000000000001',
+              userRockId: '10d10000-0000-4000-8000-000000000099',
+              accessoryId: 'monocle',
+              category: 'visage',
+              name: 'Monocle',
+              modelPath: '/assets/accessories/monocle/model.glb',
+              previewPath: '/assets/accessory-previews/monocle.png',
+              scaleMin: 0.65,
+              scaleMax: 1.35,
+              triangleCount: 665,
+              dimensions: [0.440386, 0.626706, 0.725703],
+              physics: {
+                enabled: true,
+                dynamic: true,
+                collider: 'convexHull',
+                mass: 0.18,
+                friction: 0.68,
+                restitution: 0.06,
+                linearDamping: 1.6,
+                angularDamping: 2.1,
+                gravityScale: 0.9,
+                ccd: true,
+              },
+              equippedAt: '2026-09-01T21:00:00.000Z',
+              updatedAt: '2026-09-01T21:00:00.000Z',
+              stabilizedAt: '2026-09-01T21:00:00.000Z',
+              localPosition: [0, 0.16, 0.76],
+              localRotation: [0, 0, 0, 1],
+              uniformScale: 1,
+            },
+            {
+              id: '10d10000-0000-4000-8000-000000000002',
+              userRockId: '10d10000-0000-4000-8000-000000000099',
+              accessoryId: 'round-glasses',
+              category: 'visage',
+              name: 'Lunettes rondes',
+              modelPath: '/assets/accessories/round-glasses/model.glb',
+              previewPath: '/assets/accessory-previews/round-glasses.png',
+              scaleMin: 0.6,
+              scaleMax: 1.5,
+              triangleCount: 7386,
+              dimensions: [0.78, 0.656022, 0.307408],
+              physics: {
+                enabled: true,
+                dynamic: true,
+                collider: 'convexHull',
+                mass: 0.22,
+                friction: 0.66,
+                restitution: 0.05,
+                linearDamping: 1.6,
+                angularDamping: 2,
+                gravityScale: 0.88,
+                ccd: true,
+              },
+              equippedAt: '2026-09-01T21:00:01.000Z',
+              updatedAt: '2026-09-01T21:00:01.000Z',
+              stabilizedAt: '2026-09-01T21:00:01.000Z',
+              localPosition: [-0.22, 0.2, 0.82],
+              localRotation: [0, 0, 0, 1],
+              uniformScale: 1,
+            },
+          ]
+
+          function PhysicsProbe({ onState }: { onState: (next: { collision: number; settled: boolean; finalY: number }) => void }) {
+            const bodyRef = useRef<RapierRigidBody>(null)
+            const collisionCount = useRef(0)
+
+            return (
+              <Canvas
+                id="physics-probe-canvas"
+                frameloop="demand"
+                camera={{ position: [1.8, 1.3, 2.4], fov: 42 }}
+                style={{ width: 180, height: 120, position: 'absolute', top: 8, left: 8, zIndex: 20 }}
+              >
+                <ambientLight intensity={1.4} />
+                <Suspense fallback={null}>
+                  <Physics
+                    gravity={[ACCESSORY_WORLD_GRAVITY[0], ACCESSORY_WORLD_GRAVITY[1], ACCESSORY_WORLD_GRAVITY[2]]}
+                    updateLoop="independent"
+                    colliders={false}
+                  >
+                    <RigidBody
+                      ref={bodyRef}
+                      type="dynamic"
+                      position={[0, 1, 0]}
+                      colliders={false}
+                      canSleep
+                      ccd
+                      friction={0.72}
+                      restitution={0.02}
+                      linearDamping={2.8}
+                      angularDamping={3.2}
+                      onCollisionEnter={() => {
+                        collisionCount.current += 1
+                        onState({ collision: collisionCount.current, settled: false, finalY: bodyRef.current?.translation().y ?? 1 })
+                      }}
+                      onSleep={() => {
+                        onState({ collision: collisionCount.current, settled: true, finalY: bodyRef.current?.translation().y ?? 1 })
+                      }}
+                    >
+                      <CuboidCollider args={[0.1, 0.1, 0.1]} />
+                      <mesh castShadow>
+                        <boxGeometry args={[0.2, 0.2, 0.2]} />
+                        <meshStandardMaterial color="#9a784d" />
+                      </mesh>
+                    </RigidBody>
+                    <RigidBody type="fixed" position={[0, -0.3, 0]} colliders={false} friction={0.8}>
+                      <CuboidCollider args={[1, 0.1, 1]} />
+                      <mesh>
+                        <boxGeometry args={[2, 0.2, 2]} />
+                        <meshStandardMaterial color="#d8d2c8" />
+                      </mesh>
+                    </RigidBody>
+                  </Physics>
+                </Suspense>
+              </Canvas>
+            )
+          }
+
+          function PhysicsFixture() {
+            const [selectedId, setSelectedId] = useState(INITIAL_INSTANCES[0]!.id)
+            const [tool, setTool] = useState<PlacementTool>('position')
+            const [mode, setMode] = useState<'placement' | 'settling' | 'orbit'>('placement')
+            const [loadedIds, setLoadedIds] = useState<string[]>([])
+            const [draftCount, setDraftCount] = useState(0)
+            const [lastDraft, setLastDraft] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
+            const [settledCount, setSettledCount] = useState(0)
+            const [lastSettled, setLastSettled] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
+            const [probe, setProbe] = useState({ collision: 0, settled: false, finalY: 1 })
+
+            const selectedWorld = useMemo(() => {
+              if (lastDraft?.instanceId === selectedId) return lastDraft.transform
+              const instance = INITIAL_INSTANCES.find((candidate) => candidate.id === selectedId)
+              if (!instance) return null
+              const world = accessoryLocalToWorld(instance.id, instance, DEFAULT_ROCK_POSE)
+              return {
+                position: world.worldPosition,
+                rotation: world.worldRotation,
+                scale: world.uniformScale,
+              }
+            }, [lastDraft, selectedId])
+
+            const select = useCallback((instanceId: string) => {
+              setSelectedId(instanceId)
+              setTool('position')
+              setMode('placement')
+              setLastDraft(null)
+            }, [])
+
+            const handleDraft = useCallback((instanceId: string, transform: PlacementTransform) => {
+              setLastDraft({ instanceId, transform })
+              setDraftCount((current) => current + 1)
+            }, [])
+
+            const handleSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
+              setLastSettled({ instanceId, transform })
+              setSettledCount((current) => current + 1)
+              setLastDraft({ instanceId, transform })
+              setMode('orbit')
+            }, [])
+
+            const handleLoadState = useCallback((instanceId: string, state: 'loading' | 'ready' | 'error') => {
+              setLoadedIds((current) => {
+                if (state === 'loading') return current.filter((id) => id !== instanceId)
+                if (state === 'ready' && !current.includes(instanceId)) return [...current, instanceId]
+                return current
+              })
+            }, [])
+
+            return (
+              <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : ''}`}>
+                <PhysicsProbe onState={setProbe} />
+                <main className="pedestal-main">
+                  <section className="pedestal-stage" data-accessory-count={INITIAL_INSTANCES.length}>
+                    <ShowroomScene
+                      rock={rock}
+                      retryKey={0}
+                      reducedMotion={false}
+                      onLoadStateChange={() => undefined}
+                      onInteractionChange={() => undefined}
+                      interactionMode={mode}
+                      rockPose={DEFAULT_ROCK_POSE}
+                      placementTarget={mode === 'orbit' ? null : { kind: 'accessory', instanceId: selectedId }}
+                      placementTool={tool}
+                      accessories={INITIAL_INSTANCES}
+                      selectedAccessoryId={selectedId}
+                      onAccessorySelect={select}
+                      onAccessoryPlacementDraft={handleDraft}
+                      onAccessorySettled={handleSettled}
+                      onAccessoryLoadStateChange={handleLoadState}
+                    />
+                    <div className="physics-fixture-controls" style={{ position: 'absolute', zIndex: 30, right: 8, bottom: 8, display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: 280 }}>
+                      <button id="physics-select-monocle" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => select(INITIAL_INSTANCES[0]!.id)}>Monocle</button>
+                      <button id="physics-select-glasses" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => select(INITIAL_INSTANCES[1]!.id)}>Lunettes</button>
+                      <button id="physics-position" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('position') }}>Position</button>
+                      <button id="physics-orientation" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('orientation') }}>Orientation</button>
+                      <button id="physics-settle" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('settling')}>Lâcher</button>
+                    </div>
+                  </section>
+                </main>
+
+                <output
+                  id="accessory-physics-e2e-state"
+                  hidden
+                  data-mode={mode}
+                  data-instance-count={INITIAL_INSTANCES.length}
+                  data-loaded-count={loadedIds.length}
+                  data-selected-id={selectedId}
+                  data-draft-count={draftCount}
+                  data-settled-count={settledCount}
+                  data-probe-collisions={probe.collision}
+                  data-probe-settled={String(probe.settled)}
+                  data-probe-final-y={probe.finalY.toFixed(5)}
+                  data-selected-world-position={JSON.stringify(selectedWorld?.position ?? null)}
+                  data-selected-world-rotation={JSON.stringify(selectedWorld?.rotation ?? null)}
+                  data-selected-scale={String(selectedWorld?.scale ?? 0)}
+                  data-last-settled-position={JSON.stringify(lastSettled?.transform.position ?? null)}
+                  data-last-settled-rotation={JSON.stringify(lastSettled?.transform.rotation ?? null)}
+                />
+              </div>
+            )
+          }
+
+          const root = document.getElementById('root')
+          if (!root) throw new Error('Missing accessory physics E2E fixture root')
+          createRoot(root).render(<PhysicsFixture />)
+          EOF
+
+          cat > scripts/web/validate-accessory-physics-e2e.mjs <<'EOF'
+          import { mkdir, writeFile } from 'node:fs/promises'
+          import puppeteer from 'puppeteer-core'
+
+          const baseUrl = process.env.CAILLOU_E2E_BASE_URL ?? 'http://127.0.0.1:4178'
+          const chromePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome'
+          const outputDir = 'build/accessory-physics-validation'
+          await mkdir(outputDir, { recursive: true })
+
+          const browser = await puppeteer.launch({
+            executablePath: chromePath,
+            headless: true,
+            args: [
+              '--no-sandbox',
+              '--disable-gpu-sandbox',
+              '--disable-dev-shm-usage',
+              '--ignore-gpu-blocklist',
+              '--enable-webgl',
+              '--enable-unsafe-swiftshader',
+              '--use-gl=angle',
+              '--use-angle=swiftshader-webgl',
+            ],
+          })
+
+          const page = await browser.newPage()
+          const consoleLines = []
+          page.on('console', (message) => consoleLines.push(`[console:${message.type()}] ${message.text()}`))
+          page.on('pageerror', (error) => consoleLines.push(`[pageerror] ${error.message}`))
+          page.on('requestfailed', (request) => consoleLines.push(`[requestfailed] ${request.url()} ${request.failure()?.errorText ?? ''}`))
+
+          async function state() {
+            return page.$eval('#accessory-physics-e2e-state', (element) => ({
+              mode: element.getAttribute('data-mode') ?? '',
+              instanceCount: Number(element.getAttribute('data-instance-count') ?? '0'),
+              loadedCount: Number(element.getAttribute('data-loaded-count') ?? '0'),
+              selectedId: element.getAttribute('data-selected-id') ?? '',
+              draftCount: Number(element.getAttribute('data-draft-count') ?? '0'),
+              settledCount: Number(element.getAttribute('data-settled-count') ?? '0'),
+              collisions: Number(element.getAttribute('data-probe-collisions') ?? '0'),
+              settled: element.getAttribute('data-probe-settled') === 'true',
+              finalY: Number(element.getAttribute('data-probe-final-y') ?? '1'),
+              selectedWorldPosition: JSON.parse(element.getAttribute('data-selected-world-position') ?? 'null'),
+              selectedWorldRotation: JSON.parse(element.getAttribute('data-selected-world-rotation') ?? 'null'),
+              selectedScale: Number(element.getAttribute('data-selected-scale') ?? '0'),
+              lastSettledPosition: JSON.parse(element.getAttribute('data-last-settled-position') ?? 'null'),
+              lastSettledRotation: JSON.parse(element.getAttribute('data-last-settled-rotation') ?? 'null'),
+            }))
+          }
+
+          async function dispatchSinglePointer(dx, dy, xRatio = 0.18, yRatio = 0.18) {
+            await page.$eval('.pedestal-stage canvas', (canvas, deltaX, deltaY, relativeX, relativeY) => {
+              const rect = canvas.getBoundingClientRect()
+              const startX = rect.left + rect.width * relativeX
+              const startY = rect.top + rect.height * relativeY
+              const init = { pointerId: 271, pointerType: 'touch', bubbles: true, cancelable: true }
+              canvas.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: startX, clientY: startY, buttons: 1 }))
+              canvas.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: startX + deltaX, clientY: startY + deltaY, buttons: 1 }))
+              canvas.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: startX + deltaX, clientY: startY + deltaY, buttons: 0 }))
+            }, dx, dy, xRatio, yRatio)
+          }
+
+          try {
+            await page.setCacheEnabled(false)
+            await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
+            const response = await page.goto(`${baseUrl}/scripts/web/accessory-physics-e2e-validation.html?run=${Date.now()}`, {
+              waitUntil: 'domcontentloaded',
+              timeout: 20_000,
+            })
+            const status = response?.status() ?? 0
+            if (!response || status >= 400) throw new Error(`fixture returned HTTP ${status || 'unknown'}`)
+
+            await page.waitForSelector('.pedestal-stage canvas', { timeout: 30_000 })
+            await page.waitForSelector('.physics-fixture-controls', { timeout: 30_000 })
+            await page.waitForFunction(() => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-loaded-count') ?? '0') === 2, { timeout: 30_000 })
+            await page.waitForFunction(() => document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-probe-settled') === 'true', { timeout: 20_000 })
+
+            const phone = await state()
+            if (phone.instanceCount !== 2 || phone.loadedCount !== 2) throw new Error(`two accessory GLBs were not ready: ${JSON.stringify(phone)}`)
+            if (phone.collisions < 1) throw new Error('Rapier gravity probe never collided with the static collider')
+            if (phone.finalY < -0.16 || phone.finalY > -0.04) throw new Error(`Rapier body settled outside expected contact band: y=${phone.finalY}`)
+            if (!Array.isArray(phone.selectedWorldPosition)) throw new Error('selected accessory world pose was not exposed')
+
+            const phoneDrafts = phone.draftCount
+            const phonePosition = [...phone.selectedWorldPosition]
+            await dispatchSinglePointer(72, 36)
+            await page.waitForFunction((before) => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, phoneDrafts)
+            const afterPhone = await state()
+            if (!afterPhone.selectedWorldPosition.some((value, index) => Math.abs(value - phonePosition[index]) > 0.005)) {
+              throw new Error('phone canvas position gesture did not move the selected accessory')
+            }
+
+            const phoneTargets = await page.$$eval('.physics-fixture-controls button', (targets) => targets.every((target) => {
+              const rect = target.getBoundingClientRect()
+              return rect.width >= 44 && rect.height >= 44
+            }))
+            if (!phoneTargets) throw new Error('one or more visible phone physics controls are below 44px')
+            await page.screenshot({ path: `${outputDir}/physics-phone.png`, fullPage: true })
+
+            await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
+            await page.click('#physics-select-glasses')
+            await page.waitForFunction(() => document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-selected-id')?.endsWith('0002') ?? false)
+            await page.click('#physics-orientation')
+            const beforeTablet = await state()
+            if (!Array.isArray(beforeTablet.selectedWorldRotation)) throw new Error('tablet selected accessory rotation is missing')
+            await dispatchSinglePointer(58, 32, 0.8, 0.2)
+            await page.waitForFunction((before) => {
+              const value = JSON.parse(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-selected-world-rotation') ?? 'null')
+              return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+            }, {}, beforeTablet.selectedWorldRotation)
+
+            const beforeSettlement = (await state()).settledCount
+            await page.click('#physics-settle')
+            await page.waitForFunction((before) => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-settled-count') ?? '0') > before, { timeout: 12_000 }, beforeSettlement)
+            const tablet = await state()
+            if (tablet.mode !== 'orbit' || !Array.isArray(tablet.lastSettledPosition) || !Array.isArray(tablet.lastSettledRotation)) {
+              throw new Error('unified accessory PlacementBody did not report its final settled world pose')
+            }
+            await page.screenshot({ path: `${outputDir}/physics-tablet.png`, fullPage: true })
+
+            const severeConsole = consoleLines.filter((line) => line.startsWith('[pageerror]') || line.includes('WebGL context lost') || line.includes('Unhandled'))
+            if (severeConsole.length > 0) throw new Error(`browser errors observed: ${severeConsole.join(' | ')}`)
+
+            const report = {
+              status: 'pass',
+              rapierGravity: true,
+              staticCollision: true,
+              settledSleepingBody: true,
+              finalProbeY: tablet.finalY,
+              simultaneousAccessoryGlbs: tablet.instanceCount,
+              phoneUnifiedCanvasPosition: true,
+              tabletUnifiedCanvasOrientation: true,
+              sharedAccessorySettlement: true,
+              settledCount: tablet.settledCount,
+            }
+            await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
+            await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
+            console.log('[CAILLOU] accessory physics E2E PASS: Rapier probe + 2 GLB + unified canvas gestures + shared settlement')
+          } catch (error) {
+            await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
+            await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})
+            throw error
+          } finally {
+            await page.close()
+            await browser.close()
+          }
+          EOF
+      - name: Validate migrated physics fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check
+          git diff --check
+          ! grep -R "AccessoryEditor\|onAccessoryTransformCommit\|interactionMode=\"accessory\"" scripts/web/accessory-physics-e2e-validation.tsx scripts/web/validate-accessory-physics-e2e.mjs
+          npm install --no-save --package-lock=false --no-audit --no-fund puppeteer-core@24.16.0
+          npm exec -- vite --host 127.0.0.1 --port 4178 > /tmp/caillou-accessory-physics-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          sleep 3
+          node scripts/web/validate-accessory-physics-e2e.mjs
+      - name: Commit migrated physics fixture
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/web/accessory-physics-e2e-validation.tsx scripts/web/validate-accessory-physics-e2e.mjs
+          git commit -m "test(placement): migrer la validation physique sur le contrôleur unifié"
+          git push origin HEAD:refactor/harmonisation-sol-placement
