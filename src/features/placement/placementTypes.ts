@@ -1,7 +1,7 @@
 export type PlacementTool = 'position' | 'orientation' | 'size'
 
 export type PlacementTarget =
-  | { kind: 'rock' }
+  | { kind: 'rock'; instanceId?: undefined }
   | { kind: 'accessory'; instanceId: string }
 
 export type PlacementVector3 = [number, number, number]
