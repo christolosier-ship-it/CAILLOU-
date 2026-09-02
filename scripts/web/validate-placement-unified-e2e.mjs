@@ -4,7 +4,38 @@ import puppeteer from 'puppeteer-core'
 const baseUrl = process.env.CAILLOU_E2E_BASE_URL ?? 'http://127.0.0.1:4181'
 const chromePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome'
 const outputDir = 'build/placement-unified-validation'
+const GROUND_Y = -0.02
+// The production catalogue stores bounds before the export-axis remap. The GLB
+// runtime used by Three.js exposes X unchanged, exported Z as Y, and -Y as Z.
+const ROCK_018_BOUNDS = {
+  min: [-0.9306801557540894, 0, -1.0000003576278687],
+  max: [0.930679976940155, 1.3231968879699707, 0.9999995827674866],
+}
 await mkdir(outputDir, { recursive: true })
+
+function rockMinimumWorldY(position, rotation) {
+  const length = Math.hypot(...rotation)
+  const [x, y, z, w] = length > 0.000001 ? rotation.map((value) => value / length) : [0, 0, 0, 1]
+  let minimum = Number.POSITIVE_INFINITY
+  for (const px of [ROCK_018_BOUNDS.min[0], ROCK_018_BOUNDS.max[0]]) {
+    for (const py of [ROCK_018_BOUNDS.min[1], ROCK_018_BOUNDS.max[1]]) {
+      for (const pz of [ROCK_018_BOUNDS.min[2], ROCK_018_BOUNDS.max[2]]) {
+        const rotatedY = 2 * (x * y + z * w) * px
+          + (1 - 2 * (x * x + z * z)) * py
+          + 2 * (y * z - x * w) * pz
+        minimum = Math.min(minimum, position[1] + rotatedY)
+      }
+    }
+  }
+  return minimum
+}
+
+function assertRockAboveGround(label, position, rotation) {
+  const minimum = rockMinimumWorldY(position, rotation)
+  if (minimum < GROUND_Y - 0.004) {
+    throw new Error(`${label}: rock crossed hard ground boundary (minY=${minimum}, position=${JSON.stringify(position)}, rotation=${JSON.stringify(rotation)})`)
+  }
+}
 
 const browser = await puppeteer.launch({
   executablePath: chromePath,
@@ -43,6 +74,9 @@ async function state() {
     selectedWorldPosition: JSON.parse(element.getAttribute('data-selected-world-position') ?? 'null'),
     selectedScale: Number(element.getAttribute('data-selected-scale') ?? 0),
     individualSettled: Number(element.getAttribute('data-individual-settled') ?? 0),
+    globalSettled: element.getAttribute('data-global-settled') === 'true',
+    globalRockPosition: JSON.parse(element.getAttribute('data-global-settled-rock-position') ?? 'null'),
+    globalRockRotation: JSON.parse(element.getAttribute('data-global-settled-rock-rotation') ?? 'null'),
   }))
 }
 
@@ -121,13 +155,30 @@ try {
     return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, beforeRockMove.rockPosition)
 
+  for (let index = 0; index < 5; index += 1) await dispatchSinglePointer(0, 540, 0.13, 0.14)
+  const rockFlooredDuringPosition = await state()
+  assertRockAboveGround('during rock position', rockFlooredDuringPosition.rockPosition, rockFlooredDuringPosition.rockRotation)
+
   await page.click('.placement-tools button:nth-child(2)')
   await dispatchSinglePointer(54, 34, 0.82, 0.2)
   await page.waitForFunction((before) => {
     const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-rock-rotation') ?? '[0,0,0,1]')
     return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
-  }, {}, beforeRockMove.rockRotation)
+  }, {}, rockFlooredDuringPosition.rockRotation)
+  const rockFlooredDuringOrientation = await state()
+  assertRockAboveGround('during rock orientation', rockFlooredDuringOrientation.rockPosition, rockFlooredDuringOrientation.rockRotation)
 
+  await page.click('.placement-panel-heading > button')
+  await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'orbit', { timeout: 15_000 })
+  await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-global-settled') === 'true', { timeout: 15_000 })
+  const rockAfterRapier = await state()
+  if (!Array.isArray(rockAfterRapier.globalRockPosition) || !Array.isArray(rockAfterRapier.globalRockRotation)) {
+    throw new Error('global rock settlement was not reported')
+  }
+  assertRockAboveGround('after rock Rapier settlement', rockAfterRapier.globalRockPosition, rockAfterRapier.globalRockRotation)
+
+  await page.$eval('#reopen-placement', (button) => button.click())
+  await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
   await page.click('.placement-targets > button:nth-child(2)')
   await page.waitForFunction(() => (document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') ?? '').includes('000000000001'))
   const beforeAccessory = await state()
@@ -186,17 +237,19 @@ try {
     unifiedShop: true,
     permitPriceLithons: 1000,
     shopHasNoDirectPlacement: true,
-    canvasRockPosition: true,
+    sharedCanvasPositionGesture: true,
     canvasRockOrientation: true,
+    rockHardFloorDuringPlacement: true,
+    rockHardFloorAfterRapier: true,
     canvasAccessoryPosition: true,
     accessoryScale: true,
-    hardGroundBoundary: true,
+    accessoryHardFloor: true,
     duplicateOwnedInstances: final.instanceCount === 2,
     individualRapierSettlement: final.individualSettled >= 1,
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] 10.75 E2E PASS: unified shop + universal placement + hard ground + phone/tablet')
+  console.log('[CAILLOU] 10.75 correction E2E PASS: unified gestures + hard floor before/after Rapier')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

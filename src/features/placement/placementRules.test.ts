@@ -25,4 +25,16 @@ describe('placement ground boundary', () => {
     const next = clampWorldPositionAboveGround([0, -2, 0], [0, 0, 0, 1], bounds, GROUND)
     expect(next[1]).toBeCloseTo(0.732, 5)
   })
+
+  it('keeps the full oriented rock-018 envelope above the hard floor', () => {
+    const bounds = {
+      min: [-0.9306801557540894, -1.0000003576278687, 0] as [number, number, number],
+      max: [0.930679976940155, 0.9999995827674866, 1.3231968879699707] as [number, number, number],
+    }
+    const rotation = [0.542653436836574, -0.29835676894407437, 0.7551476295458, 0.21508729275823352]
+    const next = clampWorldPositionAboveGround([1.21, -0.05, -0.43], rotation, bounds, GROUND)
+    const minimum = rotatedBoundsMinimumY(bounds, rotation)
+    expect(next[1] + minimum).toBeCloseTo(GROUND + 0.002, 5)
+    expect(next[1]).toBeGreaterThan(1.6)
+  })
 })

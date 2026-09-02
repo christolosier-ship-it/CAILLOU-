@@ -1,28 +1,23 @@
 import { useThree } from '@react-three/fiber'
-import type { ThreeEvent } from '@react-three/fiber'
-import { RigidBody } from '@react-three/rapier'
+import { RigidBody, useAfterPhysicsStep } from '@react-three/rapier'
 import type { RapierRigidBody } from '@react-three/rapier'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Box3, Plane, Quaternion, Raycaster, Sphere, Vector3 } from 'three'
-import { Mesh } from 'three'
+import { Box3, Quaternion, Sphere } from 'three'
 import type { Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-import { ACCESSORY_POSITION_LIMIT } from '../features/accessories/accessoryPlacementRules'
 import {
-  ACCESSORY_CONTACT_CLEARANCE,
   ACCESSORY_SETTLE_TIMEOUT_MS,
   isAccessoryTransformWithinPhysicsBounds,
   parseAccessoryPhysics,
 } from '../features/accessories/accessoryPhysics'
 import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
+import { accessoryBoundsFromDimensions, clampWorldPositionAboveGround } from '../features/placement/placementRules'
 import {
   PEDESTAL_GROUND_Y,
   ROCK_SETTLE_TIMEOUT_MS,
   accessoryLocalToWorld,
   accessoryWorldToLocal,
-  angleBetweenTouches,
-  distanceBetweenTouches,
 } from '../features/rockMovement/rockMovementRules'
 import type { RockPose, WorldAccessoryTransform } from '../features/rockMovement/rockMovementTypes'
 import { disposeRockObject } from './rockResources'
@@ -31,51 +26,21 @@ import type { DisposalReport } from './rockResources'
 interface AccessoryModelProps {
   instance: EquippedAccessoryInstance
   selected: boolean
+  /** Legacy 10C prop kept for call-site compatibility. Gestures are no longer handled by this component. */
   editing: boolean
   rockPose: RockPose
+  /** Legacy 10C prop kept for call-site compatibility. */
   rockObject?: Object3D | null
   compositionFrozen?: boolean
   globalSettling?: boolean
+  /** Legacy 10C callback kept for call-site compatibility. */
   onSelect: (instanceId: string) => void
+  /** Legacy 10C callback kept for call-site compatibility. */
   onTransformDraft?: (instanceId: string, transform: AccessoryTransform) => void
   onTransformCommit: (instanceId: string, transform: AccessoryTransform) => void
   onGlobalSettled?: (transform: WorldAccessoryTransform) => void
   onLoadStateChange?: ((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => void) | undefined
   onDisposed?: ((instanceId: string, report: DisposalReport) => void) | undefined
-}
-
-interface TouchPoint {
-  x: number
-  y: number
-}
-
-interface GestureState {
-  pointers: Map<number, TouchPoint>
-  startScale: number
-  displayScale: number
-  startDistance: number | null
-  startAngle: number | null
-  startRotation: Quaternion
-  lastWorldPosition: Vector3
-  lastWorldRotation: Quaternion
-  surfaceNormal: Vector3
-}
-
-function clampPosition(value: number) {
-  return Math.min(ACCESSORY_POSITION_LIMIT, Math.max(-ACCESSORY_POSITION_LIMIT, value))
-}
-
-function clampVector(position: Vector3) {
-  return new Vector3(
-    clampPosition(position.x),
-    clampPosition(position.y),
-    clampPosition(position.z),
-  )
-}
-
-function pointerTarget(event: ThreeEvent<PointerEvent>) {
-  const target = event.nativeEvent.target
-  return target instanceof Element ? target : null
 }
 
 function bodyWorldTransform(body: RapierRigidBody, instanceId: string, uniformScale: number): WorldAccessoryTransform {
@@ -98,52 +63,12 @@ function transformKey(instance: EquippedAccessoryInstance) {
   ].map((value) => Number(value).toFixed(5)).join('|')
 }
 
-function directPlacement(
-  event: ThreeEvent<PointerEvent>,
-  rockObject: Object3D | null | undefined,
-  clearance: number,
-) {
-  const candidates: Array<{ point: Vector3; normal: Vector3; distance: number }> = []
-  if (rockObject) {
-    rockObject.updateWorldMatrix(true, true)
-    const raycaster = new Raycaster(event.ray.origin, event.ray.direction, 0, 100)
-    const hit = raycaster.intersectObject(rockObject, true)[0]
-    if (hit) {
-      const normal = hit.face?.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
-        ?? event.ray.direction.clone().negate().normalize()
-      candidates.push({ point: hit.point.clone(), normal, distance: hit.distance })
-    }
-  }
-
-  const ground = new Plane(new Vector3(0, 1, 0), -PEDESTAL_GROUND_Y)
-  const groundPoint = event.ray.intersectPlane(ground, new Vector3())
-  if (groundPoint) {
-    candidates.push({
-      point: groundPoint.clone(),
-      normal: new Vector3(0, 1, 0),
-      distance: groundPoint.distanceTo(event.ray.origin),
-    })
-  }
-
-  candidates.sort((left, right) => left.distance - right.distance)
-  const hit = candidates[0]
-  if (!hit) return null
-  return {
-    position: hit.point.clone().addScaledVector(hit.normal, clearance + ACCESSORY_CONTACT_CLEARANCE),
-    normal: hit.normal,
-  }
-}
-
 export function AccessoryModel({
   instance,
   selected,
-  editing,
   rockPose,
-  rockObject,
   compositionFrozen = false,
   globalSettling = false,
-  onSelect,
-  onTransformDraft,
   onTransformCommit,
   onGlobalSettled,
   onLoadStateChange,
@@ -152,18 +77,19 @@ export function AccessoryModel({
   const [object, setObject] = useState<Object3D | null>(null)
   const [selectionRadius, setSelectionRadius] = useState(0.5)
   const [simulating, setSimulating] = useState(false)
-  const [displayScale, setDisplayScale] = useState(instance.uniformScale)
   const bodyRef = useRef<RapierRigidBody>(null)
-  const gestureRef = useRef<GestureState | null>(null)
   const simulatingRef = useRef(false)
   const settlementInFlightRef = useRef(false)
   const handledUnsettledTransformRef = useRef<string | null>(null)
   const globalReportedRef = useRef(false)
   const disposedCallbackRef = useRef(onDisposed)
   const loadCallbackRef = useRef(onLoadStateChange)
-  const camera = useThree((state) => state.camera)
   const invalidate = useThree((state) => state.invalidate)
   const physics = useMemo(() => parseAccessoryPhysics(instance.physics, instance.category), [instance.category, instance.physics])
+  const groundBounds = useMemo(
+    () => accessoryBoundsFromDimensions(instance.dimensions, instance.uniformScale),
+    [instance.dimensions, instance.uniformScale],
+  )
 
   const setPhysicsSimulating = useCallback((next: boolean) => {
     simulatingRef.current = next
@@ -177,10 +103,6 @@ export function AccessoryModel({
   useEffect(() => {
     loadCallbackRef.current = onLoadStateChange
   }, [onLoadStateChange])
-
-  useEffect(() => {
-    if (!gestureRef.current) setDisplayScale(instance.uniformScale)
-  }, [instance.uniformScale])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -201,12 +123,6 @@ export function AccessoryModel({
         const resourcePath = assetUrl.href.slice(0, assetUrl.href.lastIndexOf('/') + 1)
         const gltf = await loader.parseAsync(buffer, resourcePath)
         loadedObject = gltf.scene
-        loadedObject.traverse((child) => {
-          if (!(child instanceof Mesh)) return
-          child.castShadow = true
-          child.receiveShadow = true
-        })
-
         const box = new Box3().setFromObject(loadedObject)
         if (!box.isEmpty()) {
           const sphere = box.getBoundingSphere(new Sphere())
@@ -242,11 +158,37 @@ export function AccessoryModel({
     }
   }, [instance.id, instance.modelPath, invalidate])
 
-  const worldFromInstance = useCallback(() => accessoryLocalToWorld(instance.id, instance, rockPose), [instance, rockPose])
+  const worldFromInstance = useCallback(
+    () => accessoryLocalToWorld(instance.id, instance, rockPose),
+    [instance, rockPose],
+  )
+
+  const enforceHardFloor = useCallback(() => {
+    const body = bodyRef.current
+    if (!body) return false
+    const world = bodyWorldTransform(body, instance.id, instance.uniformScale)
+    const grounded = clampWorldPositionAboveGround(
+      world.worldPosition,
+      world.worldRotation,
+      groundBounds,
+      PEDESTAL_GROUND_Y,
+    )
+    if (grounded[1] <= world.worldPosition[1] + 0.000001) return false
+
+    body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
+    const velocity = body.linvel()
+    if (velocity.y < 0) body.setLinvel({ x: velocity.x, y: 0, z: velocity.z }, true)
+    invalidate()
+    return true
+  }, [groundBounds, instance.id, instance.uniformScale, invalidate])
+
+  useAfterPhysicsStep(() => {
+    if (simulatingRef.current || globalSettling) enforceHardFloor()
+  })
 
   useEffect(() => {
     const body = bodyRef.current
-    if (!body || gestureRef.current || simulatingRef.current || globalSettling) return
+    if (!body || simulatingRef.current || globalSettling) return
     const world = worldFromInstance()
     const position = { x: world.worldPosition[0], y: world.worldPosition[1], z: world.worldPosition[2] }
     const rotation = {
@@ -284,6 +226,7 @@ export function AccessoryModel({
     const body = bodyRef.current
     if (!body || settlementInFlightRef.current || !simulatingRef.current || globalSettling) return
     settlementInFlightRef.current = true
+    enforceHardFloor()
 
     const local = accessoryWorldToLocal(bodyWorldTransform(body, instance.id, instance.uniformScale), rockPose)
     body.setLinvel({ x: 0, y: 0, z: 0 }, false)
@@ -307,18 +250,18 @@ export function AccessoryModel({
     setPhysicsSimulating(false)
     settlementInFlightRef.current = false
     invalidate()
-  }, [globalSettling, instance, invalidate, onTransformCommit, rockPose, setPhysicsSimulating, worldFromInstance])
+  }, [enforceHardFloor, globalSettling, instance, invalidate, onTransformCommit, rockPose, setPhysicsSimulating, worldFromInstance])
 
   useEffect(() => {
     if (!simulating || globalSettling) return
-    const timer = window.setTimeout(() => persistCurrentTransform(), ACCESSORY_SETTLE_TIMEOUT_MS)
+    const timer = window.setTimeout(persistCurrentTransform, ACCESSORY_SETTLE_TIMEOUT_MS)
     return () => window.clearTimeout(timer)
   }, [globalSettling, persistCurrentTransform, simulating])
 
   useEffect(() => {
-    if (!object || instance.stabilizedAt !== null || editing || compositionFrozen || globalSettling) return
+    if (!object || instance.stabilizedAt !== null || compositionFrozen || globalSettling) return
     const body = bodyRef.current
-    if (!body || gestureRef.current) return
+    if (!body) return
 
     const nextKey = transformKey(instance)
     if (handledUnsettledTransformRef.current === nextKey) return
@@ -343,22 +286,25 @@ export function AccessoryModel({
     if (physics.enabled && physics.dynamic) {
       startDynamicSettlement()
     } else {
-      onTransformCommit(instance.id, {
-        localPosition: instance.localPosition,
-        localRotation: instance.localRotation,
-        uniformScale: instance.uniformScale,
-        physicsSettled: true,
-      })
+      const grounded = clampWorldPositionAboveGround(
+        world.worldPosition,
+        world.worldRotation,
+        groundBounds,
+        PEDESTAL_GROUND_Y,
+      )
+      const local = accessoryWorldToLocal({ ...world, worldPosition: grounded }, rockPose)
+      onTransformCommit(instance.id, { ...local, physicsSettled: true })
     }
   }, [
     compositionFrozen,
-    editing,
     globalSettling,
+    groundBounds,
     instance,
     object,
     onTransformCommit,
     physics.dynamic,
     physics.enabled,
+    rockPose,
     setPhysicsSimulating,
     startDynamicSettlement,
     worldFromInstance,
@@ -388,12 +334,13 @@ export function AccessoryModel({
     const body = bodyRef.current
     if (!body || !globalSettling || globalReportedRef.current) return
     globalReportedRef.current = true
+    enforceHardFloor()
     body.setLinvel({ x: 0, y: 0, z: 0 }, false)
     body.setAngvel({ x: 0, y: 0, z: 0 }, false)
     body.sleep()
     onGlobalSettled?.(bodyWorldTransform(body, instance.id, instance.uniformScale))
     invalidate()
-  }, [globalSettling, instance.id, instance.uniformScale, invalidate, onGlobalSettled])
+  }, [enforceHardFloor, globalSettling, instance.id, instance.uniformScale, invalidate, onGlobalSettled])
 
   useEffect(() => {
     globalReportedRef.current = false
@@ -410,150 +357,16 @@ export function AccessoryModel({
     return () => window.clearTimeout(timer)
   }, [globalSettling, invalidate, reportGlobalSettlement, setPhysicsSimulating])
 
-  const resetMultiTouchBaseline = (gesture: GestureState) => {
-    const points = [...gesture.pointers.values()]
-    if (points.length < 2) {
-      gesture.startDistance = null
-      gesture.startAngle = null
-      gesture.startScale = gesture.displayScale
-      gesture.startRotation.copy(gesture.lastWorldRotation)
-      return
-    }
-    gesture.startDistance = Math.max(1, distanceBetweenTouches(points[0]!, points[1]!))
-    gesture.startAngle = angleBetweenTouches(points[0]!, points[1]!)
-    gesture.startScale = gesture.displayScale
-    gesture.startRotation.copy(gesture.lastWorldRotation)
-  }
-
-  const beginGesture = (event: ThreeEvent<PointerEvent>) => {
-    if (!editing || globalSettling) return
-    event.stopPropagation()
-    onSelect(instance.id)
-    const body = bodyRef.current
-    if (!body) return
-
-    if (simulatingRef.current) {
-      body.setLinvel({ x: 0, y: 0, z: 0 }, true)
-      body.setAngvel({ x: 0, y: 0, z: 0 }, true)
-      setPhysicsSimulating(false)
-    }
-
-    const translation = body.translation()
-    const rotation = body.rotation()
-    let gesture = gestureRef.current
-    if (!gesture) {
-      gesture = {
-        pointers: new Map(),
-        startScale: instance.uniformScale,
-        displayScale: instance.uniformScale,
-        startDistance: null,
-        startAngle: null,
-        startRotation: new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w).normalize(),
-        lastWorldPosition: new Vector3(translation.x, translation.y, translation.z),
-        lastWorldRotation: new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w).normalize(),
-        surfaceNormal: camera.getWorldDirection(new Vector3()).negate().normalize(),
-      }
-      gestureRef.current = gesture
-    }
-
-    gesture.pointers.set(event.pointerId, { x: event.nativeEvent.clientX, y: event.nativeEvent.clientY })
-    if (gesture.pointers.size >= 2) resetMultiTouchBaseline(gesture)
-    pointerTarget(event)?.setPointerCapture(event.pointerId)
-  }
-
-  const moveGesture = (event: ThreeEvent<PointerEvent>) => {
-    const gesture = gestureRef.current
-    const body = bodyRef.current
-    if (!gesture || !body || !gesture.pointers.has(event.pointerId)) return
-    event.stopPropagation()
-    gesture.pointers.set(event.pointerId, { x: event.nativeEvent.clientX, y: event.nativeEvent.clientY })
-
-    const points = [...gesture.pointers.values()]
-    if (points.length >= 2 && gesture.startDistance && gesture.startAngle !== null) {
-      const distance = Math.max(1, distanceBetweenTouches(points[0]!, points[1]!))
-      const ratio = distance / gesture.startDistance
-      const nextScale = Math.max(instance.scaleMin, Math.min(instance.scaleMax, gesture.startScale * ratio))
-      const angle = angleBetweenTouches(points[0]!, points[1]!)
-      const twist = angle - gesture.startAngle
-      const twistRotation = new Quaternion().setFromAxisAngle(gesture.surfaceNormal, twist)
-      const nextRotation = twistRotation.multiply(gesture.startRotation.clone()).normalize()
-      gesture.displayScale = nextScale
-      gesture.lastWorldRotation.copy(nextRotation)
-      setDisplayScale(nextScale)
-      body.setNextKinematicRotation({ x: nextRotation.x, y: nextRotation.y, z: nextRotation.z, w: nextRotation.w })
-      invalidate()
-      return
-    }
-
-    const hit = directPlacement(
-      event,
-      rockObject,
-      selectionRadius * gesture.displayScale * 0.58,
-    )
-    if (!hit) return
-    const clamped = clampVector(hit.position)
-    gesture.lastWorldPosition.copy(clamped)
-    gesture.surfaceNormal.copy(hit.normal)
-    body.setNextKinematicTranslation({ x: clamped.x, y: clamped.y, z: clamped.z })
-    invalidate()
-  }
-
-  const finishPointer = (event: ThreeEvent<PointerEvent>, cancelled: boolean) => {
-    const gesture = gestureRef.current
-    if (!gesture || !gesture.pointers.has(event.pointerId)) return
-    event.stopPropagation()
-    gesture.pointers.delete(event.pointerId)
-    const target = pointerTarget(event)
-    if (target?.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
-
-    if (cancelled) {
-      if (gesture.pointers.size > 0) return
-      gestureRef.current = null
-      setDisplayScale(instance.uniformScale)
-      const body = bodyRef.current
-      const world = worldFromInstance()
-      if (body) {
-        body.setNextKinematicTranslation({ x: world.worldPosition[0], y: world.worldPosition[1], z: world.worldPosition[2] })
-        body.setNextKinematicRotation({
-          x: world.worldRotation[0],
-          y: world.worldRotation[1],
-          z: world.worldRotation[2],
-          w: world.worldRotation[3],
-        })
-      }
-      invalidate()
-      return
-    }
-
-    if (gesture.pointers.size > 0) {
-      resetMultiTouchBaseline(gesture)
-      return
-    }
-
-    gestureRef.current = null
-    const world: WorldAccessoryTransform = {
-      instanceId: instance.id,
-      worldPosition: [gesture.lastWorldPosition.x, gesture.lastWorldPosition.y, gesture.lastWorldPosition.z],
-      worldRotation: [gesture.lastWorldRotation.x, gesture.lastWorldRotation.y, gesture.lastWorldRotation.z, gesture.lastWorldRotation.w],
-      uniformScale: gesture.displayScale,
-    }
-    const local = accessoryWorldToLocal(world, rockPose)
-    onTransformDraft?.(instance.id, local)
-    setDisplayScale(gesture.displayScale)
-    invalidate()
-  }
-
   if (!object) return null
 
   const bodyType = globalSettling
     ? 'dynamic'
     : simulating && physics.dynamic
       ? 'dynamic'
-      : editing || compositionFrozen
+      : compositionFrozen
         ? 'kinematicPosition'
         : 'fixed'
   const world = accessoryLocalToWorld(instance.id, instance, rockPose)
-  const visualScaleRatio = instance.uniformScale > 0 ? displayScale / instance.uniformScale : 1
   const collider = physics.enabled ? physics.collider : 'hull'
 
   return (
@@ -579,29 +392,9 @@ export function AccessoryModel({
         else if (simulatingRef.current) persistCurrentTransform()
       }}
     >
-      <group scale={visualScaleRatio}>
-        <primitive
-          object={object}
-          onPointerDown={beginGesture}
-          onPointerMove={moveGesture}
-          onPointerUp={(event: ThreeEvent<PointerEvent>) => finishPointer(event, false)}
-          onPointerCancel={(event: ThreeEvent<PointerEvent>) => finishPointer(event, true)}
-        />
-        {selected && editing ? (
-          <mesh
-            scale={selectionRadius * 1.4}
-            onPointerDown={beginGesture}
-            onPointerMove={moveGesture}
-            onPointerUp={(event: ThreeEvent<PointerEvent>) => finishPointer(event, false)}
-            onPointerCancel={(event: ThreeEvent<PointerEvent>) => finishPointer(event, true)}
-          >
-            <sphereGeometry args={[1, 20, 14]} />
-            <meshBasicMaterial transparent opacity={0.001} depthWrite={false} />
-          </mesh>
-        ) : null}
-      </group>
+      <primitive object={object} />
       {selected ? (
-        <mesh scale={selectionRadius * 1.08 * visualScaleRatio} raycast={() => undefined} renderOrder={20}>
+        <mesh scale={selectionRadius * 1.08} raycast={() => undefined} renderOrder={20}>
           <sphereGeometry args={[1, 20, 14]} />
           <meshBasicMaterial wireframe transparent opacity={0.2} depthTest={false} />
         </mesh>

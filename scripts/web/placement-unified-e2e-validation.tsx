@@ -16,8 +16,8 @@ import '../../src/styles/accessories.css'
 import '../../src/styles/accessory-placement.css'
 import '../../src/styles/rock-movement.css'
 
-const rock = getRockCatalogEntryById('rock-012')
-const INITIAL_POSE: RockPose = { position: [0, 0.52, 0], rotation: [0, 0, 0, 1] }
+const rock = getRockCatalogEntryById('rock-018')
+const INITIAL_POSE: RockPose = { position: [0, 1.35, 0], rotation: [0, 0, 0, 1] }
 
 const MONOCLE: AccessoryCatalogItem = {
   id: 'monocle',
@@ -100,28 +100,23 @@ function Fixture() {
   const handleRockLoadState = useCallback((state: 'loading' | 'ready' | 'error') => {
     setRockReady(state === 'ready')
   }, [])
-
   const handleInteraction = useCallback(() => undefined, [])
   const handleAccessorySelectNoop = useCallback(() => undefined, [])
-
   const handleAccessoryLoadState = useCallback((id: string, state: 'loading' | 'ready' | 'error') => {
     if (state !== 'ready') return
     setReadyAccessories((current) => current.includes(id) ? current : [...current, id])
   }, [])
-
   const handleDraft = useCallback((instanceId: string, transform: AccessoryTransform) => {
     setInstances((current) => current.map((instance) => instance.id === instanceId
       ? { ...instance, ...transform, stabilizedAt: null }
       : instance))
   }, [])
-
   const handleCommit = useCallback((instanceId: string, transform: AccessoryTransform) => {
     setInstances((current) => current.map((instance) => instance.id === instanceId
       ? { ...instance, ...transform, stabilizedAt: '2026-09-02T08:30:00.000Z' }
       : instance))
     setIndividualSettled((current) => current + 1)
   }, [])
-
   const handleDone = useCallback(() => {
     if (target?.kind === 'rock') {
       setMode('composition-settle')
@@ -130,7 +125,6 @@ function Fixture() {
     setTarget(null)
     setMode('orbit')
   }, [target])
-
   const handleComposition = useCallback((draft: RockCompositionDraft) => {
     setSettled(draft)
     setPose(draft.rockPose)
@@ -140,6 +134,11 @@ function Fixture() {
     }))
     setTarget(null)
     setMode('orbit')
+  }, [])
+  const reopenPlacement = useCallback(() => {
+    setTarget(null)
+    setTool('position')
+    setMode('placement')
   }, [])
 
   return (
@@ -168,7 +167,7 @@ function Fixture() {
 
           {mode === 'placement' ? (
             <PlacementPanel
-              rockName="Bernard"
+              rockName="Pierre"
               permitUnlocked={permitUnlocked}
               permitLoading={false}
               instances={instances}
@@ -198,7 +197,9 @@ function Fixture() {
               onRemove={(instanceId) => setInstances((current) => current.filter((instance) => instance.id !== instanceId))}
               onDone={handleDone}
             />
-          ) : null}
+          ) : (
+            <button id="reopen-placement" type="button" onClick={reopenPlacement}>Rouvrir Placement</button>
+          )}
         </section>
       </main>
 
@@ -248,6 +249,8 @@ function Fixture() {
         data-selected-scale={String(selectedWorld?.uniformScale ?? 0)}
         data-individual-settled={String(individualSettled)}
         data-global-settled={String(settled !== null)}
+        data-global-settled-rock-position={JSON.stringify(settled?.rockPose.position ?? null)}
+        data-global-settled-rock-rotation={JSON.stringify(settled?.rockPose.rotation ?? null)}
       />
     </div>
   )
