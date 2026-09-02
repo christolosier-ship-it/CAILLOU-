@@ -26,7 +26,9 @@ async function loadGlbPositionPoints(url) {
     const chunkType = view.getUint32(offset + 4, true)
     const chunkOffset = offset + 8
     if (chunkType === 0x4e4f534a) {
-      const json = new TextDecoder().decode(bytes.subarray(chunkOffset, chunkOffset + chunkLength)).replace(/\u0000+$/u, '').trim()
+      const json = new TextDecoder().decode(bytes.subarray(chunkOffset, chunkOffset + chunkLength))
+        .replaceAll(String.fromCharCode(0), '')
+        .trim()
       document = JSON.parse(json)
     } else if (chunkType === 0x004e4942) {
       binaryOffset = chunkOffset
