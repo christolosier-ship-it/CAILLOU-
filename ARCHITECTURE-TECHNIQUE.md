@@ -1,22 +1,31 @@
 # CAILLOU™ - Architecture technique et stack V1
 
-> **Statut : architecture cible V1, mise à jour après l'étape 10D**  
-> **Objectif : PWA 3D tactile avec compte, progression persistante, économie simple, accessoires physiques et backend Supabase**  
-> **Principe : la complexité serveur protège l'état du joueur ; la complexité graphique sert le caillou. Rien d'autre.**
+> **Statut : architecture V1 après 10.5, cible d'exécution 10.75**  
+> **Objectif : PWA 3D tactile avec compte, progression persistante, économie Lithon, boutique unifiée, manipulation universelle et physique cliente**  
+> **Principe : Supabase protège la vérité métier ; Three.js et Rapier donnent corps au caillou ; l'UI n'expose qu'une grammaire simple.**
 
 ---
 
 ## 1. Objet du document
 
-Ce document décrit l'architecture full stack de **CAILLOU™ V1** : frontend, 3D, physique, authentification, base de données, économie en Lithons, accessoires, sécurité, cache, tests et déploiement Vercel.
+Ce document décrit l'architecture full stack de **CAILLOU™ V1** : frontend, 3D, physique, authentification, base de données, économie en Lithons, achats, déblocages, accessoires, manipulation, sécurité, cache, tests et déploiement Vercel.
 
-Le périmètre fonctionnel est défini dans `CAHIER-DES-CHARGES-V1.md`. Les règles visuelles et artistiques sont définies dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`. Le pipeline 3D est décrit dans `WORKFLOW-3D-BLENDER-GITHUB.md`.
+Le périmètre fonctionnel est défini dans `CAHIER-DES-CHARGES-V1.md`. Les règles visuelles et d'interaction sont définies dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`. Le pipeline 3D est décrit dans `WORKFLOW-3D-BLENDER-GITHUB.md`.
+
+Les fichiers de roadmap conservent l'historique des étapes. Le présent document décrit la vérité technique courante et la cible immédiatement planifiée.
 
 ---
 
 ## 2. Décision d'architecture
 
-CAILLOU™ V1 est une application **full stack**. Supabase est la source de vérité de l'état utilisateur ; Vercel distribue la PWA ; React Three Fiber / Three.js assurent la scène 3D et Rapier simule localement la physique des accessoires.
+CAILLOU™ V1 est une application **full stack** :
+
+- **Supabase** est la source de vérité de l'état utilisateur et de l'économie ;
+- **Vercel** distribue la PWA ;
+- **React / Vite** portent l'interface ;
+- **React Three Fiber / Three.js** portent la scène 3D ;
+- **Rapier** simule localement le caillou et les accessoires lorsqu'ils sont libérés ;
+- aucune simulation physique serveur n'est nécessaire.
 
 ```text
                          GitHub
@@ -26,129 +35,128 @@ CAILLOU™ V1 est une application **full stack**. Supabase est la source de vér
                            │
                            ▼
                     React / Vite PWA
-                    ┌──────┴───────────────┐
-                    │                      │
-                    ▼                      ▼
-             React UI              React Three Fiber
-                                           │
-                                  ┌────────┴────────┐
-                                  ▼                 ▼
-                              Three.js            Rapier
-                                  │                 │
-                                  └────────┬────────┘
-                                           ▼
-                                  1 GLB de caillou
-                                  + 0..8 accessoires
-                                           │
-                                           ▼
-                                        Supabase
-                                 ┌─────────┼──────────┐
-                                 ▼         ▼          ▼
-                               Auth     Postgres   Edge Functions
-                                 │         │          │
-                                 └─────────┴──────────┘
-                                           │
-                                           ▼
-                               état canonique du joueur
+                    ┌──────┴──────────────┐
+                    │                     │
+                    ▼                     ▼
+                 React UI          React Three Fiber
+                                          │
+                                  ┌───────┴────────┐
+                                  ▼                ▼
+                              Three.js           Rapier
+                                  │                │
+                                  └───────┬────────┘
+                                          ▼
+                                 composition 3D
+                              1 caillou + 0..8 objets
+                                          │
+                                          ▼
+                                       Supabase
+                              Auth + Postgres + RPC
+                                          │
+                                          ▼
+                              état canonique du compte
 ```
 
-Un seul GLB de **caillou** est actif à la fois. Le Socle peut charger jusqu'à **huit instances GLB d'accessoires** simultanément. La simulation physique reste exclusivement cliente ; Supabase ne simule aucun corps et persiste seulement les données métier et les transforms finaux.
+Un seul GLB de **caillou** est actif à la fois. Jusqu'à **huit instances GLB d'accessoires** peuvent être présentes sur le Socle.
 
 ---
 
 ## 3. Stack V1
 
-| Couche | Choix V1 | Rôle |
+| Couche | Choix | Rôle |
 |---|---|---|
 | UI | React 19 | interface |
 | Typage | TypeScript 6 | contrats stricts |
-| Build | Vite 8 | développement et build |
+| Build | Vite 8 | développement/build |
 | 3D | Three.js | moteur WebGL |
 | Binding 3D | `@react-three/fiber` 9 | scène React |
-| Helpers 3D | `@react-three/drei` | contrôles et helpers ciblés |
-| Physique | `@react-three/rapier` 2.2.0 / Rapier | collisions, gravité, CCD, sommeil côté client |
-| Backend | Supabase | Auth + Postgres + fonctions serveur |
-| Client backend | `@supabase/supabase-js` | sessions et Data API/RPC |
+| Helpers | `@react-three/drei` | contrôles/helpers ciblés |
+| Physique | `@react-three/rapier` 2.2.0 / Rapier | collisions, gravité, CCD, sommeil |
+| Backend | Supabase | Auth, Postgres, RPC, RLS |
+| Client backend | `@supabase/supabase-js` | sessions, Data API, RPC |
 | PWA | `vite-plugin-pwa` | manifest, service worker, cache |
-| Cache local | IndexedDB / Cache Storage | cache non autoritaire |
+| Cache local | Cache Storage / IndexedDB | reprise non autoritaire |
 | Déploiement | Vercel | previews et production |
-| Tests unitaires | Vitest | domaine et règles |
-| Tests navigateur | Chrome + Puppeteer en CI | parcours tactiles/WebGL/physique critiques |
-| Tests base/RLS | SQL transactionnel | sécurité des données |
+| Tests unitaires | Vitest | règles de domaine |
+| Tests navigateur | Puppeteer/Chrome | WebGL, tactile, physique |
+| Tests DB | SQL transactionnel | RLS, économie, idempotence |
 
-À éviter sans besoin démontré : Redux, ORM frontend, backend Vercel parallèle à Supabase, deuxième monnaie, moteur de jeu généraliste ou simulation physique serveur.
+À éviter sans besoin démontré : Redux global, ORM frontend, backend Vercel métier parallèle, seconde monnaie, simulation physique serveur ou moteur de jeu généraliste.
 
 ---
 
 ## 4. Responsabilités par couche
 
-### Frontend
+### 4.1 Frontend
 
 Le frontend est responsable de :
 
-- l'interface ;
-- la scène 3D ;
+- l'interface et les modes ;
+- la scène Three.js ;
 - la reconnaissance des gestes ;
-- les transitions ;
-- le rendu de la poussière ;
-- la manipulation cinématique des accessoires ;
-- la simulation Rapier locale après relâchement ;
-- les collisions, la gravité et la détection de stabilisation ;
-- la conversion du transform physique final en transform local au caillou ;
+- le sélecteur de cible Placement ;
+- la manipulation cinématique du caillou et des accessoires ;
+- la contrainte dure du sol gris pendant la manipulation ;
+- la poussière ;
+- la simulation Rapier locale après validation ;
+- la collecte d'une pose stabilisée ;
+- la conversion monde/local des accessoires ;
 - le cache des assets ;
-- les appels aux opérations serveur.
+- les appels RPC.
 
-Le frontend **n'est jamais autoritaire** pour :
+Le frontend n'est jamais autoritaire pour :
 
-- le solde de Lithons ;
+- le solde Lithon ;
+- un prix ;
 - un achat ;
+- un déblocage de fonctionnalité ;
 - la propriété d'un accessoire ;
 - la propriété d'un caillou ;
+- l'identité d'une instance équipée ;
 - les statistiques persistantes ;
-- l'identité canonique d'une instance équipée ;
-- le transform persistant validé d'une instance ;
-- l'état `stabilized_at` confirmé par Supabase.
+- une pose déclarée canonique sans confirmation Supabase.
 
-### Supabase
+### 4.2 Supabase
 
 Supabase est responsable de :
 
-- l'identité ;
+- l'identité/session ;
 - le pseudo unique ;
-- la session ;
-- les cailloux adoptés et jetés ;
+- les cailloux adoptés/jetés ;
+- la pose persistante du caillou ;
 - la progression ;
-- le portefeuille et le ledger ;
-- le catalogue d'accessoires et leurs métadonnées physiques ;
-- l'inventaire permanent ;
-- les instances équipées, leurs transforms locaux et leur état de stabilisation ;
+- wallet et ledger ;
+- le catalogue d'accessoires ;
+- la propriété des types d'accessoires ;
+- les instances équipées et leurs transforms ;
+- le catalogue de fonctionnalités payantes ;
+- les déblocages permanents ;
 - les opérations transactionnelles/idempotentes ;
 - la sécurité RLS.
 
-### Vercel
+### 4.3 Vercel
 
-Vercel est responsable de :
-
-- la distribution du frontend ;
-- le CDN des assets statiques ;
-- les Preview Deployments volontaires ;
-- la production depuis `main`.
+Vercel distribue le frontend, le CDN statique, les Preview Deployments utiles et la production depuis `main`.
 
 Aucune Function Vercel métier n'est requise en V1.
+
+Le quota de déploiements est traité comme une ressource : les previews ne sont déclenchées que lorsqu'elles apportent une validation réelle. Le script `scripts/vercel-ignore-build.sh` ignore les changements purement documentaires.
 
 ---
 
 ## 5. Authentification pseudo + mot de passe
 
-L'utilisateur manipule uniquement un pseudo et un mot de passe. Supabase Auth utilise un email technique interne masqué par les Edge Functions `auth-register` et `auth-login`.
+L'utilisateur voit uniquement pseudo + mot de passe. Supabase Auth utilise un identifiant technique interne masqué par les Edge Functions d'authentification.
 
-Normalisation du pseudo V1 : trim, espaces regroupés, casse d'affichage conservée, forme normalisée en minuscules, 3 à 24 caractères, caractères autorisés définis par les règles du domaine. Le mot de passe contient 10 à 128 caractères.
+Normalisation V1 : trim, espaces regroupés, casse d'affichage conservée, forme normalisée en minuscules, 3 à 24 caractères selon règles de domaine. Mot de passe 10 à 128 caractères.
 
-Le client Supabase persiste et rafraîchit la session. Au démarrage, la session est validée puis le profil, le caillou actif et l'économie sont relus. Un cache local peut fournir un affichage de secours mais ne crée jamais d'état économique, d'inventaire ou de transform canonique hors ligne.
+Au démarrage : session → profil → caillou actif → progression/économie → pose → possessions/déblocages → instances équipées.
+
+Le cache local peut afficher le dernier état connu mais ne fabrique jamais un succès économique ou une stabilisation serveur.
 
 ---
 
-## 6. Modèle de données
+## 6. Modèle de données canonique
 
 Le schéma exact est versionné dans `supabase/migrations/`.
 
@@ -164,22 +172,7 @@ updated_at timestamptz
 
 ### 6.2 `rock_catalog`
 
-```text
-id text primary key             -- rock-001 ... rock-020
-catalog_index int unique
-label text
-short_description text
-description text
-model_path text
-preview_path text
-source_mesh text
-triangle_count int
-active boolean
-created_at timestamptz
-updated_at timestamptz
-```
-
-Le catalogue V1 contient vingt spécimens actifs.
+Catalogue des vingt spécimens avec identifiant `rock-001` à `rock-020`, index, descriptions, chemins modèle/preview, métriques et état actif.
 
 ### 6.3 `user_rocks`
 
@@ -191,497 +184,553 @@ name text
 adopted_at timestamptz
 discarded_at timestamptz null
 last_cleaned_at timestamptz null
+pose_position jsonb not null       -- [x,y,z]
+pose_rotation jsonb not null       -- quaternion [x,y,z,w]
+pose_stabilized_at timestamptz
 created_at timestamptz
 updated_at timestamptz
 ```
 
-Un utilisateur ne possède qu'un seul caillou actif à la fois. La règle est protégée côté Postgres.
+Un utilisateur ne possède qu'un seul caillou actif à la fois. Position et quaternion sont validés côté serveur.
 
 ### 6.4 `rock_progress`
 
-```text
-user_rock_id uuid primary key -> user_rocks.id
-caress_count bigint default 0
-cleaning_count bigint default 0
-interaction_count bigint default 0
-observation_seconds bigint default 0
-lithons_generated bigint default 0
-updated_at timestamptz
-```
+Compteurs de caresses, nettoyages, interactions, observation éventuelle et Lithons générés.
 
 ### 6.5 `wallets`
 
 ```text
-user_id uuid primary key -> profiles.id
-balance bigint not null default 0 check (balance >= 0)
-lifetime_earned bigint not null default 0
-lifetime_spent bigint not null default 0
+user_id uuid primary key
+balance bigint >= 0
+lifetime_earned bigint
+lifetime_spent bigint
 updated_at timestamptz
 ```
+
+Invariant attendu : les opérations économiques serveur conservent la cohérence entre balance, earned et spent.
 
 ### 6.6 `lithon_ledger`
 
 ```text
 id uuid primary key
-user_id uuid -> profiles.id
-user_rock_id uuid null -> user_rocks.id
-delta bigint not null
-reason text not null
-event_key uuid not null
+user_id uuid
+user_rock_id uuid null
+delta bigint
+reason text
+event_key uuid
 accessory_id text null
+feature_id text null
 created_at timestamptz
 ```
 
-Le ledger assure audit et idempotence des opérations économiques.
+Motifs V1 incluent notamment gains de caresse, achat d'accessoire et `feature_unlock`.
 
 ### 6.7 `accessories`
 
-```text
-id text primary key
-name text
-description text
-price_lithons bigint check (price_lithons >= 0)
-asset_path text
-preview_path text
-slot text                 -- catégorie, pas une exclusivité d'équipement
-active boolean
-sort_order int
-triangle_count int null
-dimensions jsonb null
-scale_min numeric
-scale_max numeric
-physics jsonb
-provenance jsonb
-created_at timestamptz
-updated_at timestamptz
-```
-
-Le champ `physics` est produit depuis le manifest Blender et contient selon l'accessoire : `enabled`, `dynamic`, `collider`, `mass`, `friction`, `restitution`, `linearDamping`, `angularDamping`, `gravityScale` et `ccd`.
+Catalogue commercial des types d'accessoires : identité, description, prix, assets, catégorie, bornes d'échelle, physique, provenance/licence.
 
 ### 6.8 `user_accessories`
 
 ```text
-user_id uuid -> profiles.id
-accessory_id text -> accessories.id
+user_id uuid
+accessory_id text
 purchased_at timestamptz
 primary key (user_id, accessory_id)
 ```
 
-La propriété d'un **type** d'accessoire est permanente au compte et indépendante des placements.
+La propriété d'un type appartient au compte.
 
-### 6.9 `equipped_accessories` — contrat 10D
+### 6.9 `equipped_accessories`
 
 ```text
 id uuid primary key
-user_rock_id uuid -> user_rocks.id
-accessory_id text -> accessories.id
-slot text null                 -- catégorie informative uniquement
-local_position jsonb           -- [x, y, z]
-local_rotation jsonb           -- quaternion [x, y, z, w]
+user_rock_id uuid
+accessory_id text
+slot text null
+local_position jsonb
+local_rotation jsonb
 uniform_scale numeric
 equipped_at timestamptz
 updated_at timestamptz
 stabilized_at timestamptz null
 ```
 
-Principes :
+Une ligne = une instance. Plusieurs instances du même type sont autorisées. Les transforms sont stockés relativement au caillou. Plafond V1 : huit instances.
 
-- une ligne représente une **instance équipée**, pas la propriété d'un type ;
-- plusieurs instances du même accessoire ou de la même catégorie peuvent coexister ;
-- aucune clé `(user_rock_id, slot)` ne limite artificiellement la composition ;
-- les transforms sont exprimés dans l'espace local du caillou ;
-- le plafond V1 est de **8 instances par caillou** ;
-- `scale_min` et `scale_max` du catalogue sont imposés côté serveur ;
-- position, quaternion et propriété sont revalidés par les RPC ;
-- les écritures directes client restent interdites ;
-- `stabilized_at IS NULL` signifie qu'une pose est en édition ou doit encore être résolue physiquement ;
-- `stabilized_at IS NOT NULL` signifie que le transform persisté est une pose finale confirmée.
-
-Opérations :
+### 6.10 `feature_catalog`
 
 ```text
-create_equipped_accessory(..., event_key)
-update_equipped_accessory(...)
-stabilize_equipped_accessory(..., event_key)
-remove_equipped_accessory(..., event_key)
+id text primary key
+name text
+description text
+price_lithons bigint
+active boolean
+created_at / updated_at
 ```
 
-Création, stabilisation finale et retrait utilisent le registre de mutations lorsque l'effet doit être rejouable sans duplication. `update_equipped_accessory` sert à enregistrer une pose cinématique intermédiaire et remet `stabilized_at` à `NULL` lorsque le transform change.
+Entrée V1 actuelle :
 
-Les placements historiques 10C existants au déploiement 10D ont été backfillés comme stabilisés afin de conserver leur pose au premier reload 10D.
+```text
+id = rock_movement
+name = Permis de manutention minérale
+price_lithons = 1000
+```
+
+### 6.11 `user_feature_unlocks`
+
+```text
+user_id uuid
+feature_id text
+unlocked_at timestamptz
+price_paid bigint
+```
+
+Un déblocage appartient au compte, indépendamment du caillou actif.
 
 ---
 
-## 7. Économie Lithon
+## 7. Économie Lithon et Boutique
 
 ```text
 1 caresse valide = +1 Lithon
 ```
 
-Le Lithon n'a aucune valeur réelle, n'est ni achetable ni transférable. Une caresse valide appelle `register_caress(user_rock_id, event_key)`. L'achat appelle `purchase_accessory(accessory_id, event_key)`. Le serveur reste l'unique autorité sur le prix, le solde, la possession et le ledger.
+Les Lithons n'ont aucune valeur réelle et ne sont ni achetables ni transférables.
+
+### Achat d'accessoire
+
+```text
+purchase_accessory(accessory_id, event_key)
+```
+
+Le serveur vérifie disponibilité, prix, solde, propriété, écrit wallet + ledger + ownership dans une transaction et garantit l'idempotence.
+
+### Achat de fonctionnalité
+
+```text
+purchase_feature_unlock(feature_id, event_key)
+```
+
+Même contrat d'autorité serveur. Le Permis de manutention minérale est permanent et coûte 1000 Lithons.
+
+### Cible 10.75 : Shop UI agrégé, backend spécialisé
+
+La Boutique frontend doit pouvoir charger et présenter `accessories` et `feature_catalog` dans une seule fenêtre, sans fusion de schéma.
+
+Le type de produit détermine le RPC appelé. L'UI partage présentation, solde, état acheté et gestion d'erreur, mais conserve les contrats backend spécialisés.
 
 ---
 
 ## 8. Nettoyage
 
-La poussière est visuelle et dérivée du temps depuis `last_cleaned_at` ou l'adoption : surface propre pendant 1 heure, apparition progressive ensuite, plafond visuel à 12 heures. `register_cleaning` met à jour `last_cleaned_at` et `cleaning_count` sans accorder de Lithon.
+La poussière est visuelle et dérivée du temps depuis `last_cleaned_at` ou l'adoption. `register_cleaning` met à jour la date et le compteur sans accorder de Lithon.
 
 ---
 
-## 9. Jeter un caillou
+## 9. Physique et composition 3D
 
-L'opération cible `discard_active_rock(user_rock_id)`. Elle vérifie propriété et statut, renseigne `discarded_at`, retire les placements liés selon la règle métier, conserve portefeuille/inventaire/historique et renvoie vers le parcours sans caillou actif. La propriété `user_accessories` ne dépend jamais de la durée de vie d'un caillou.
+### 9.1 Monde physique
+
+Le Socle contient :
+
+```text
+sol gris fixe Rapier
+caillou visuel + corps physique
+0..8 AccessoryModel + corps physiques
+```
+
+La gravité monde est cliente. Le grand carré gris est la surface de sol canonique du rendu et de Rapier.
+
+### 9.2 Caillou
+
+Après 10.5 :
+
+- pose position + quaternion persistants ;
+- corps fixe hors manipulation/simulation ;
+- corps `kinematicPosition` pendant manutention ;
+- corps dynamique pendant stabilisation globale ;
+- collider dynamique `hull` issu du modèle ;
+- masse, friction, damping et CCD adaptés ;
+- sommeil ou timeout comme fin de stabilisation.
+
+### 9.3 Accessoires
+
+- corps fixe lorsqu'une pose stabilisée est simplement affichée ;
+- corps cinématique pendant édition ;
+- corps dynamique après validation lorsqu'ils sont physiquement dynamiques ;
+- colliders/paramètres issus du catalogue ;
+- transform final converti monde → local caillou avant persistance.
+
+### 9.4 Persistance individuelle
+
+```text
+stabilize_equipped_accessory(instance_id, event_key, local_position, local_rotation, uniform_scale)
+```
+
+Le serveur vérifie propriété, bornes numériques, quaternion, échelle et identité.
+
+### 9.5 Persistance globale
+
+```text
+stabilize_rock_composition(
+  user_rock_id,
+  event_key,
+  rock_position,
+  rock_rotation,
+  accessories
+)
+```
+
+Contrat : pose du caillou + toutes les instances attendues persistées atomiquement avec un même instant de stabilisation. L'opération est idempotente.
 
 ---
 
-## 10. Sécurité et RLS
+## 10. Cible 10.75 : moteur de manipulation universel
 
-Toutes les tables exposées via la Data API ont RLS activée et des grants minimaux. Le navigateur ne peut pas directement modifier wallet, ledger, propriété, statistiques ou instances équipées.
+### 10.1 Motivation
+
+Le contrôleur de manutention du caillou est retenu comme référence ergonomique. La logique tactile des accessoires doit converger vers la même abstraction.
+
+### 10.2 Modèle cible
+
+Conceptuellement :
+
+```text
+ManipulationController
+  targetId
+  targetKind: rock | accessory
+  capabilities:
+    position: true
+    rotation: true
+    scale: boolean
+```
+
+Le contrôleur agit sur une cible sélectionnée et utilise le canvas entier comme surface de geste.
+
+### 10.3 Gestes
+
+**Position** : 1 doigt = plan de vue, 2 doigts = profondeur.
+
+**Orientation** : 1 doigt = orientation libre par axes caméra, twist = rotation autour de l'axe de vue.
+
+**Taille** : pinch uniquement pour les accessoires, borné par le catalogue.
+
+### 10.4 Sélection
+
+Le bouton Placement ouvre un sélecteur contenant :
+
+- caillou ;
+- instances accessoires existantes ;
+- création d'une nouvelle instance depuis les types possédés.
+
+Le caillou sans `rock_movement` reste listé mais verrouillé. L'action commerciale mène vers le Permis dans la Boutique.
+
+### 10.5 Liberté de collision pendant le geste
+
+Pendant Placement, la cible est cinématique et le contrôleur **ne doit pas** appliquer d'anti-pénétration avec :
+
+- le caillou ;
+- les accessoires ;
+- les autres instances.
+
+Les intersections sont une entrée utilisateur valide. Les anciens mécanismes de projection/snap vers la surface ne doivent pas être conservés comme contrainte principale.
+
+### 10.6 Sol gris : contrainte dure
+
+Exception unique : le carré gris est infranchissable.
+
+La géométrie manipulée ne peut pas passer à travers ou sous le plan du sol. Cette protection doit être appliquée directement lors du calcul de pose cinématique, en utilisant l'enveloppe/bounding volume de la cible.
+
+Ne pas dépendre uniquement d'une résolution Rapier ultérieure, car un corps cinématique piloté directement peut autrement franchir une frontière entre deux frames.
+
+### 10.7 `Terminer`
+
+À la validation :
+
+- fin du contrôle cinématique ;
+- gravité normale ;
+- collisions normales caillou/accessoires/sol ;
+- Rapier résout les pénétrations éventuelles ;
+- une éjection rapide issue d'une forte superposition est acceptable ;
+- la pose stabilisée est ensuite persistée.
+
+---
+
+## 11. État frontend
+
+### État serveur canonique
+
+- session/profil ;
+- caillou actif ;
+- progression ;
+- wallet/ledger indirect ;
+- pose caillou ;
+- inventaire accessoires ;
+- déblocages fonctionnalités ;
+- instances équipées ;
+- transforms locaux et `stabilized_at`.
+
+### État UI temporaire actuel
+
+10.5 possède notamment des modes `orbit`, `caress`, `cleaning`, `accessory`, `rock-position`, `rock-orientation`, `composition-settle`.
+
+### État UI cible 10.75
+
+La représentation interne peut être simplifiée autour de :
+
+```text
+mode: orbit | caress | cleaning | placement | settling
+placementTarget: rock | accessory-instance | null
+placementSubmode: position | orientation
+```
+
+La capacité `scale` est liée à la cible plutôt qu'à un mode produit séparé.
+
+La Boutique est un état UI commercial distinct de Placement.
+
+### État 3D temporaire
+
+- objets Three.js ;
+- corps Rapier ;
+- caméra ;
+- poussière ;
+- brouillon de pose ;
+- cible sélectionnée ;
+- vitesses pendant résolution.
+
+Aucune instance Three.js/Rapier n'est sérialisée. Seuls identifiants et nombres métier le sont.
+
+---
+
+## 12. Contrats d'interaction et modes exclusifs
+
+Orbit, Caresser, Nettoyer et Placement sont mutuellement exclusifs.
+
+Pendant Placement :
+
+- OrbitControls désactivé ;
+- la cible reste sélectionnée explicitement ;
+- gestes routés vers le contrôleur universel ;
+- mutation économique impossible depuis le canvas ;
+- gravité gelée pour la cible manipulée ;
+- intersections objet/objet permises ;
+- franchissement du sol interdit.
+
+Les cibles tactiles UI font au moins 44 px. Les réglages fins restent accessibles hors Canvas et au clavier lorsque pertinent.
+
+---
+
+## 13. RLS et sécurité
+
+Toutes les tables exposées ont RLS et grants minimaux.
 
 Pour chaque fonction sensible `security definer` :
 
 - `search_path` verrouillé ;
 - `auth.uid()` vérifié ;
-- droits `EXECUTE` minimaux ;
-- aucune confiance dans un `user_id` client ;
-- validation de propriété et des bornes métier ;
-- tests allow/deny A/B/anon.
+- aucun `user_id` client digne de confiance ;
+- propriété vérifiée ;
+- prix et solde relus côté serveur ;
+- bornes numériques validées ;
+- tests utilisateur A / utilisateur B / anon.
 
-La clé service role n'est jamais présente dans le bundle Vite.
+La clé service role n'est jamais incluse dans Vite.
 
-Le RPC de stabilisation final est idempotent : en cas d'incertitude réseau, le client rejoue le même `event_key` et ne fabrique jamais une seconde instance.
-
----
-
-## 11. Scène 3D, physique et mémoire GPU
-
-### Showroom
-
-Le catalogue contient vingt cailloux, mais **un seul GLB de caillou** est instancié à la fois. Le changement de spécimen libère explicitement géométries, matériaux et textures de l'ancien objet.
-
-### Socle et accessoires
-
-```text
-1 caillou
-  ├─ collider statique trimesh
-  ├─ accessoire instance A + collider simplifié
-  ├─ accessoire instance B + collider simplifié
-  └─ ... jusqu'à 8
-```
-
-Chaque `AccessoryModel` possède son cycle chargement / affichage / disposal. Les ressources GPU inutilisées sont libérées lors du retrait ou d'une réhydratation.
-
-### Physique 10D
-
-- gravité monde : `[0, -3.4, 0]` ;
-- caillou : corps fixe, collider `trimesh` ;
-- Monocle, Nœud papillon, Lunettes rondes : corps dynamiques, colliders convexes simplifiés, CCD actif ;
-- Socle galerie : non dynamique, collider `cuboid`, gravité désactivée ;
-- drag/réglages fins : corps cinématique contrôlé ;
-- lâcher : reprise dynamique pour les accessoires compatibles ;
-- friction, restitution, masse et dampings issus du catalogue ;
-- sommeil Rapier utilisé comme signal principal de stabilisation ;
-- timeout de sécurité : 3,5 s ;
-- anti-traversée manuelle avec clearance avant résolution Rapier ;
-- une pose déjà stabilisée est restaurée directement au reload, sans chute systématique.
-
-Le monde physique est commun aux accessoires présents. Les collisions accessoires ↔ caillou sont obligatoires et validées. La limite de huit instances borne le coût V1.
+Les validations de transform protègent l'intégrité, mais **ne doivent pas transformer une intersection volontaire entre objets en règle métier interdite**.
 
 ---
 
-## 12. Assets et distribution
+## 14. PWA, cache et reprise réseau
 
-Les sources restent dans `Ressource/`, les assets runtime dans `public/assets/`, les scripts reproductibles dans `scripts/blender/` et `scripts/web/`, et les migrations/tests dans `supabase/`.
+Le shell, le branding et les ressources essentielles sont précachés. Les GLB restent chargés à la demande et peuvent être mis en cache par stratégie runtime bornée.
 
-Le manifest `scripts/blender/accessory_sources.json` est l'autorité de production pour les métadonnées physiques. Une régénération Blender doit reproduire `public/assets/accessories/catalog.json` et `build/accessory-production/report.json` sans diff.
+Une reprise locale distingue toujours :
 
----
+- dernier état serveur connu ;
+- brouillon local ;
+- simulation physique en cours ;
+- pose stabilisée non encore confirmée ;
+- pose canonique confirmée.
 
-## 13. État frontend
+Après perte réseau, le client ne doit pas inventer un achat, un déblocage ou une stabilisation réussie. Les opérations idempotentes rejouent le même `event_key` lorsque nécessaire.
 
-### État serveur canonique
-
-- session ;
-- profil ;
-- caillou actif ;
-- progression ;
-- portefeuille ;
-- inventaire ;
-- instances équipées ;
-- transforms locaux ;
-- `stabilized_at`.
-
-### État UI temporaire
-
-- modale ouverte ;
-- index showroom ;
-- mode `orbit | caress | cleaning | accessory` ;
-- accessoire sélectionné ;
-- feedbacks, erreurs et pending ;
-- transitions.
-
-### État 3D temporaire
-
-- objets Three.js ;
-- corps/colliders Rapier ;
-- caméra ;
-- poussière ;
-- drag cinématique ;
-- vitesses pendant la résolution ;
-- représentation visuelle de la sélection.
-
-Aucune instance Three.js ou Rapier n'est sérialisée dans Supabase. Seuls les identifiants métier, transforms numériques et l'état de stabilisation le sont.
+L'étape 12 formalise cette réconciliation pour la Boutique unifiée et Placement.
 
 ---
 
-## 14. Contrat d'interaction accessoire
-
-Le mode Accessoire est explicitement séparé d'Orbit, Caresser et Nettoyer.
-
-- sélectionner : tap/clic sur l'accessoire ou son entrée dans l'éditeur ;
-- translater : drag dans le plan de vue ;
-- précision/profondeur : boutons X/Y/Z ;
-- rotation : commandes fines dédiées ;
-- échelle : agrandir/rétrécir dans les bornes catalogue ;
-- supprimer : retire uniquement l'instance équipée, jamais la propriété du type ;
-- quitter : rend le contrôle à la caméra.
-
-Les cibles tactiles critiques font au moins 44 px. Le panneau est scrollable sur téléphone/tablette.
-
-Une édition est enregistrée comme pose non stabilisée, puis Rapier résout la pose finale. Seul le transform final marqué `physicsSettled` côté renderer est envoyé au RPC de stabilisation. Cette séparation évite la course entre une écriture cinématique et la sauvegarde finale.
-
----
-
-## 15. Persistance et reprise réseau des accessoires
-
-Règle de réconciliation :
-
-1. Supabase fournit le dernier transform canonique et `stabilized_at` ;
-2. une pose stabilisée est restaurée telle quelle, sans relancer la gravité ;
-3. une nouvelle édition confirme d'abord le transform cinématique avec `stabilized_at = NULL` ;
-4. Rapier résout ensuite le corps ;
-5. la pose finale est envoyée à `stabilize_equipped_accessory` avec un nouvel `event_key` ;
-6. une erreur retryable est rejouée une fois avec le même `event_key` ;
-7. si la confirmation reste impossible, l'UI revient au dernier état serveur connu au lieu de prétendre que la pose a été sauvegardée.
-
-Le futur mécanisme offline de l'étape 12 devra conserver cette distinction entre dernier état connu et mutation effectivement confirmée.
-
----
-
-## 16. PWA et cache
-
-Le shell, le branding, les icônes et les ressources essentielles sont précachés. Les gros GLB restent des candidats au cache runtime versionné.
-
-L'intégration Rapier porte le bundle principal 10D à environ **3,68 MB brut / 1,24 MB gzip**. Le plafond Workbox est donc explicitement fixé à **4 MiB** afin de conserver le contrat de précache V1.
-
-Cette valeur n'est pas une cible de taille. L'étape 12 doit étudier le code-splitting/lazy-loading de Rapier et du renderer afin de réduire le chunk principal sans modifier le modèle physique ou la persistance.
-
----
-
-## 17. Déploiement Vercel
-
-```text
-GitHub
-  │
-  ├─ PR / branche de validation -> Vercel Preview volontaire
-  │
-  └─ main -> Vercel Production
-```
-
-Variables frontend :
-
-```text
-VITE_SUPABASE_URL
-VITE_SUPABASE_PUBLISHABLE_KEY
-```
-
-Aucun secret administrateur n'est exposé au client. Les previews sont déclenchées uniquement lorsqu'elles apportent une validation utile afin de préserver le quota du plan gratuit.
-
----
-
-## 18. Performance 3D
+## 15. Performance 3D
 
 ### Caillou
 
 - un seul GLB actif ;
 - DPR borné ;
 - `frameloop="demand"` autant que possible ;
-- disposal explicite au changement ;
-- collider statique, sans simulation de rigid-body du caillou.
+- disposal explicite ;
+- corps dynamique uniquement lors des cycles qui le nécessitent.
 
 ### Accessoires
 
-- jusqu'à 8 instances simultanées ;
-- assets selon budgets de production 10A ;
-- colliders dynamiques simplifiés ;
-- CCD seulement sur les accessoires dynamiques ;
+- jusqu'à huit instances ;
+- assets sous budgets de production ;
+- colliders adaptés ;
+- CCD selon besoin ;
 - corps endormis lorsqu'ils sont stabilisés ;
-- invalidation du rendu uniquement lorsque nécessaire ;
 - disposal lors du retrait.
 
-Le plafond 8 est un contrat V1 conservateur, pas une invitation à remplir systématiquement la scène.
+La factorisation du contrôleur 10.75 ne doit pas créer une boucle de rendu permanente au repos.
 
 ---
 
-## 19. Qualité adaptative
-
-Les profils Économie / Auto / Élevée restent possibles. La physique doit pouvoir réduire ses coûts de présentation sans modifier le transform métier final ni changer l'identité des instances.
-
----
-
-## 20. Tests prioritaires
+## 16. Tests prioritaires
 
 ### Domaine
 
-- caresse valide/invalide ;
+- caresse ;
 - poussière ;
 - prix ;
-- bornes de transform accessoire ;
-- quaternion valide ;
-- échelle min/max ;
-- limite 8 instances ;
-- parsing des paramètres physiques ;
-- bornes de sécurité physique.
+- permit 1000 ;
+- bornes position/rotation/scale ;
+- quaternions ;
+- limite huit instances ;
+- transformations monde/local ;
+- contrainte de sol.
 
-### Base de données
+### Base
 
-- un seul caillou actif ;
-- portefeuille jamais négatif ;
-- caresse idempotente ;
-- achat atomique ;
-- propriété unique d'un type ;
-- plusieurs instances d'un type autorisées ;
-- 8e instance acceptée, 9e refusée ;
-- transform persistant ;
-- création/retrait idempotents ;
-- stabilisation finale idempotente ;
-- édition manuelle remettant `stabilized_at` à `NULL`.
+- wallet jamais négatif ;
+- achats accessoires idempotents ;
+- feature unlock idempotent ;
+- second achat du permis refusé ;
+- possession unique d'un type ;
+- plusieurs instances autorisées ;
+- pose caillou persistante ;
+- stabilisation accessoire idempotente ;
+- stabilisation composition atomique/idempotente ;
+- writes directs sensibles refusés.
 
-### RLS
-
-- propriétaire autorisé ;
-- autre utilisateur refusé ;
-- anonyme refusé ;
-- writes directs sensibles refusés ;
-- accessoire non possédé impossible à équiper ;
-- impossible de stabiliser une instance d'un autre compte.
-
-### E2E physique 10D
+### E2E 10.75
 
 ```text
-Rapier initialisé
-→ chute sous gravité
-→ collision avec corps fixe
-→ sommeil/stabilisation
-→ 2 GLB simultanés
-→ téléphone 390×844
-→ édition tactile
-→ sauvegarde stabilisée
-→ tablette 1024×768
-→ édition tactile
-→ sauvegarde stabilisée
+ouvrir Placement
+→ sélectionner caillou/accessoire
+→ manipuler depuis n'importe quelle zone du canvas
+→ Position X/Y + profondeur
+→ Orientation
+→ Scale accessoire
+→ créer intersection volontaire
+→ vérifier sol infranchissable
+→ Terminer
+→ Rapier résout la composition
+→ persister
+→ reload
+→ retrouver la pose confirmée
 ```
 
-Les scénarios historiques adoption, caresse, nettoyage, multi-placement et showroom restent exécutés pour prévenir les régressions de modes.
+Ajouter : caillou verrouillé sans permis, navigation vers Boutique, achat du permis, nouvelle instance d'un accessoire possédé, plusieurs instances identifiables, téléphone et tablette.
+
+Les validations historiques showroom/adoption/caresse/nettoyage/10C/10D/10.5 restent des non-régressions.
 
 ---
 
-## 21. Git et CI
+## 17. Git, CI et Vercel
 
-`main` doit rester déployable. Une étape runtime importante passe par branche, Pull Request, CI, tests ciblés, validation WebGL/appareil et une Preview Vercel volontaire avant fusion.
+`main` doit rester déployable.
 
-Contrôles 10D : lint, TypeScript strict, 43 tests unitaires, build Vite/PWA, SQL/RLS, showroom, adoption, caresse, nettoyage, multi-accessoires, pipeline Blender reproductible et workflow Rapier téléphone/tablette.
+Une étape runtime passe par branche + PR + CI + tests ciblés. Pour 10.75 :
+
+- itérer d'abord avec les tests GitHub et navigateur ;
+- éviter les previews inutiles ;
+- déclencher au plus une validation Vercel volontaire sur le candidat final si elle apporte une preuve utile ;
+- après merge, vérifier le déploiement Production du SHA fusionné.
+
+Les changements purement documentaires sont destinés à être ignorés par le garde-fou Vercel.
 
 ---
 
-## 22. Phases de livraison
+## 18. Phases de livraison
 
-### Phase 0 — Fondation
+### Phase 0 - Fondation
 
 Vite/React/TS, Supabase, Auth, PWA shell, Vercel.
 
-### Phase 1 — Vertical slice
+### Phase 1 - Vertical slice
 
 Compte → showroom → adoption → nommage → Socle → reload.
 
-### Phase 2 — Boucle de jeu
+### Phase 2 - Boucle de jeu
 
 Caresser, Lithons, nettoyage, Bio/Stats et Jeter.
 
-### Phase 3 — Accessoires — terminée
+### Phase 3 - Accessoires et physique
 
 - 10A : pipeline GLB/catalogue ;
 - 10B : achat/inventaire ;
-- 10C : multi-instance et placement manuel persistant ;
-- 10D : physique/collisions/gravité/stabilisation persistante.
+- 10C : multi-instance et placement manuel ;
+- 10D : physique/collisions/stabilisation ;
+- 10.5 : sol physique, permis, pose/manutention du caillou, composition atomique ;
+- 10.75 : Boutique unifiée, Placement unique et contrôleur tactile commun.
 
-### Phase 4 — Résilience
+### Phase 4 - Résilience
 
-Cache, reprise réseau, PWA et optimisation mémoire/performance.
+Cache, reprise réseau, PWA, optimisation mémoire/performance.
 
-### Phase 5 — Finition V1
+### Phase 5 - Finition V1
 
 Accessibilité, sécurité, QA appareil, crédits/licences et release.
 
 ---
 
-## 23. Risques principaux
+## 19. Risques principaux
 
-### R1 — Économie modifiée depuis le client
-Réponse : wallet non modifiable directement, RPC transactionnelles et ledger.
+### R1 - Économie modifiée depuis le client
+Réponse : wallet non modifiable directement, RPC transactionnels, prix serveur et ledger.
 
-### R2 — Double mutation réseau
-Réponse : `event_key` et registre de reçus pour les effets non répétables, y compris la stabilisation finale.
+### R2 - Double mutation réseau
+Réponse : `event_key` et reçus idempotents.
 
-### R3 — Achat concurrent
-Réponse : verrou wallet, contrôle du solde et transaction Postgres.
+### R3 - Fuite RLS
+Réponse : grants minimaux, `auth.uid()`, tests A/B/anon.
 
-### R4 — Fuite RLS
-Réponse : grants minimaux, `auth.uid()`, tests A/B/anon, aucune service role côté client.
+### R4 - Fuite GPU
+Réponse : un GLB de caillou, plafond accessoires, disposal et tests navigateur.
 
-### R5 — Fuite GPU
-Réponse : un seul GLB de caillou, plafond accessoires, disposal explicite et tests navigateur.
+### R5 - Désolidarisation des accessoires
+Réponse : transforms persistés localement au caillou et conversions monde/local centralisées.
 
-### R6 — Accessoire désolidarisé du caillou
-Réponse : transforms persistés en espace local du caillou et rendu dans le même référentiel de scène.
+### R6 - Placement tactile trop contraint
+Réponse 10.75 : supprimer l'anti-pénétration objet/objet pendant le geste ; seule la frontière du sol reste dure.
 
-### R7 — Traversée de la pierre
-Réponse : résolue en 10D par garde anti-pénétration, collider statique du caillou et résolution Rapier.
+### R7 - Traversée du sol par un corps cinématique
+Réponse : clamp/contrainte géométrique avant application de la pose, calculée avec l'enveloppe de la cible.
 
-### R8 — Jitter/tunneling physique
-Réponse : colliders simplifiés, damping, restitution faible, CCD sur corps dynamiques, sommeil et timeout borné.
+### R8 - Résolution Rapier énergique après intersection
+Réponse : comportement accepté par le produit ; borner seulement les valeurs non finies, les pertes hors scène et les instabilités bloquantes.
 
-### R9 — Bundle Rapier trop volumineux
-Réponse : plafond Workbox 4 MiB en V1 ; code-splitting/lazy-loading reporté à l'étape 12.
+### R9 - Jitter/tunneling bloquant
+Réponse : colliders adaptés, damping, CCD ciblé, sommeil et timeouts bornés.
 
-### R10 — Surarchitecture
-Réponse : React + Supabase + Vercel restent les briques principales ; Rapier demeure une bibliothèque cliente ciblée et ne crée aucun backend physique.
+### R10 - Bundle 3D/physique lourd
+Réponse : cache maîtrisé et code-splitting/lazy-loading à traiter en étape 12.
 
----
-
-## 24. Décisions reportées après V1
-
-- social ;
-- amis ;
-- classement ;
-- échanges ;
-- boutique en argent réel ;
-- notifications de rétention ;
-- WebGPU principal ;
-- réalité augmentée ;
-- scan utilisateur ;
-- multijoueur ;
-- marketplace ;
-- récupération de compte avancée tant que son UX n'est pas décidée.
+### R11 - Surarchitecture commerciale
+Réponse : une UI de Boutique agrège deux catalogues existants sans créer une table universelle artificielle.
 
 ---
 
-## 25. Règles d'architecture finales
+## 20. Décisions reportées après V1
+
+Social, amis, classement, échanges, argent réel, notifications de rétention, WebGPU principal, AR, scan utilisateur, multijoueur, marketplace et récupération avancée tant que son UX n'est pas décidée.
+
+---
+
+## 21. Règles d'architecture finales
 
 > **Le client peut demander un Lithon. Seul le serveur peut décider qu'il existe.**
 
-> **Vingt cailloux dans le catalogue ne doivent jamais devenir vingt cailloux dans la mémoire.**
+> **Boutique agrège l'offre ; les modèles backend restent spécialisés.**
 
-> **Un accessoire possédé appartient au compte ; une instance équipée appartient à la composition du caillou.**
+> **Un accessoire possédé appartient au compte ; une instance placée appartient à la composition.**
 
-> **Rapier peut déplacer une instance ; il ne change jamais son identité métier. Supabase conserve le dernier transform final confirmé.**
+> **Pendant Placement, la main gagne contre les autres objets, mais jamais contre le sol.**
+
+> **Après Terminer, Rapier reprend l'arbitrage et Supabase conserve le dernier résultat confirmé.**
