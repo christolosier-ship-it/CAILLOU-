@@ -12,9 +12,10 @@ import {
   parseAccessoryPhysics,
 } from '../features/accessories/accessoryPhysics'
 import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
-import { accessoryBoundsFromDimensions, clampWorldPositionAboveGround } from '../features/placement/placementRules'
+import { constrainPlacementPosition } from '../features/placement/placementConstraints'
+import { createPlacementGeometry } from '../features/placement/placementGeometry'
+import type { PlacementGeometry } from '../features/placement/placementGeometry'
 import {
-  PEDESTAL_GROUND_Y,
   ROCK_SETTLE_TIMEOUT_MS,
   accessoryLocalToWorld,
   accessoryWorldToLocal,
@@ -39,6 +40,7 @@ interface AccessoryModelProps {
   onTransformDraft?: (instanceId: string, transform: AccessoryTransform) => void
   onTransformCommit: (instanceId: string, transform: AccessoryTransform) => void
   onGlobalSettled?: (transform: WorldAccessoryTransform) => void
+  onPlacementGeometryReady?: (instanceId: string, geometry: PlacementGeometry | null) => void
   onLoadStateChange?: ((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => void) | undefined
   onDisposed?: ((instanceId: string, report: DisposalReport) => void) | undefined
 }
@@ -71,11 +73,13 @@ export function AccessoryModel({
   globalSettling = false,
   onTransformCommit,
   onGlobalSettled,
+  onPlacementGeometryReady,
   onLoadStateChange,
   onDisposed,
 }: AccessoryModelProps) {
   const [object, setObject] = useState<Object3D | null>(null)
   const [selectionRadius, setSelectionRadius] = useState(0.5)
+  const [placementGeometry, setPlacementGeometry] = useState<PlacementGeometry | null>(null)
   const [simulating, setSimulating] = useState(false)
   const bodyRef = useRef<RapierRigidBody>(null)
   const simulatingRef = useRef(false)
@@ -86,11 +90,6 @@ export function AccessoryModel({
   const loadCallbackRef = useRef(onLoadStateChange)
   const invalidate = useThree((state) => state.invalidate)
   const physics = useMemo(() => parseAccessoryPhysics(instance.physics, instance.category), [instance.category, instance.physics])
-  const groundBounds = useMemo(
-    () => accessoryBoundsFromDimensions(instance.dimensions, instance.uniformScale),
-    [instance.dimensions, instance.uniformScale],
-  )
-
   const setPhysicsSimulating = useCallback((next: boolean) => {
     simulatingRef.current = next
     setSimulating(next)
@@ -111,6 +110,8 @@ export function AccessoryModel({
     let loadedObject: Object3D | null = null
 
     loadCallbackRef.current?.(instance.id, 'loading')
+    setPlacementGeometry(null)
+    onPlacementGeometryReady?.(instance.id, null)
 
     async function load() {
       try {
@@ -123,6 +124,7 @@ export function AccessoryModel({
         const resourcePath = assetUrl.href.slice(0, assetUrl.href.lastIndexOf('/') + 1)
         const gltf = await loader.parseAsync(buffer, resourcePath)
         loadedObject = gltf.scene
+        const nextPlacementGeometry = createPlacementGeometry(loadedObject)
         const box = new Box3().setFromObject(loadedObject)
         if (!box.isEmpty()) {
           const sphere = box.getBoundingSphere(new Sphere())
@@ -137,6 +139,8 @@ export function AccessoryModel({
         }
 
         setObject(loadedObject)
+        setPlacementGeometry(nextPlacementGeometry)
+        onPlacementGeometryReady?.(instance.id, nextPlacementGeometry)
         loadCallbackRef.current?.(instance.id, 'ready')
         invalidate()
       } catch (error) {
@@ -151,12 +155,13 @@ export function AccessoryModel({
     return () => {
       active = false
       controller.abort()
+      onPlacementGeometryReady?.(instance.id, null)
       if (loadedObject) {
         const report = disposeRockObject(loadedObject)
         disposedCallbackRef.current?.(instance.id, report)
       }
     }
-  }, [instance.id, instance.modelPath, invalidate])
+  }, [instance.id, instance.modelPath, invalidate, onPlacementGeometryReady])
 
   const worldFromInstance = useCallback(
     () => accessoryLocalToWorld(instance.id, instance, rockPose),
@@ -167,20 +172,28 @@ export function AccessoryModel({
     const body = bodyRef.current
     if (!body) return false
     const world = bodyWorldTransform(body, instance.id, instance.uniformScale)
-    const grounded = clampWorldPositionAboveGround(
+    if (!placementGeometry) return false
+    const grounded = constrainPlacementPosition(
       world.worldPosition,
       world.worldRotation,
-      groundBounds,
-      PEDESTAL_GROUND_Y,
+      instance.uniformScale,
+      placementGeometry,
     )
-    if (grounded[1] <= world.worldPosition[1] + 0.000001) return false
+    const changedX = Math.abs(grounded[0] - world.worldPosition[0]) > 0.000001
+    const changedY = Math.abs(grounded[1] - world.worldPosition[1]) > 0.000001
+    const changedZ = Math.abs(grounded[2] - world.worldPosition[2]) > 0.000001
+    if (!changedX && !changedY && !changedZ) return false
 
     body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
     const velocity = body.linvel()
-    if (velocity.y < 0) body.setLinvel({ x: velocity.x, y: 0, z: velocity.z }, true)
+    body.setLinvel({
+      x: changedX ? 0 : velocity.x,
+      y: changedY && velocity.y < 0 ? 0 : velocity.y,
+      z: changedZ ? 0 : velocity.z,
+    }, true)
     invalidate()
     return true
-  }, [groundBounds, instance.id, instance.uniformScale, invalidate])
+  }, [instance.id, instance.uniformScale, invalidate, placementGeometry])
 
   useAfterPhysicsStep(() => {
     if (simulatingRef.current || globalSettling) enforceHardFloor()
@@ -286,19 +299,21 @@ export function AccessoryModel({
     if (physics.enabled && physics.dynamic) {
       startDynamicSettlement()
     } else {
-      const grounded = clampWorldPositionAboveGround(
-        world.worldPosition,
-        world.worldRotation,
-        groundBounds,
-        PEDESTAL_GROUND_Y,
-      )
-      const local = accessoryWorldToLocal({ ...world, worldPosition: grounded }, rockPose)
+            if (!placementGeometry) return
+    const grounded = constrainPlacementPosition(
+      world.worldPosition,
+      world.worldRotation,
+      instance.uniformScale,
+      placementGeometry,
+    )
+    const local = accessoryWorldToLocal({ ...world, worldPosition: grounded }, rockPose)
+
       onTransformCommit(instance.id, { ...local, physicsSettled: true })
     }
   }, [
     compositionFrozen,
     globalSettling,
-    groundBounds,
+    placementGeometry,
     instance,
     object,
     onTransformCommit,

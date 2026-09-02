@@ -3,15 +3,16 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { CuboidCollider, Physics, RigidBody, useAfterPhysicsStep } from '@react-three/rapier'
 import type { RapierRigidBody } from '@react-three/rapier'
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Box3, MathUtils, Mesh, PerspectiveCamera, Quaternion, Sphere, Vector3 } from 'three'
+import { Box3, MathUtils, PerspectiveCamera, Quaternion, Sphere, Vector3 } from 'three'
 import type { Group, Object3D } from 'three'
 
 import type { RockCatalogEntry } from '../content/rockCatalog'
 import { ACCESSORY_WORLD_GRAVITY } from '../features/accessories/accessoryPhysics'
 import { clampAccessoryTransform } from '../features/accessories/accessoryPlacementRules'
 import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
-import { accessoryBoundsFromDimensions, clampWorldPositionAboveGround } from '../features/placement/placementRules'
-import type { PlacementBounds, PlacementTarget, PlacementTool } from '../features/placement/placementTypes'
+import { constrainPlacementPosition } from '../features/placement/placementConstraints'
+import type { PlacementGeometry } from '../features/placement/placementGeometry'
+import type { PlacementTarget, PlacementTool } from '../features/placement/placementTypes'
 import {
   PEDESTAL_GROUND_CENTER_Y,
   PEDESTAL_GROUND_COLOR,
@@ -90,35 +91,6 @@ interface ManipulationSnapshot {
   position: Vector3
   rotation: Quaternion
   scale: number
-}
-
-function computeObjectLocalBounds(root: Object3D): PlacementBounds {
-  root.updateWorldMatrix(true, true)
-  const inverseRoot = root.matrixWorld.clone().invert()
-  const bounds = new Box3()
-
-  root.traverse((child) => {
-    if (!(child instanceof Mesh)) return
-    child.geometry.computeBoundingBox()
-    const childBounds = child.geometry.boundingBox
-    if (!childBounds) return
-    for (const x of [childBounds.min.x, childBounds.max.x]) {
-      for (const y of [childBounds.min.y, childBounds.max.y]) {
-        for (const z of [childBounds.min.z, childBounds.max.z]) {
-          const point = new Vector3(x, y, z)
-            .applyMatrix4(child.matrixWorld)
-            .applyMatrix4(inverseRoot)
-          bounds.expandByPoint(point)
-        }
-      }
-    }
-  })
-
-  if (bounds.isEmpty()) return { min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] }
-  return {
-    min: [bounds.min.x, bounds.min.y, bounds.min.z],
-    max: [bounds.max.x, bounds.max.y, bounds.max.z],
-  }
 }
 
 function samePosition(left: readonly number[], right: readonly number[], epsilon = 0.00001) {
@@ -300,16 +272,18 @@ function ManipulationController({
   target,
   tool,
   rockPose,
-  rockBounds,
+  rockGeometry,
   accessories,
+  accessoryGeometries,
   onRockPoseChange,
   onAccessoryTransformChange,
 }: {
   target: PlacementTarget
   tool: PlacementTool
   rockPose: RockPose
-  rockBounds: PlacementBounds | null
+  rockGeometry: PlacementGeometry | null
   accessories: EquippedAccessoryInstance[]
+  accessoryGeometries: Map<string, PlacementGeometry>
   onRockPoseChange?: ((pose: RockPose) => void) | undefined
   onAccessoryTransformChange?: ((instanceId: string, transform: AccessoryTransform) => void) | undefined
 }) {
@@ -319,11 +293,11 @@ function ManipulationController({
   const pointersRef = useRef(new Map<number, GesturePoint>())
   const previousSingleRef = useRef<GesturePoint | null>(null)
   const baselineRef = useRef<{ distance: number; angle: number; snapshot: ManipulationSnapshot } | null>(null)
-  const stateRef = useRef({ target, tool, rockPose, rockBounds, accessories })
+  const stateRef = useRef({ target, tool, rockPose, rockGeometry, accessories, accessoryGeometries })
 
   useEffect(() => {
-    stateRef.current = { target, tool, rockPose, rockBounds, accessories }
-  }, [accessories, rockBounds, rockPose, target, tool])
+    stateRef.current = { target, tool, rockPose, rockGeometry, accessories, accessoryGeometries }
+  }, [accessories, accessoryGeometries, rockGeometry, rockPose, target, tool])
 
   useEffect(() => {
     const canvas = gl.domElement
@@ -372,10 +346,15 @@ function ManipulationController({
           position: [next.position.x, next.position.y, next.position.z],
           rotation,
         })
-        const grounded = current.rockBounds
-          ? clampWorldPositionAboveGround(normalized.position, normalized.rotation, current.rockBounds, PEDESTAL_GROUND_Y)
-          : normalized.position
-        onRockPoseChange(normalizeRockPose({ position: grounded, rotation: normalized.rotation }))
+                if (!current.rockGeometry) return
+      const grounded = constrainPlacementPosition(
+        normalized.position,
+        normalized.rotation,
+        1,
+        current.rockGeometry,
+      )
+      onRockPoseChange(normalizeRockPose({ position: grounded, rotation: normalized.rotation }))
+
         invalidate()
         return
       }
@@ -383,14 +362,16 @@ function ManipulationController({
       if (!onAccessoryTransformChange) return
       const instance = selectedInstance()
       if (!instance) return
-      const safeScale = Math.max(instance.scaleMin, Math.min(instance.scaleMax, next.scale))
-      const bounds = accessoryBoundsFromDimensions(instance.dimensions, safeScale)
-      const grounded = clampWorldPositionAboveGround(
-        [next.position.x, next.position.y, next.position.z],
-        rotation,
-        bounds,
-        PEDESTAL_GROUND_Y,
-      )
+            const safeScale = Math.max(instance.scaleMin, Math.min(instance.scaleMax, next.scale))
+    const geometry = current.accessoryGeometries.get(instance.id)
+    if (!geometry) return
+    const grounded = constrainPlacementPosition(
+      [next.position.x, next.position.y, next.position.z],
+      rotation,
+      safeScale,
+      geometry,
+    )
+
       const local = accessoryWorldToLocal({
         instanceId: instance.id,
         worldPosition: grounded,
@@ -538,7 +519,7 @@ function RockPhysicsBody({
 }: {
   object: Object3D
   pose: RockPose
-  bounds: PlacementBounds
+  bounds: PlacementGeometry
   visualGroup: Group | null
   manipulating: boolean
   globalSettling: boolean
@@ -559,17 +540,25 @@ function RockPhysicsBody({
     if (!body) return false
     const position = body.translation()
     const rotation = body.rotation()
-    const grounded = clampWorldPositionAboveGround(
-      [position.x, position.y, position.z],
+    const currentPosition: [number, number, number] = [position.x, position.y, position.z]
+    const grounded = constrainPlacementPosition(
+      currentPosition,
       [rotation.x, rotation.y, rotation.z, rotation.w],
+      1,
       bounds,
-      PEDESTAL_GROUND_Y,
     )
-    if (grounded[1] <= position.y + 0.000001) return false
+    if (samePosition(grounded, currentPosition)) return false
 
+    const changedX = Math.abs(grounded[0] - position.x) > 0.000001
+    const changedY = Math.abs(grounded[1] - position.y) > 0.000001
+    const changedZ = Math.abs(grounded[2] - position.z) > 0.000001
     body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
     const velocity = body.linvel()
-    if (velocity.y < 0) body.setLinvel({ x: velocity.x, y: 0, z: velocity.z }, true)
+    body.setLinvel({
+      x: changedX ? 0 : velocity.x,
+      y: changedY && velocity.y < 0 ? 0 : velocity.y,
+      z: changedZ ? 0 : velocity.z,
+    }, true)
     invalidate()
     return true
   }, [bounds, invalidate])
@@ -593,7 +582,7 @@ function RockPhysicsBody({
   useEffect(() => {
     const body = bodyRef.current
     if (!body || globalSettling) return
-    const grounded = clampWorldPositionAboveGround(pose.position, pose.rotation, bounds, PEDESTAL_GROUND_Y)
+    const grounded = constrainPlacementPosition(pose.position, pose.rotation, 1, bounds)
     const safePose = normalizeRockPose({ position: grounded, rotation: pose.rotation })
     const translation = { x: safePose.position[0], y: safePose.position[1], z: safePose.position[2] }
     const rotation = { x: safePose.rotation[0], y: safePose.rotation[1], z: safePose.rotation[2], w: safePose.rotation[3] }
@@ -622,12 +611,13 @@ function RockPhysicsBody({
     body.sleep()
     const position = body.translation()
     const rotation = body.rotation()
-    const grounded = clampWorldPositionAboveGround(
-      [position.x, position.y, position.z],
-      [rotation.x, rotation.y, rotation.z, rotation.w],
-      bounds,
-      PEDESTAL_GROUND_Y,
-    )
+        const grounded = constrainPlacementPosition(
+    [position.x, position.y, position.z],
+    [rotation.x, rotation.y, rotation.z, rotation.w],
+    1,
+    bounds,
+  )
+
     if (!samePosition(grounded, [position.x, position.y, position.z])) {
       body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, false)
     }
@@ -722,14 +712,25 @@ export function ShowroomScene({
   onAccessoryDisposed,
 }: ShowroomSceneProps) {
   const [object, setObject] = useState<Object3D | null>(null)
-  const [rockBounds, setRockBounds] = useState<PlacementBounds | null>(null)
+  const [rockGeometry, setRockGeometry] = useState<PlacementGeometry | null>(null)
+  const [accessoryGeometries, setAccessoryGeometries] = useState<Map<string, PlacementGeometry>>(() => new Map())
   const [visualGroup, setVisualGroup] = useState<Group | null>(null)
   const finalRockRef = useRef<RockPose | null>(null)
   const finalAccessoriesRef = useRef(new Map<string, WorldAccessoryTransform>())
   const compositionReportedRef = useRef(false)
   const handleObjectReady = useCallback((nextObject: Object3D | null) => {
     setObject(nextObject)
-    setRockBounds(nextObject ? computeObjectLocalBounds(nextObject) : null)
+  }, [])
+  const handleRockGeometryReady = useCallback((geometry: PlacementGeometry | null) => {
+    setRockGeometry(geometry)
+  }, [])
+  const handleAccessoryGeometryReady = useCallback((instanceId: string, geometry: PlacementGeometry | null) => {
+    setAccessoryGeometries((current) => {
+      const next = new Map(current)
+      if (geometry) next.set(instanceId, geometry)
+      else next.delete(instanceId)
+      return next
+    })
   }, [])
   const surfaceMode = interactionMode === 'caress' || interactionMode === 'cleaning'
   const cleaningMode = interactionMode === 'cleaning'
@@ -741,12 +742,12 @@ export function ShowroomScene({
   const orbitMode = interactionMode === 'orbit'
 
   useEffect(() => {
-    if (!rockBounds || globalSettling || placementRockTarget || !onRockPoseDraft) return
-    const grounded = clampWorldPositionAboveGround(rockPose.position, rockPose.rotation, rockBounds, PEDESTAL_GROUND_Y)
-    if (!samePosition(grounded, rockPose.position)) {
-      onRockPoseDraft(normalizeRockPose({ position: grounded, rotation: rockPose.rotation }))
+    if (!rockGeometry || globalSettling || placementRockTarget || !onRockPoseDraft) return
+    const constrained = constrainPlacementPosition(rockPose.position, rockPose.rotation, 1, rockGeometry)
+    if (!samePosition(constrained, rockPose.position)) {
+      onRockPoseDraft(normalizeRockPose({ position: constrained, rotation: rockPose.rotation }))
     }
-  }, [globalSettling, onRockPoseDraft, placementRockTarget, rockBounds, rockPose])
+  }, [globalSettling, onRockPoseDraft, placementRockTarget, rockGeometry, rockPose])
 
   useEffect(() => {
     if (!globalSettling) return
@@ -818,6 +819,7 @@ export function ShowroomScene({
                 cleaningActive={cleaningMode}
                 onLoadStateChange={onLoadStateChange}
                 onObjectReady={handleObjectReady}
+                onPlacementGeometryReady={handleRockGeometryReady}
                 onSurfacePointerDown={surfaceMode ? onSurfacePointerDown : undefined}
                 onSurfacePointerMove={surfaceMode ? onSurfacePointerMove : undefined}
                 onSurfacePointerUp={surfaceMode ? onSurfacePointerUp : undefined}
@@ -825,11 +827,11 @@ export function ShowroomScene({
               />
             </group>
 
-            {object && visualGroup && rockBounds ? (
+            {object && visualGroup && rockGeometry ? (
               <RockPhysicsBody
                 object={object}
                 pose={rockPose}
-                bounds={rockBounds}
+                bounds={rockGeometry}
                 visualGroup={visualGroup}
                 manipulating={legacyRockManipulationMode || placementRockTarget}
                 globalSettling={globalSettling}
@@ -851,6 +853,7 @@ export function ShowroomScene({
                 onTransformDraft={(instanceId, transform) => onAccessoryTransformDraft?.(instanceId, transform)}
                 onTransformCommit={(instanceId, transform) => onAccessoryTransformCommit?.(instanceId, transform)}
                 onGlobalSettled={handleAccessorySettled}
+                onPlacementGeometryReady={handleAccessoryGeometryReady}
                 onLoadStateChange={onAccessoryLoadStateChange}
                 onDisposed={onAccessoryDisposed}
               />
@@ -869,8 +872,9 @@ export function ShowroomScene({
                 target={placementTarget}
                 tool={placementTool}
                 rockPose={rockPose}
-                rockBounds={rockBounds}
+                rockGeometry={rockGeometry}
                 accessories={accessories}
+                accessoryGeometries={accessoryGeometries}
                 onRockPoseChange={onRockPoseDraft}
                 onAccessoryTransformChange={onAccessoryTransformDraft}
               />
