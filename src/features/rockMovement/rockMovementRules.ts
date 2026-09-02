@@ -32,13 +32,13 @@ function finiteTuple(value: unknown, size: number): number[] | null {
 
 export function parseRockPosition(value: unknown): RockPosition {
   const tuple = finiteTuple(value, 3)
-  return tuple ? clampRockPosition([tuple[0], tuple[1], tuple[2]]) : [...DEFAULT_ROCK_POSE.position]
+  return tuple ? clampRockPosition([tuple[0]!, tuple[1]!, tuple[2]!]) : [...DEFAULT_ROCK_POSE.position]
 }
 
 export function parseRockRotation(value: unknown): RockRotation {
   const tuple = finiteTuple(value, 4)
   if (!tuple) return [...DEFAULT_ROCK_POSE.rotation]
-  const quaternion = new Quaternion(tuple[0], tuple[1], tuple[2], tuple[3])
+  const quaternion = new Quaternion(tuple[0]!, tuple[1]!, tuple[2]!, tuple[3]!)
   if (quaternion.lengthSq() < 0.000001) return [...DEFAULT_ROCK_POSE.rotation]
   quaternion.normalize()
   return [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
