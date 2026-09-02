@@ -246,6 +246,7 @@ function Fixture() {
         data-rock-rotation={JSON.stringify(pose.rotation)}
         data-instance-count={String(instances.length)}
         data-selected-world-position={JSON.stringify(selectedWorld?.worldPosition ?? null)}
+        data-selected-world-rotation={JSON.stringify(selectedWorld?.worldRotation ?? null)}
         data-selected-scale={String(selectedWorld?.uniformScale ?? 0)}
         data-individual-settled={String(individualSettled)}
         data-global-settled={String(settled !== null)}
