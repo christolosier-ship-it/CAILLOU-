@@ -5,27 +5,87 @@ const baseUrl = process.env.CAILLOU_E2E_BASE_URL ?? 'http://127.0.0.1:4181'
 const chromePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome'
 const outputDir = 'build/placement-unified-validation'
 const GROUND_Y = -0.02
-// The production catalogue stores bounds before the export-axis remap. The GLB
-// runtime used by Three.js exposes X unchanged, exported Z as Y, and -Y as Z.
-const ROCK_018_BOUNDS = {
-  min: [-0.9306801557540894, 0, -1.0000003576278687],
-  max: [0.930679976940155, 1.3231968879699707, 0.9999995827674866],
-}
 await mkdir(outputDir, { recursive: true })
+
+async function loadGlbPositionPoints(url) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`unable to load GLB support geometry: HTTP ${response.status}`)
+
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
+    throw new Error('fixture rock is not a supported glTF 2.0 binary')
+  }
+
+  let offset = 12
+  let document = null
+  let binaryOffset = -1
+  let binaryLength = 0
+  while (offset + 8 <= bytes.byteLength) {
+    const chunkLength = view.getUint32(offset, true)
+    const chunkType = view.getUint32(offset + 4, true)
+    const chunkOffset = offset + 8
+    if (chunkType === 0x4e4f534a) {
+      const json = new TextDecoder().decode(bytes.subarray(chunkOffset, chunkOffset + chunkLength)).replace(/\u0000+$/u, '').trim()
+      document = JSON.parse(json)
+    } else if (chunkType === 0x004e4942) {
+      binaryOffset = chunkOffset
+      binaryLength = chunkLength
+    }
+    offset = chunkOffset + chunkLength
+  }
+
+  if (!document || binaryOffset < 0) throw new Error('fixture rock GLB is missing JSON or BIN chunks')
+  const transformedNodes = (document.nodes ?? []).filter((node) => node.mesh !== undefined
+    && (node.matrix || node.translation || node.rotation || node.scale))
+  if (transformedNodes.length > 0) {
+    throw new Error('fixture rock GLB gained node transforms; extend the E2E GLB reader before validating geometry')
+  }
+
+  const points = []
+  for (const mesh of document.meshes ?? []) {
+    for (const primitive of mesh.primitives ?? []) {
+      const accessorIndex = primitive.attributes?.POSITION
+      if (accessorIndex === undefined) continue
+      const accessor = document.accessors?.[accessorIndex]
+      if (!accessor || accessor.componentType !== 5126 || accessor.type !== 'VEC3') {
+        throw new Error('fixture rock POSITION accessor must remain FLOAT VEC3')
+      }
+      const bufferView = document.bufferViews?.[accessor.bufferView]
+      if (!bufferView || (bufferView.buffer ?? 0) !== 0) throw new Error('fixture rock POSITION must use the embedded GLB buffer')
+
+      const stride = bufferView.byteStride ?? 12
+      const firstByte = binaryOffset + (bufferView.byteOffset ?? 0) + (accessor.byteOffset ?? 0)
+      const lastByte = firstByte + Math.max(0, accessor.count - 1) * stride + 12
+      if (lastByte > binaryOffset + binaryLength) throw new Error('fixture rock POSITION accessor exceeds the GLB BIN chunk')
+
+      for (let index = 0; index < accessor.count; index += 1) {
+        const pointOffset = firstByte + index * stride
+        const point = [
+          view.getFloat32(pointOffset, true),
+          view.getFloat32(pointOffset + 4, true),
+          view.getFloat32(pointOffset + 8, true),
+        ]
+        if (point.every(Number.isFinite)) points.push(point)
+      }
+    }
+  }
+
+  if (points.length === 0) throw new Error('fixture rock GLB has no usable POSITION vertices')
+  return points
+}
+
+const ROCK_018_SUPPORT_POINTS = await loadGlbPositionPoints(`${baseUrl}/assets/rocks/rock-018/model.glb`)
 
 function rockMinimumWorldY(position, rotation) {
   const length = Math.hypot(...rotation)
   const [x, y, z, w] = length > 0.000001 ? rotation.map((value) => value / length) : [0, 0, 0, 1]
   let minimum = Number.POSITIVE_INFINITY
-  for (const px of [ROCK_018_BOUNDS.min[0], ROCK_018_BOUNDS.max[0]]) {
-    for (const py of [ROCK_018_BOUNDS.min[1], ROCK_018_BOUNDS.max[1]]) {
-      for (const pz of [ROCK_018_BOUNDS.min[2], ROCK_018_BOUNDS.max[2]]) {
-        const rotatedY = 2 * (x * y + z * w) * px
-          + (1 - 2 * (x * x + z * z)) * py
-          + 2 * (y * z - x * w) * pz
-        minimum = Math.min(minimum, position[1] + rotatedY)
-      }
-    }
+  for (const [px, py, pz] of ROCK_018_SUPPORT_POINTS) {
+    const rotatedY = 2 * (x * y + z * w) * px
+      + (1 - 2 * (x * x + z * z)) * py
+      + 2 * (y * z - x * w) * pz
+    minimum = Math.min(minimum, position[1] + rotatedY)
   }
   return minimum
 }
