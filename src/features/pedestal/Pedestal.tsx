@@ -465,12 +465,11 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
       openShop('permit')
       return
     }
-    canonicalRockPoseRef.current = rockPose
     setSelectedAccessoryId(null)
     setPlacementTarget({ kind: 'rock' })
     setPlacementTool('position')
     setRockMovementError(null)
-  }, [mutationBlocked, openShop, rockPermit.unlocked, rockPose])
+  }, [mutationBlocked, openShop, rockPermit.unlocked])
 
   const handlePlacementTool = useCallback((tool: PlacementTool) => {
     if (!placementTarget || mutationBlocked) return
@@ -559,14 +558,10 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
   if (compositionPending || !settlingMode || !settlementPlan) return
   setCompositionPending(true)
   setRockMovementError(null)
-  void persistRockCompositionWorld({
-    userRockId: activeRock.id,
-    eventKey: crypto.randomUUID(),
-    composition,
-  }).then(async (result) => {
-    acceptComposition(result)
-    setRockPose(result.rockPose)
-    canonicalRockPoseRef.current = result.rockPose
+
+  const closeSuccessfulSession = async (rock: RockPose) => {
+    setRockPose(rock)
+    canonicalRockPoseRef.current = rock
     setPlacementSession(null)
     setSettlementPlan(null)
     setPlacementTarget(null)
@@ -575,7 +570,9 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
     setMode('orbit')
     navigator.vibrate?.(20)
     await onServerStateChanged()
-  }).catch(async (error) => {
+  }
+
+  const restoreCanonicalSession = async (error: unknown) => {
     setRockMovementError(error instanceof Error
       ? `${error.message} Le dernier état serveur connu a été restauré.`
       : 'La manutention n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
@@ -592,17 +589,49 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
     }
     setMode('orbit')
     await onServerStateChanged()
-  }).finally(() => {
+  }
+
+  const settledRockPose: RockPose = {
+    position: [...composition.rockTransform.position],
+    rotation: [...composition.rockTransform.rotation],
+  }
+
+  if (!settlementPlan.rock) {
+    const dirtyIds = new Set(settlementPlan.accessoryIds)
+    const dirtyAccessories = composition.accessories.filter(({ instanceId }) => dirtyIds.has(instanceId))
+    void Promise.all(dirtyAccessories.map(({ instanceId, transform }) => persistAccessoryWorldTransform({
+      instanceId,
+      transform,
+      rockPose: settledRockPose,
+      eventKey: crypto.randomUUID(),
+    }))).then(async (results) => {
+      results.forEach(acceptStabilizedAccessory)
+      await closeSuccessfulSession(settledRockPose)
+    }).catch(restoreCanonicalSession).finally(() => {
+      setCompositionPending(false)
+    })
+    return
+  }
+
+  void persistRockCompositionWorld({
+    userRockId: activeRock.id,
+    eventKey: crypto.randomUUID(),
+    composition,
+  }).then(async (result) => {
+    acceptComposition(result)
+    await closeSuccessfulSession(result.rockPose)
+  }).catch(restoreCanonicalSession).finally(() => {
     setCompositionPending(false)
   })
 }, [
   acceptComposition,
+  acceptStabilizedAccessory,
   activeRock.id,
   compositionPending,
   onServerStateChanged,
+  refreshAccessoryPlacements,
   settlementPlan,
   settlingMode,
-  refreshAccessoryPlacements,
 ])
 
   const handleAccessoryLoadState = useCallback((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => {
