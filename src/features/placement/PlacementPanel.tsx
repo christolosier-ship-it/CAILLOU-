@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { loadAccessoryShop } from '../accessories/accessoryApi'
-import type { AccessoryCatalogItem, EquippedAccessoryInstance } from '../accessories/accessoryTypes'
+import type { AccessoryCatalogItem, AccessoryShopSnapshot, EquippedAccessoryInstance } from '../accessories/accessoryTypes'
 import type { PlacementTarget, PlacementTool } from './placementTypes'
 
 interface PlacementPanelProps {
@@ -21,6 +21,7 @@ interface PlacementPanelProps {
   onAddOwned: (item: AccessoryCatalogItem) => Promise<void>
   onRemove: (instanceId: string) => void
   onDone: () => void
+  loadShop?: () => Promise<AccessoryShopSnapshot>
 }
 
 function instanceLabels(instances: EquippedAccessoryInstance[]) {
@@ -49,6 +50,7 @@ export function PlacementPanel({
   onAddOwned,
   onRemove,
   onDone,
+  loadShop = loadAccessoryShop,
 }: PlacementPanelProps) {
   const [owned, setOwned] = useState<AccessoryCatalogItem[]>([])
   const [catalogLoading, setCatalogLoading] = useState(true)
@@ -59,7 +61,7 @@ export function PlacementPanel({
     let active = true
     setCatalogLoading(true)
     setCatalogError(null)
-    void loadAccessoryShop().then((snapshot) => {
+    void loadShop().then((snapshot) => {
       if (active) setOwned(snapshot.items.filter((item) => item.purchasedAt != null))
     }).catch((error) => {
       if (active) setCatalogError(error instanceof Error ? error.message : 'La collection possédée n’a pas pu être relue.')
@@ -69,7 +71,7 @@ export function PlacementPanel({
     return () => {
       active = false
     }
-  }, [])
+  }, [loadShop])
 
   const labelledInstances = useMemo(() => instanceLabels(instances), [instances])
   const selectedAccessory = selectedTarget?.kind === 'accessory'
