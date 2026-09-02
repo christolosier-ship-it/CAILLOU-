@@ -12,6 +12,7 @@ import { clampAccessoryTransform } from '../features/accessories/accessoryPlacem
 import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
 import { constrainPlacementPosition, constrainTransformToPedestal } from '../features/placement/placementConstraints'
 import type { PlacementGeometry } from '../features/placement/placementGeometry'
+import { resolvePlacementGesture } from '../features/placement/placementGesturePolicy'
 import type { PlacementTarget, PlacementTool, PlacementTransform } from '../features/placement/placementTypes'
 import { normalizePlacementTransform, ROCK_PLACEMENT_SCALE_LIMITS } from '../features/placement/placementTransform'
 import type { PlacementScaleLimits } from '../features/placement/placementTransform'
@@ -27,7 +28,6 @@ import {
   ROCK_SETTLE_TIMEOUT_MS,
   accessoryLocalToWorld,
   accessoryWorldToLocal,
-  clampRockPosition,
   normalizeRockPose,
 } from '../features/rockMovement/rockMovementRules'
 import type { RockCompositionDraft, RockPose, WorldAccessoryTransform } from '../features/rockMovement/rockMovementTypes'
@@ -40,9 +40,6 @@ export type ShowroomInteractionMode =
   | 'orbit'
   | 'caress'
   | 'cleaning'
-  | 'accessory'
-  | 'rock-position'
-  | 'rock-orientation'
   | 'placement'
   | 'composition-settle'
 
@@ -66,7 +63,6 @@ interface ShowroomSceneProps {
   onSurfacePointerCancel?: (sample: RockSurfacePointerSample) => void
   accessories?: EquippedAccessoryInstance[]
   selectedAccessoryId?: string | null
-  onAccessorySelect?: (instanceId: string) => void
   onAccessoryTransformDraft?: (instanceId: string, transform: AccessoryTransform) => void
   onAccessoryTransformCommit?: (instanceId: string, transform: AccessoryTransform) => void
   onAccessoryLoadStateChange?: (
@@ -130,156 +126,7 @@ function AutoFitCamera({ object }: { object: Object3D | null }) {
   return null
 }
 
-function RockGestureController({
-  mode,
-  pose,
-  geometry,
-  onPoseChange,
-}: {
-  mode: 'rock-position' | 'rock-orientation'
-  pose: RockPose
-  geometry: PlacementGeometry | null
-  onPoseChange: (pose: RockPose) => void
-}) {
-  const camera = useThree((state) => state.camera)
-  const gl = useThree((state) => state.gl)
-  const invalidate = useThree((state) => state.invalidate)
-  const pointersRef = useRef(new Map<number, GesturePoint>())
-  const poseRef = useRef(pose)
-  const previousSingleRef = useRef<GesturePoint | null>(null)
-  const multiBaselineRef = useRef<{ distance: number; angle: number; pose: RockPose } | null>(null)
-
-  useEffect(() => {
-    poseRef.current = pose
-  }, [pose])
-
-  useEffect(() => {
-    const canvas = gl.domElement
-    const points = () => [...pointersRef.current.values()]
-    const distance = (items: GesturePoint[]) => Math.hypot(items[1]!.x - items[0]!.x, items[1]!.y - items[0]!.y)
-    const angle = (items: GesturePoint[]) => Math.atan2(items[1]!.y - items[0]!.y, items[1]!.x - items[0]!.x)
-    const worldPerPixel = () => {
-      const target = new Vector3(...poseRef.current.position)
-      const cameraDistance = Math.max(0.5, camera.position.distanceTo(target))
-      if (!(camera instanceof PerspectiveCamera)) return cameraDistance / Math.max(320, canvas.clientHeight)
-      return 2 * cameraDistance * Math.tan(MathUtils.degToRad(camera.fov) / 2) / Math.max(1, canvas.clientHeight)
-    }
-    const publish = (next: RockPose) => {
-  const normalized = normalizeRockPose(next)
-  if (!geometry) return
-  const constrained = normalizeRockPose({
-    position: constrainPlacementPosition(
-      normalized.position,
-      normalized.rotation,
-      1,
-      geometry,
-    ),
-    rotation: normalized.rotation,
-  })
-  poseRef.current = constrained
-  onPoseChange(constrained)
-  invalidate()
-}
-
-    const resetBaseline = () => {
-      const items = points()
-      if (items.length >= 2) {
-        multiBaselineRef.current = {
-          distance: Math.max(1, distance(items)),
-          angle: angle(items),
-          pose: poseRef.current,
-        }
-        previousSingleRef.current = null
-      } else if (items.length === 1) {
-        previousSingleRef.current = items[0] ?? null
-        multiBaselineRef.current = null
-      } else {
-        previousSingleRef.current = null
-        multiBaselineRef.current = null
-      }
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      event.preventDefault()
-      pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-      try { canvas.setPointerCapture(event.pointerId) } catch { /* capture is optional */ }
-      resetBaseline()
-    }
-    const onPointerMove = (event: PointerEvent) => {
-      if (!pointersRef.current.has(event.pointerId)) return
-      event.preventDefault()
-      pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-      const items = points()
-      const scale = worldPerPixel()
-
-      if (items.length >= 2 && multiBaselineRef.current) {
-        const baseline = multiBaselineRef.current
-        if (mode === 'rock-position') {
-          const delta = distance(items) - baseline.distance
-          const view = camera.getWorldDirection(new Vector3()).normalize()
-          const base = new Vector3(...baseline.pose.position).addScaledVector(view, -delta * scale * 1.35)
-          publish({ ...baseline.pose, position: clampRockPosition([base.x, base.y, base.z]) })
-        } else {
-          const twist = angle(items) - baseline.angle
-          const axis = camera.getWorldDirection(new Vector3()).normalize()
-          const baseRotation = new Quaternion(...baseline.pose.rotation).normalize()
-          const next = new Quaternion().setFromAxisAngle(axis, twist).multiply(baseRotation).normalize()
-          publish({ ...baseline.pose, rotation: [next.x, next.y, next.z, next.w] })
-        }
-        return
-      }
-
-      if (items.length !== 1) return
-      const current = items[0]
-      if (!current) return
-      const previous = previousSingleRef.current
-      previousSingleRef.current = current
-      if (!previous) return
-      const dx = current.x - previous.x
-      const dy = current.y - previous.y
-
-      if (mode === 'rock-position') {
-        const right = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
-        const up = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
-        const next = new Vector3(...poseRef.current.position)
-          .addScaledVector(right, dx * scale)
-          .addScaledVector(up, -dy * scale)
-        publish({ ...poseRef.current, position: clampRockPosition([next.x, next.y, next.z]) })
-      } else {
-        const cameraUp = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
-        const cameraRight = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
-        const yaw = new Quaternion().setFromAxisAngle(cameraUp, dx * 0.008)
-        const pitch = new Quaternion().setFromAxisAngle(cameraRight, dy * 0.008)
-        const currentRotation = new Quaternion(...poseRef.current.rotation).normalize()
-        const next = yaw.multiply(pitch).multiply(currentRotation).normalize()
-        publish({ ...poseRef.current, rotation: [next.x, next.y, next.z, next.w] })
-      }
-    }
-    const onPointerEnd = (event: PointerEvent) => {
-      pointersRef.current.delete(event.pointerId)
-      try {
-        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
-      } catch { /* nothing to release */ }
-      resetBaseline()
-    }
-
-    canvas.addEventListener('pointerdown', onPointerDown, { passive: false })
-    canvas.addEventListener('pointermove', onPointerMove, { passive: false })
-    canvas.addEventListener('pointerup', onPointerEnd, { passive: false })
-    canvas.addEventListener('pointercancel', onPointerEnd, { passive: false })
-    return () => {
-      pointersRef.current.clear()
-      canvas.removeEventListener('pointerdown', onPointerDown)
-      canvas.removeEventListener('pointermove', onPointerMove)
-      canvas.removeEventListener('pointerup', onPointerEnd)
-      canvas.removeEventListener('pointercancel', onPointerEnd)
-    }
-  }, [camera, geometry, gl, invalidate, mode, onPoseChange])
-
-  return null
-}
-
-
-function ManipulationController({
+function PlacementController({
   target,
   tool,
   transform,
@@ -365,30 +212,31 @@ function ManipulationController({
       pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
       const current = stateRef.current
       const items = points()
+      const action = resolvePlacementGesture(current.target, current.tool, items.length)
       const scalePerPixel = worldPerPixel()
 
       if (items.length >= 2 && baselineRef.current) {
         const baseline = baselineRef.current
-        if (current.tool === 'position') {
+        if (action === 'depth-position') {
           const delta = distance(items) - baseline.distance
           const view = camera.getWorldDirection(new Vector3()).normalize()
           const base = new Vector3(...baseline.transform.position).addScaledVector(view, -delta * scalePerPixel * 1.35)
           publish({ ...baseline.transform, position: [base.x, base.y, base.z] })
-        } else if (current.tool === 'orientation') {
+        } else if (action === 'twist-orientation') {
           const twist = angle(items) - baseline.angle
           const axis = camera.getWorldDirection(new Vector3()).normalize()
           const nextRotation = new Quaternion().setFromAxisAngle(axis, twist)
             .multiply(new Quaternion(...baseline.transform.rotation))
             .normalize()
           publish({ ...baseline.transform, rotation: [nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w] })
-        } else if (current.tool === 'size' && current.target.kind === 'accessory') {
+        } else if (action === 'uniform-scale') {
           const ratio = Math.max(0.2, distance(items) / baseline.distance)
           publish({ ...baseline.transform, scale: baseline.transform.scale * ratio })
         }
         return
       }
 
-      if (items.length !== 1 || current.tool === 'size') return
+      if (items.length !== 1 || action === null) return
       const point = items[0]
       if (!point) return
       const previous = previousSingleRef.current
@@ -398,14 +246,14 @@ function ManipulationController({
       const dy = point.y - previous.y
       const active = transformRef.current
 
-      if (current.tool === 'position') {
+      if (action === 'surface-position') {
         const right = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
         const up = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
         const next = new Vector3(...active.position)
           .addScaledVector(right, dx * scalePerPixel)
           .addScaledVector(up, -dy * scalePerPixel)
         publish({ ...active, position: [next.x, next.y, next.z] })
-      } else {
+      } else if (action === 'free-orientation') {
         const cameraUp = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
         const cameraRight = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
         const yaw = new Quaternion().setFromAxisAngle(cameraUp, dx * 0.008)
@@ -636,7 +484,6 @@ export function ShowroomScene({
   onSurfacePointerCancel,
   accessories = [],
   selectedAccessoryId = null,
-  onAccessorySelect,
   onAccessoryTransformDraft,
   onAccessoryTransformCommit,
   onAccessoryLoadStateChange,
@@ -666,8 +513,6 @@ export function ShowroomScene({
   }, [])
   const surfaceMode = interactionMode === 'caress' || interactionMode === 'cleaning'
   const cleaningMode = interactionMode === 'cleaning'
-  const legacyAccessoryMode = interactionMode === 'accessory'
-  const legacyRockManipulationMode = interactionMode === 'rock-position' || interactionMode === 'rock-orientation'
   const placementMode = interactionMode === 'placement'
   const placementRockTarget = placementMode && placementTarget?.kind === 'rock'
   const globalSettling = interactionMode === 'composition-settle'
@@ -838,7 +683,7 @@ export function ShowroomScene({
                 pose={rockPose}
                 bounds={rockGeometry}
                 visualGroup={visualGroup}
-                manipulating={legacyRockManipulationMode || placementRockTarget}
+                manipulating={placementRockTarget}
                 globalSettling={globalSettling}
                 onSettled={handleRockSettled}
               />
@@ -849,13 +694,9 @@ export function ShowroomScene({
                 key={instance.id}
                 instance={instance}
                 selected={selectedAccessoryId === instance.id}
-                editing={legacyAccessoryMode}
                 rockPose={rockPose}
-                rockObject={object}
-                compositionFrozen={legacyRockManipulationMode || placementMode}
+                compositionFrozen={placementMode}
                 globalSettling={globalSettling}
-                onSelect={(instanceId) => onAccessorySelect?.(instanceId)}
-                onTransformDraft={(instanceId, transform) => onAccessoryTransformDraft?.(instanceId, transform)}
                 onTransformCommit={(instanceId, transform) => onAccessoryTransformCommit?.(instanceId, transform)}
                 onGlobalSettled={handleAccessorySettled}
                 placementTransform={placementMode && placementTarget?.kind === 'accessory' && placementTarget.instanceId === instance.id
@@ -867,18 +708,9 @@ export function ShowroomScene({
               />
             ))}
 
-            {legacyRockManipulationMode && onRockPoseDraft ? (
-              <RockGestureController
-                mode={interactionMode}
-                pose={rockPose}
-                geometry={rockGeometry}
-                onPoseChange={onRockPoseDraft}
-              />
-            ) : null}
-
 
 {placementMode && placementTarget && activePlacementDraft?.key === placementDraftKey ? (
-  <ManipulationController
+  <PlacementController
     target={placementTarget}
     tool={placementTool}
     transform={activePlacementDraft.transform}

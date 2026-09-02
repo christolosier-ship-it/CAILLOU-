@@ -653,7 +653,6 @@ export function Pedestal({
             onSurfacePointerCancel={cancelSurfaceGesture}
             accessories={accessoryInstances}
             selectedAccessoryId={selectedAccessoryId}
-            onAccessorySelect={handleAccessorySelect}
             onAccessoryTransformDraft={handleAccessoryDraft}
             onAccessoryTransformCommit={handleAccessoryPhysicsTransform}
             onAccessoryLoadStateChange={handleAccessoryLoadState}

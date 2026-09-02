@@ -28,17 +28,9 @@ import type { DisposalReport } from './rockResources'
 interface AccessoryModelProps {
   instance: EquippedAccessoryInstance
   selected: boolean
-  /** Legacy 10C prop kept for call-site compatibility. Gestures are no longer handled by this component. */
-  editing: boolean
   rockPose: RockPose
-  /** Legacy 10C prop kept for call-site compatibility. */
-  rockObject?: Object3D | null
   compositionFrozen?: boolean
   globalSettling?: boolean
-  /** Legacy 10C callback kept for call-site compatibility. */
-  onSelect: (instanceId: string) => void
-  /** Legacy 10C callback kept for call-site compatibility. */
-  onTransformDraft?: (instanceId: string, transform: AccessoryTransform) => void
   onTransformCommit: (instanceId: string, transform: AccessoryTransform) => void
   onGlobalSettled?: (transform: WorldAccessoryTransform) => void
   placementTransform?: PlacementTransform | null
