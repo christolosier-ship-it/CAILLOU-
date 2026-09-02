@@ -101,12 +101,14 @@ try {
 
   const phoneUi = await page.evaluate(() => {
     const actionButtons = [...document.querySelectorAll('.pedestal-actions button')]
-    const accessoryButton = document.querySelector('button[aria-label="Ouvrir la boutique d’accessoires"]')
+    const shopButton = document.querySelector('button[aria-label="Ouvrir la Boutique"]')
+    const placementButton = document.querySelector('button[aria-label="Ouvrir Placement"]')
     return {
       actionCount: actionButtons.length,
       enabledCount: actionButtons.filter((button) => !button.disabled).length,
-      accessoryEnabled: accessoryButton ? !accessoryButton.disabled : false,
-      allTargetsLargeEnough: actionButtons.every((button) => {
+      shopEnabled: shopButton ? !shopButton.disabled : false,
+      placementAvailable: placementButton ? !placementButton.disabled : false,
+      allTargetsLargeEnough: [...actionButtons, placementButton].filter(Boolean).every((button) => {
         const rect = button.getBoundingClientRect()
         return rect.width >= 44 && rect.height >= 44
       }),
@@ -115,8 +117,8 @@ try {
     }
   })
 
-  if (phoneUi.actionCount !== 4 || phoneUi.enabledCount !== 2 || !phoneUi.accessoryEnabled) {
-    throw new Error('Socle action availability is inconsistent with step 10B')
+  if (phoneUi.actionCount !== 4 || phoneUi.enabledCount !== 2 || !phoneUi.shopEnabled || !phoneUi.placementAvailable) {
+    throw new Error('Socle action availability is inconsistent with step 10.75')
   }
   if (!phoneUi.allTargetsLargeEnough) throw new Error('phone action targets are below 44px')
   if (phoneUi.caressPressed !== 'true') throw new Error('caress mode is not exposed through aria-pressed')
@@ -152,7 +154,7 @@ try {
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] caress E2E PASS: tap rejected → real surface stroke → lost response → idempotent retry → +1 Lithon → accessory remains available')
+  console.log('[CAILLOU] caress E2E PASS: tap rejected → real surface stroke → idempotent retry → +1 Lithon → Boutique + Placement available')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

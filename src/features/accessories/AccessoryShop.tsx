@@ -1,6 +1,7 @@
 import { Check, Gem, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
+import type { RockMovementPermitSnapshot } from '../rockMovement/rockMovementTypes'
 import { AccessoryPurchaseError, loadAccessoryShop, purchaseAccessory } from './accessoryApi'
 import { formatLithons, getPurchaseAvailability } from './accessoryRules'
 import type {
@@ -16,10 +17,13 @@ interface AccessoryShopProps {
   onBalanceChanged: (balance: number) => void
   onPurchased: (result: PurchaseAccessoryResult) => void
   onClose: () => void
-  onPlace?: (item: AccessoryCatalogItem) => Promise<void>
-  placedCount?: number
-  maxPlaced?: number
-  equippedCounts?: Record<string, number>
+  permit: RockMovementPermitSnapshot | null
+  permitLoading: boolean
+  permitPending: boolean
+  permitError: string | null
+  permitRetrying?: boolean
+  highlightPermit?: boolean
+  onPermitPurchase: () => Promise<boolean>
   loadShop?: () => Promise<AccessoryShopSnapshot>
   purchaseMutation?: PurchaseAccessoryMutation
 }
@@ -47,10 +51,13 @@ export function AccessoryShop({
   onBalanceChanged,
   onPurchased,
   onClose,
-  onPlace,
-  placedCount = 0,
-  maxPlaced = 8,
-  equippedCounts = {},
+  permit,
+  permitLoading,
+  permitPending,
+  permitError,
+  permitRetrying = false,
+  highlightPermit = false,
+  onPermitPurchase,
   loadShop = loadAccessoryShop,
   purchaseMutation = purchaseAccessory,
 }: AccessoryShopProps) {
@@ -58,12 +65,10 @@ export function AccessoryShop({
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
-  const [placingId, setPlacingId] = useState<string | null>(null)
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
   const [purchaseFeedback, setPurchaseFeedback] = useState<string | null>(null)
-  const [placementError, setPlacementError] = useState<string | null>(null)
   const [retryInput, setRetryInput] = useState<PurchaseAccessoryInput | null>(null)
-  const busy = pendingId !== null || placingId !== null
+  const busy = pendingId !== null || permitPending
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -94,7 +99,6 @@ export function AccessoryShop({
     if (busy) return
     setPendingId(input.accessoryId)
     setPurchaseError(null)
-    setPlacementError(null)
     setPurchaseFeedback(null)
 
     try {
@@ -103,7 +107,7 @@ export function AccessoryShop({
         ? { ...item, purchasedAt: result.purchasedAt }
         : item))
       setRetryInput(null)
-      setPurchaseFeedback('Acquisition enregistrée. L’accessoire appartient désormais à votre compte.')
+      setPurchaseFeedback('Acquisition enregistrée. L’accessoire appartient désormais à votre compte et peut être instancié depuis Placement.')
       onBalanceChanged(result.balance)
       onPurchased(result)
       navigator.vibrate?.(14)
@@ -119,21 +123,19 @@ export function AccessoryShop({
     }
   }, [busy, onBalanceChanged, onPurchased, purchaseMutation, refresh])
 
-  const submitPlacement = useCallback(async (item: AccessoryCatalogItem) => {
-    if (!onPlace || busy || placedCount >= maxPlaced) return
-    setPlacingId(item.id)
+  const submitPermitPurchase = useCallback(async () => {
+    if (busy || permitLoading || !permit || permit.unlockedAt) return
     setPurchaseError(null)
     setPurchaseFeedback(null)
-    setPlacementError(null)
-    try {
-      await onPlace(item)
-      navigator.vibrate?.(10)
-    } catch (error) {
-      setPlacementError(error instanceof Error ? error.message : 'Le placement n’a pas pu être créé.')
-    } finally {
-      setPlacingId(null)
+    const success = await onPermitPurchase()
+    if (success) {
+      setPurchaseFeedback('Permis de manutention minérale délivré. Le caillou est désormais disponible dans Placement.')
+      navigator.vibrate?.(16)
     }
-  }, [busy, maxPlaced, onPlace, placedCount])
+  }, [busy, onPermitPurchase, permit, permitLoading])
+
+  const permitOwned = permit?.unlockedAt != null
+  const permitAffordable = permit ? balance >= permit.priceLithons : false
 
   return (
     <div
@@ -146,17 +148,17 @@ export function AccessoryShop({
       <section className="accessory-shop" role="dialog" aria-modal="true" aria-labelledby="accessory-shop-title">
         <header className="accessory-shop-heading">
           <div>
-            <p className="eyebrow">Collection du Socle</p>
-            <h2 id="accessory-shop-title">Accessoires</h2>
-            <p>Objets cosmétiques homologués, acquis définitivement avec des Lithons puis placés librement sur le caillou.</p>
+            <p className="eyebrow">Registre des acquisitions</p>
+            <h2 id="accessory-shop-title">Boutique</h2>
+            <p>Accessoires et autorisations permanentes. Ici on acquiert. Le déplacement des objets reste exclusivement dans Placement.</p>
           </div>
           <button
             type="button"
             className="accessory-shop-close"
-            autoFocus
+            autoFocus={!highlightPermit}
             onClick={onClose}
             disabled={busy}
-            aria-label="Fermer la boutique d’accessoires"
+            aria-label="Fermer la Boutique"
           >
             <X size={22} aria-hidden="true" />
           </button>
@@ -168,87 +170,112 @@ export function AccessoryShop({
           <strong>{formatLithons(balance)}</strong>
         </div>
 
-        <p className="accessory-shop-placement-count">
-          {placedCount}/{maxPlaced} instances actuellement placées sur ce caillou.
-        </p>
+        <section className="shop-section" aria-labelledby="shop-services-title">
+          <header className="shop-section-heading">
+            <p className="eyebrow">Autorisations / services</p>
+            <h3 id="shop-services-title">Fonctionnalités permanentes</h3>
+          </header>
 
-        {loading ? (
-          <div className="accessory-shop-state" aria-live="polite">Consultation du registre…</div>
-        ) : loadError ? (
-          <div className="accessory-shop-state is-error" role="alert">
-            <span>{loadError}</span>
-            <button type="button" onClick={() => void refresh()}>
-              <RefreshCw size={18} aria-hidden="true" /> Réessayer
-            </button>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="accessory-shop-state">Aucun accessoire homologué pour le moment.</div>
-        ) : (
-          <div className="accessory-shop-grid">
-            {items.map((item) => {
-              const pending = pendingId === item.id
-              const placing = placingId === item.id
-              const equippedCount = equippedCounts[item.id] ?? 0
-              const availability = getPurchaseAvailability({
-                balance,
-                priceLithons: item.priceLithons,
-                purchasedAt: item.purchasedAt,
-                pending: busy,
-              })
-              const placementAllowed = Boolean(onPlace) && !busy && placedCount < maxPlaced
+          <article className={`feature-card${highlightPermit ? ' is-highlighted' : ''}`} data-feature-id={permit?.featureId ?? 'rock_movement'}>
+            <div className="feature-card-icon" aria-hidden="true"><ShieldCheck size={34} strokeWidth={1.55} /></div>
+            <div className="feature-card-copy">
+              <div>
+                <p>Autorisation interne</p>
+                <h4>{permit?.name ?? 'Permis de manutention minérale'}</h4>
+              </div>
+              <p>{permit?.description ?? 'Autorise la transformation persistante de la position et de l’orientation du caillou.'}</p>
+              <dl>
+                <div><dt>Prix serveur</dt><dd>{permit ? formatLithons(permit.priceLithons) : 'Vérification…'}</dd></div>
+                <div><dt>Propriété</dt><dd>Permanente au compte</dd></div>
+              </dl>
+              <button
+                type="button"
+                className={permitOwned ? 'accessory-buy is-secondary' : 'accessory-buy'}
+                autoFocus={highlightPermit && !permitOwned}
+                disabled={busy || permitLoading || !permit || permitOwned || !permitAffordable}
+                onClick={() => void submitPermitPurchase()}
+              >
+                {permitLoading
+                  ? 'Vérification…'
+                  : permitOwned
+                    ? 'Acquis'
+                    : permitPending
+                      ? 'Confirmation…'
+                      : !permitAffordable
+                        ? `Solde insuffisant · ${formatLithons(permit?.priceLithons ?? 0)}`
+                        : permitRetrying ? 'Renvoyer la même opération' : `Acquérir · ${formatLithons(permit?.priceLithons ?? 0)}`}
+              </button>
+              {permitError ? <p className="feature-card-error" role="alert">{permitError}</p> : null}
+            </div>
+          </article>
+        </section>
 
-              return (
-                <article className="accessory-card" key={item.id}>
-                  <div className="accessory-card-preview">
-                    <img src={item.previewPath} alt={`Aperçu : ${item.name}`} />
-                    {item.purchasedAt ? (
-                      <span className="accessory-card-owned"><Check size={15} aria-hidden="true" /> Acquis</span>
-                    ) : null}
-                  </div>
-                  <div className="accessory-card-copy">
-                    <div>
-                      <p>{item.category}</p>
-                      <h3>{item.name}</h3>
+        <section className="shop-section" aria-labelledby="shop-accessories-title">
+          <header className="shop-section-heading">
+            <p className="eyebrow">Accessoires</p>
+            <h3 id="shop-accessories-title">Objets homologués</h3>
+          </header>
+
+          {loading ? (
+            <div className="accessory-shop-state" aria-live="polite">Consultation du registre…</div>
+          ) : loadError ? (
+            <div className="accessory-shop-state is-error" role="alert">
+              <span>{loadError}</span>
+              <button type="button" onClick={() => void refresh()}>
+                <RefreshCw size={18} aria-hidden="true" /> Réessayer
+              </button>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="accessory-shop-state">Aucun accessoire homologué pour le moment.</div>
+          ) : (
+            <div className="accessory-shop-grid">
+              {items.map((item) => {
+                const pending = pendingId === item.id
+                const availability = getPurchaseAvailability({
+                  balance,
+                  priceLithons: item.priceLithons,
+                  purchasedAt: item.purchasedAt,
+                  pending: busy,
+                })
+
+                return (
+                  <article className="accessory-card" key={item.id}>
+                    <div className="accessory-card-preview">
+                      <img src={item.previewPath} alt={`Aperçu : ${item.name}`} />
+                      {item.purchasedAt ? (
+                        <span className="accessory-card-owned"><Check size={15} aria-hidden="true" /> Acquis</span>
+                      ) : null}
                     </div>
-                    <p>{item.description}</p>
-                    <dl>
-                      <div><dt>Prix fixe</dt><dd>{formatLithons(item.priceLithons)}</dd></div>
-                      <div><dt>Licence</dt><dd>{accessoryLicense(item.provenance)}</dd></div>
-                    </dl>
+                    <div className="accessory-card-copy">
+                      <div>
+                        <p>{item.category}</p>
+                        <h3>{item.name}</h3>
+                      </div>
+                      <p>{item.description}</p>
+                      <dl>
+                        <div><dt>Prix fixe</dt><dd>{formatLithons(item.priceLithons)}</dd></div>
+                        <div><dt>Licence</dt><dd>{accessoryLicense(item.provenance)}</dd></div>
+                      </dl>
 
-                    {item.purchasedAt ? (
-                      <button
-                        type="button"
-                        className="accessory-buy"
-                        disabled={!placementAllowed}
-                        onClick={() => void submitPlacement(item)}
-                      >
-                        {placing ? 'Placement…' : placedCount >= maxPlaced ? 'Limite atteinte' : 'Placer sur le caillou'}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className={availability.allowed ? 'accessory-buy' : 'accessory-buy is-secondary'}
-                        disabled={!availability.allowed}
-                        onClick={() => void submitPurchase({ accessoryId: item.id, eventKey: crypto.randomUUID() })}
-                      >
-                        {pending ? 'Confirmation…' : availability.label}
-                      </button>
-                    )}
-
-                    {item.purchasedAt ? (
-                      <p className="accessory-card-note">
-                        {equippedCount > 0
-                          ? `${equippedCount} instance${equippedCount > 1 ? 's' : ''} déjà placée${equippedCount > 1 ? 's' : ''}.`
-                          : 'Dans votre collection — prêt pour le placement libre.'}
-                      </p>
-                    ) : null}
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        )}
+                      {item.purchasedAt ? (
+                        <button type="button" className="accessory-buy is-secondary" disabled>Possédé · utiliser Placement</button>
+                      ) : (
+                        <button
+                          type="button"
+                          className={availability.allowed ? 'accessory-buy' : 'accessory-buy is-secondary'}
+                          disabled={!availability.allowed}
+                          onClick={() => void submitPurchase({ accessoryId: item.id, eventKey: crypto.randomUUID() })}
+                        >
+                          {pending ? 'Confirmation…' : availability.label}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
 
         {purchaseError ? (
           <div className="accessory-shop-error" role="alert">
@@ -261,8 +288,6 @@ export function AccessoryShop({
           </div>
         ) : null}
 
-        {placementError ? <div className="accessory-shop-error" role="alert">{placementError}</div> : null}
-
         {purchaseFeedback ? (
           <output className="accessory-shop-feedback" aria-live="polite">
             <Check size={17} aria-hidden="true" /> {purchaseFeedback}
@@ -271,7 +296,7 @@ export function AccessoryShop({
 
         <footer className="accessory-shop-footer">
           <ShieldCheck size={19} strokeWidth={1.75} aria-hidden="true" />
-          <span>Prix, propriété et placements sont vérifiés par le registre. Aucun paiement réel.</span>
+          <span>Prix et propriétés sont vérifiés côté serveur. Aucun paiement réel. Aucun placement n’est créé depuis la Boutique.</span>
         </footer>
       </section>
     </div>

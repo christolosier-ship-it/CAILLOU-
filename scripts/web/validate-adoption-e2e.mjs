@@ -67,16 +67,18 @@ try {
   const pedestal = await page.evaluate(() => {
     const actionButtons = [...document.querySelectorAll('.pedestal-actions button')]
     const caressButton = document.querySelector('button[aria-label="Activer le mode Caresser"]')
-    const accessoryButton = document.querySelector('button[aria-label="Ouvrir la boutique d’accessoires"]')
+    const shopButton = document.querySelector('button[aria-label="Ouvrir la Boutique"]')
+    const placementButton = document.querySelector('button[aria-label="Ouvrir Placement"]')
     return {
       actionCount: actionButtons.length,
       enabledCount: actionButtons.filter((button) => !button.disabled).length,
       caressEnabled: caressButton ? !caressButton.disabled : false,
-      accessoryEnabled: accessoryButton ? !accessoryButton.disabled : false,
+      shopEnabled: shopButton ? !shopButton.disabled : false,
+      placementAvailable: placementButton ? !placementButton.disabled : false,
       remainingActionsDisabled: actionButtons
-        .filter((button) => button !== caressButton && button !== accessoryButton)
+        .filter((button) => button !== caressButton && button !== shopButton)
         .every((button) => button.disabled),
-      allTargetsLargeEnough: actionButtons.every((button) => {
+      allTargetsLargeEnough: [...actionButtons, placementButton].filter(Boolean).every((button) => {
         const rect = button.getBoundingClientRect()
         return rect.width >= 44 && rect.height >= 44
       }),
@@ -85,8 +87,8 @@ try {
   })
 
   if (pedestal.actionCount !== 4) throw new Error(`expected 4 pedestal actions, got ${pedestal.actionCount}`)
-  if (pedestal.enabledCount !== 2 || !pedestal.caressEnabled || !pedestal.accessoryEnabled) {
-    throw new Error('step-10B pedestal actions are inconsistent')
+  if (pedestal.enabledCount !== 2 || !pedestal.caressEnabled || !pedestal.shopEnabled || !pedestal.placementAvailable) {
+    throw new Error('10.75 pedestal actions are inconsistent')
   }
   if (!pedestal.remainingActionsDisabled) throw new Error('cleaning or discard became active too early')
   if (!pedestal.allTargetsLargeEnough) throw new Error('pedestal action targets are below 44px')
@@ -109,7 +111,7 @@ try {
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] adoption E2E PASS: showroom → naming → lost response → idempotent retry → pedestal with caress + accessory enabled')
+  console.log('[CAILLOU] adoption E2E PASS: showroom → naming → idempotent retry → Socle 10.75 with Boutique + Placement')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

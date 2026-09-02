@@ -139,12 +139,14 @@ try {
 
   const phoneUi = await page.evaluate(() => {
     const buttons = [...document.querySelectorAll('.pedestal-actions button')]
-    const accessoryButton = document.querySelector('button[aria-label="Ouvrir la boutique d’accessoires"]')
+    const shopButton = document.querySelector('button[aria-label="Ouvrir la Boutique"]')
+    const placementButton = document.querySelector('button[aria-label="Ouvrir Placement"]')
     return {
       actionCount: buttons.length,
       enabledCount: buttons.filter((button) => !button.disabled).length,
-      accessoryEnabled: accessoryButton ? !accessoryButton.disabled : false,
-      allTargetsLargeEnough: buttons.every((button) => {
+      shopEnabled: shopButton ? !shopButton.disabled : false,
+      placementAvailable: placementButton ? !placementButton.disabled : false,
+      allTargetsLargeEnough: [...buttons, placementButton].filter(Boolean).every((button) => {
         const rect = button.getBoundingClientRect()
         return rect.width >= 44 && rect.height >= 44
       }),
@@ -152,8 +154,8 @@ try {
       dust: document.querySelector('.pedestal-stage')?.getAttribute('data-dust-amount') ?? '',
     }
   })
-  if (phoneUi.actionCount !== 4 || phoneUi.enabledCount !== 2 || !phoneUi.accessoryEnabled) {
-    throw new Error('post-clean action availability is inconsistent with step 10B')
+  if (phoneUi.actionCount !== 4 || phoneUi.enabledCount !== 2 || !phoneUi.shopEnabled || !phoneUi.placementAvailable) {
+    throw new Error('post-clean action availability is inconsistent with step 10.75')
   }
   if (!phoneUi.allTargetsLargeEnough) throw new Error('phone action targets are below 44px')
   if (phoneUi.balance !== '7' || phoneUi.dust !== '0.000') throw new Error('post-clean phone state is inconsistent')
@@ -190,7 +192,7 @@ try {
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] cleaning E2E PASS: dust → tap rejected → UV scrub → lost response → idempotent retry → reload → accessory available → 0 Lithon')
+  console.log('[CAILLOU] cleaning E2E PASS: dust → UV scrub → idempotent retry → reload → Boutique + Placement available → 0 Lithon')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

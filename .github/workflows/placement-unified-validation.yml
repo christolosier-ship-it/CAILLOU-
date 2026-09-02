@@ -1,0 +1,66 @@
+name: Validate unified shop and placement
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+      - 'src/features/placement/**'
+      - 'src/features/pedestal/**'
+      - 'src/features/accessories/**'
+      - 'src/features/rockMovement/**'
+      - 'src/scene/**'
+      - 'src/styles/accessories.css'
+      - 'src/styles/accessory-placement.css'
+      - 'scripts/web/placement-unified-e2e-validation.*'
+      - 'scripts/web/validate-placement-unified-e2e.mjs'
+      - '.github/workflows/placement-unified-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: placement-unified-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  placement-unified:
+    name: Boutique + tactile + floor + phone/tablet
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chrome validation driver
+        run: npm install --no-save --package-lock=false --no-audit --no-fund puppeteer-core@24.16.0
+
+      - name: Validate unified shop and placement
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm exec -- vite --host 127.0.0.1 --port 4181 > /tmp/caillou-placement-unified-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          sleep 3
+          google-chrome --version
+          node scripts/web/validate-placement-unified-e2e.mjs
+
+      - name: Upload unified placement diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: caillou-placement-unified-${{ github.run_id }}
+          path: build/placement-unified-validation/
+          if-no-files-found: warn
+          retention-days: 14

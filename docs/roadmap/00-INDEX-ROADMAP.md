@@ -45,7 +45,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | 10C | Multi-équipement et placement libre | Terminée - PR #22, instances UUID + transforms locaux persistants + téléphone/tablette validés | 07, 10A, 10B |
 | 10D | Physique, collisions, gravité et persistance | Terminée - PR #23, Rapier + collisions + stabilisation persistante + téléphone/tablette validés | 06, 10C |
 | **10.5** | **UX tactile, sol physique et manutention du caillou** | **Terminée - PR #25 fusionnée, production Vercel validée** | **08, 10C, 10D** |
-| **10.75** | **Boutique unifiée et manipulation universelle** | **À faire** | **10B, 10C, 10D, 10.5** |
+| **10.75** | **Boutique unifiée et manipulation universelle** | **Terminée - PR #27, 9/9 CI + Preview Vercel validés** | **10B, 10C, 10D, 10.5** |
 | 11 | Bio, statistiques et action Jeter | À faire | 03, 07, 08, 09, 10B, **10.75** |
 | 12 | PWA, cache, reprise réseau et résilience | À faire | 06 à 11, y compris 10A-10D, **10.5** et **10.75** |
 | 13 | QA, sécurité, performance et release V1 | À faire | 01 à 12, y compris 10A-10D, **10.5** et **10.75** |
@@ -89,18 +89,18 @@ Clôture opérationnelle :
 
 Le fichier 10.5 reste un compte rendu historique de son exécution. Les décisions prises après sa clôture sont documentées dans 10.75 et dans les documents normatifs.
 
-## Étape 10.75 - Boutique unifiée et manipulation universelle
+## Étape 10.75 - Boutique unifiée et manipulation universelle terminée
 
 Document autonome :
 
 `docs/roadmap/10.75-BOUTIQUE-UNIFIEE-ET-MANIPULATION-UNIVERSELLE.md`
 
-Cette étape consolide les retours UX post-10.5 sans modifier l'économie fondamentale.
+10.75 a consolidé les retours UX post-10.5 sans modifier l'économie fondamentale.
 
-Décisions verrouillées :
+Décisions livrées :
 
 - **Boutique = acquérir. Placement = manipuler. Rapier = arbitrer après validation.**
-- l'actuelle boutique d'accessoires devient une Boutique générale du Socle ;
+- la boutique d'accessoires est devenue la Boutique générale du Socle ;
 - accessoires et fonctionnalités payantes restent des modèles Supabase spécialisés mais sont présentés dans une même fenêtre commerciale ;
 - le Permis de manutention minérale à 1000 Lithons est acheté dans cette Boutique, et non dans une fenêtre commerciale parallèle ;
 - l'achat d'un accessoire donne une propriété permanente au compte ; la création d'instances déjà possédées se fait depuis Placement ;
@@ -112,13 +112,15 @@ Décisions verrouillées :
 - après sélection, le canvas entier sert de surface de contrôle ;
 - pendant Placement, aucune collision caillou/accessoire/accessoire ne contraint le geste ; les intersections volontaires sont autorisées ;
 - **le carré gris est l'unique frontière infranchissable pendant la manipulation cinématique** ; la cible ne peut pas traverser ni passer sous ce sol ;
-- cette frontière de sol doit être une contrainte dure pendant le geste et tenir compte du volume de la cible ;
-- à `Terminer`, Rapier reprend la gravité et toutes les collisions normales ; une éjection énergique due à une intersection volontaire est acceptable ;
-- la stabilisation individuelle des accessoires et la stabilisation atomique du caillou + accessoires restent les contrats de persistance ;
-- aucune migration Supabase n'est supposée nécessaire tant qu'un besoin réel n'est pas démontré ;
-- l'étape 11 ne commence qu'après la clôture de 10.75.
+- cette frontière de sol est une contrainte dure pendant le geste et tient compte du volume orienté de la cible ;
+- à `Terminer`, Rapier reprend la gravité et toutes les collisions normales ;
+- la stabilisation individuelle des accessoires et la stabilisation atomique du caillou + accessoires conservent leurs contrats de persistance ;
+- aucune migration Supabase n'a été nécessaire ;
+- le nouveau E2E 10.75 et les huit scénarios de non-régression sont verts sur le candidat fonctionnel `65e17cb07c66b35f98f0ee6f308b6f1a0c19e8d8` ;
+- une seule Preview volontaire a été utilisée : `dpl_4cHqGZvPAcYuCRSQorLDDJJWCiPP`, état `READY` ;
+- l'étape 11 n'a pas été commencée pendant l'exécution de 10.75.
 
-**La prochaine étape à exécuter est donc 10.75. L'étape 11 ne doit pas commencer avant sa clôture.**
+**La prochaine étape à exécuter est donc 11.**
 
 ## Frontières importantes
 
