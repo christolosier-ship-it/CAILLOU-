@@ -1,0 +1,209 @@
+name: Execute refactor phase 4 controller
+
+on:
+  push:
+    branches:
+      - refactor/harmonisation-sol-placement
+    paths:
+      - .github/workflows/refactor-phase4-controller.yml
+
+permissions:
+  contents: write
+
+jobs:
+  phase4:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/harmonisation-sol-placement
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Apply phase 4 single-controller cleanup
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          from textwrap import dedent
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f'{label} anchor missing')
+              return text.replace(old, new, 1)
+
+          # Shared, explicit gesture grammar consumed by the one controller.
+          Path('src/features/placement/placementGesturePolicy.ts').write_text(dedent('''
+          import type { PlacementTarget, PlacementTool } from './placementTypes'
+
+          export type PlacementGestureAction =
+            | 'surface-position'
+            | 'free-orientation'
+            | 'depth-position'
+            | 'twist-orientation'
+            | 'uniform-scale'
+            | null
+
+          export function resolvePlacementGesture(
+            target: PlacementTarget,
+            tool: PlacementTool,
+            pointerCount: number,
+          ): PlacementGestureAction {
+            if (pointerCount >= 2) {
+              if (tool === 'position') return 'depth-position'
+              if (tool === 'orientation') return 'twist-orientation'
+              return target.kind === 'accessory' ? 'uniform-scale' : null
+            }
+            if (pointerCount === 1) {
+              if (tool === 'position') return 'surface-position'
+              if (tool === 'orientation') return 'free-orientation'
+            }
+            return null
+          }
+          '''))
+
+          Path('src/features/placement/placementGesturePolicy.test.ts').write_text(dedent('''
+          import { describe, expect, it } from 'vitest'
+
+          import { resolvePlacementGesture } from './placementGesturePolicy'
+          import type { PlacementTarget } from './placementTypes'
+
+          const rock: PlacementTarget = { kind: 'rock' }
+          const accessory: PlacementTarget = { kind: 'accessory', instanceId: 'fixture' }
+
+          describe('universal placement gesture grammar', () => {
+            it.each([
+              ['position', 1, 'surface-position'],
+              ['position', 2, 'depth-position'],
+              ['orientation', 1, 'free-orientation'],
+              ['orientation', 2, 'twist-orientation'],
+            ] as const)('uses the same %s gesture with %i pointer(s)', (tool, pointers, expected) => {
+              expect(resolvePlacementGesture(rock, tool, pointers)).toBe(expected)
+              expect(resolvePlacementGesture(accessory, tool, pointers)).toBe(expected)
+            })
+
+            it('keeps size accessory-only and pinch-only', () => {
+              expect(resolvePlacementGesture(rock, 'size', 1)).toBeNull()
+              expect(resolvePlacementGesture(rock, 'size', 2)).toBeNull()
+              expect(resolvePlacementGesture(accessory, 'size', 1)).toBeNull()
+              expect(resolvePlacementGesture(accessory, 'size', 2)).toBe('uniform-scale')
+            })
+          })
+          '''))
+
+          # Showroom: one PlacementController, no old interaction modes or controller paths.
+          path = Path('src/scene/ShowroomScene.tsx')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              "import type { PlacementGeometry } from '../features/placement/placementGeometry'\n",
+              "import type { PlacementGeometry } from '../features/placement/placementGeometry'\nimport { resolvePlacementGesture } from '../features/placement/placementGesturePolicy'\n",
+              'gesture policy import',
+          )
+          text = text.replace('  clampRockPosition,\n', '')
+          text = replace_once(
+              text,
+              "export type ShowroomInteractionMode =\n  | 'orbit'\n  | 'caress'\n  | 'cleaning'\n  | 'accessory'\n  | 'rock-position'\n  | 'rock-orientation'\n  | 'placement'\n  | 'composition-settle'\n",
+              "export type ShowroomInteractionMode =\n  | 'orbit'\n  | 'caress'\n  | 'cleaning'\n  | 'placement'\n  | 'composition-settle'\n",
+              'legacy showroom modes',
+          )
+          text = text.replace("  onAccessorySelect?: (instanceId: string) => void\n", '')
+
+          text, count = re.subn(
+              r'\nfunction RockGestureController\(\{.*?\n\}\n\n\nfunction ManipulationController\(\{',
+              '\nfunction PlacementController({',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('RockGestureController block / controller rename anchor missing')
+
+          text = replace_once(
+              text,
+              "      const current = stateRef.current\n      const items = points()\n      const scalePerPixel = worldPerPixel()\n\n      if (items.length >= 2 && baselineRef.current) {\n        const baseline = baselineRef.current\n        if (current.tool === 'position') {",
+              "      const current = stateRef.current\n      const items = points()\n      const action = resolvePlacementGesture(current.target, current.tool, items.length)\n      const scalePerPixel = worldPerPixel()\n\n      if (items.length >= 2 && baselineRef.current) {\n        const baseline = baselineRef.current\n        if (action === 'depth-position') {",
+              'dual pointer grammar start',
+          )
+          text = text.replace("        } else if (current.tool === 'orientation') {\n", "        } else if (action === 'twist-orientation') {\n", 1)
+          text = text.replace("        } else if (current.tool === 'size' && current.target.kind === 'accessory') {\n", "        } else if (action === 'uniform-scale') {\n", 1)
+          text = replace_once(
+              text,
+              "      if (items.length !== 1 || current.tool === 'size') return\n",
+              "      if (items.length !== 1 || action === null) return\n",
+              'single pointer grammar guard',
+          )
+          text = text.replace("      if (current.tool === 'position') {\n", "      if (action === 'surface-position') {\n", 1)
+          text = text.replace("      } else {\n        const cameraUp =", "      } else if (action === 'free-orientation') {\n        const cameraUp =", 1)
+
+          text = text.replace('  onAccessorySelect,\n', '')
+          text = text.replace("  const legacyAccessoryMode = interactionMode === 'accessory'\n", '')
+          text = text.replace("  const legacyRockManipulationMode = interactionMode === 'rock-position' || interactionMode === 'rock-orientation'\n", '')
+          text = text.replace('manipulating={legacyRockManipulationMode || placementRockTarget}', 'manipulating={placementRockTarget}')
+          text = text.replace('                editing={legacyAccessoryMode}\n', '')
+          text = text.replace('                rockObject={object}\n', '')
+          text = text.replace('                compositionFrozen={legacyRockManipulationMode || placementMode}\n', '                compositionFrozen={placementMode}\n')
+          text = text.replace('                onSelect={(instanceId) => onAccessorySelect?.(instanceId)}\n', '')
+          text = text.replace('                onTransformDraft={(instanceId, transform) => onAccessoryTransformDraft?.(instanceId, transform)}\n', '')
+
+          text, count = re.subn(
+              r'\n\s*\{legacyRockManipulationMode && onRockPoseDraft \? \(\n\s*<RockGestureController\n.*?\n\s*\) : null\}\n',
+              '\n',
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('legacy controller render block missing')
+
+          text = text.replace('<ManipulationController\n', '<PlacementController\n', 1)
+          path.write_text(text)
+
+          # AccessoryModel no longer exposes compatibility-only gesture props.
+          path = Path('src/scene/AccessoryModel.tsx')
+          text = path.read_text()
+          legacy_props = dedent('''
+            /** Legacy 10C prop kept for call-site compatibility. Gestures are no longer handled by this component. */
+            editing: boolean
+            rockPose: RockPose
+            /** Legacy 10C prop kept for call-site compatibility. */
+            rockObject?: Object3D | null
+            compositionFrozen?: boolean
+            globalSettling?: boolean
+            /** Legacy 10C callback kept for call-site compatibility. */
+            onSelect: (instanceId: string) => void
+            /** Legacy 10C callback kept for call-site compatibility. */
+            onTransformDraft?: (instanceId: string, transform: AccessoryTransform) => void
+          ''')
+          replacement_props = dedent('''
+            rockPose: RockPose
+            compositionFrozen?: boolean
+            globalSettling?: boolean
+          ''')
+          text = replace_once(text, legacy_props, replacement_props, 'AccessoryModel legacy props')
+          path.write_text(text)
+
+          # Parent no longer threads the dead canvas-selection callback.
+          path = Path('src/features/pedestal/Pedestal.tsx')
+          text = path.read_text()
+          text = replace_once(text, '            onAccessorySelect={handleAccessorySelect}\n', '', 'dead showroom select prop')
+          path.write_text(text)
+
+      - name: Validate phase 4
+        run: |
+          npm run check
+          git diff --check
+          grep -n "function PlacementController" src/scene/ShowroomScene.tsx
+          ! grep -n "RockGestureController" src/scene/ShowroomScene.tsx
+          ! grep -n "ManipulationController" src/scene/ShowroomScene.tsx
+          ! grep -nE "rock-position|rock-orientation|legacyAccessoryMode|legacyRockManipulationMode" src/scene/ShowroomScene.tsx
+          ! grep -nE "editing: boolean|rockObject\?:|onSelect:|onTransformDraft\?:" src/scene/AccessoryModel.tsx
+          grep -n "resolvePlacementGesture" src/scene/ShowroomScene.tsx
+      - name: Commit phase 4 product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/features/placement src/scene/ShowroomScene.tsx src/scene/AccessoryModel.tsx src/features/pedestal/Pedestal.tsx
+          git commit -m "refactor(placement): unifier le contrôleur tactile"
+          git push origin HEAD:refactor/harmonisation-sol-placement
