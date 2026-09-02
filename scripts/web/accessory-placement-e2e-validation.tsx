@@ -1,8 +1,13 @@
+import { Canvas } from '@react-three/fiber'
+import { Physics } from '@react-three/rapier'
 import { useCallback, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import { PlacementBody } from '../../src/features/placement/PlacementBody'
+import type { PlacementBodyPhysicsConfig } from '../../src/features/placement/PlacementBody'
+import type { PlacementGeometry } from '../../src/features/placement/placementGeometry'
 import { worldAccessoryToPersistence } from '../../src/features/placement/placementPersistence'
 import type { PlacementTool, PlacementTransform } from '../../src/features/placement/placementTypes'
 import { DEFAULT_ROCK_POSE } from '../../src/features/rockMovement/rockMovementRules'
@@ -75,11 +80,87 @@ const INITIAL_INSTANCES: EquippedAccessoryInstance[] = [
     equippedAt: '2026-09-01T20:00:01.000Z',
     updatedAt: '2026-09-01T20:00:01.000Z',
     stabilizedAt: '2026-09-01T20:00:01.000Z',
-    localPosition: [0, 0.16, 0.76],
+    localPosition: [-0.18, 0.16, 0.76],
     localRotation: [0, 0, 0, 1],
     uniformScale: 1,
   },
 ]
+
+const PROBE_GEOMETRY: PlacementGeometry = {
+  supportPoints: [
+    [-0.2, -0.2, -0.2], [-0.2, -0.2, 0.2], [-0.2, 0.2, -0.2], [-0.2, 0.2, 0.2],
+    [0.2, -0.2, -0.2], [0.2, -0.2, 0.2], [0.2, 0.2, -0.2], [0.2, 0.2, 0.2],
+  ],
+  colliderBounds: { min: [-0.2, -0.2, -0.2], max: [0.2, 0.2, 0.2] },
+}
+
+const PROBE_PHYSICS: PlacementBodyPhysicsConfig = {
+  collider: 'cuboid',
+  mass: 1,
+  friction: 0.7,
+  restitution: 0,
+  linearDamping: 1,
+  angularDamping: 1,
+  gravityScale: 0,
+  ccd: false,
+  settlingCcd: false,
+  baseSolverIterations: 2,
+  settlingSolverIterations: 8,
+  settleTimeoutMs: 1_500,
+  settleLinearVelocityY: 0,
+}
+
+const PROBE_FIXED: PlacementTransform = {
+  position: [0, 1.25, 0],
+  rotation: [0, 0, 0, 1],
+  scale: 1,
+}
+const PROBE_MOVING: PlacementTransform = {
+  position: [0.05, 1.25, 0],
+  rotation: [0, 0, 0, 1],
+  scale: 1,
+}
+
+function IntersectionProbe() {
+  const [release, setRelease] = useState(false)
+  const [settled, setSettled] = useState<PlacementTransform | null>(null)
+
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+      <Canvas frameloop="demand" camera={{ position: [2, 2, 3], fov: 40 }} style={{ width: 64, height: 64 }}>
+        <Physics gravity={[0, 0, 0]} colliders={false} updateLoop="independent">
+          <PlacementBody
+            bodyKey="intersection-probe-anchor"
+            state="editing"
+            transform={PROBE_FIXED}
+            geometry={PROBE_GEOMETRY}
+            physics={PROBE_PHYSICS}
+          >
+            <mesh><boxGeometry args={[0.4, 0.4, 0.4]} /><meshBasicMaterial /></mesh>
+          </PlacementBody>
+          <PlacementBody
+            bodyKey="intersection-probe-moving"
+            state={release ? 'settling' : 'editing'}
+            transform={PROBE_MOVING}
+            geometry={PROBE_GEOMETRY}
+            physics={PROBE_PHYSICS}
+            onSettled={setSettled}
+          >
+            <mesh><boxGeometry args={[0.4, 0.4, 0.4]} /><meshBasicMaterial /></mesh>
+          </PlacementBody>
+        </Physics>
+      </Canvas>
+      <button id="release-intersection-probe" type="button" onClick={() => setRelease(true)}>Release probe</button>
+      <output
+        id="placement-intersection-probe"
+        data-mode={release ? 'settling' : 'editing'}
+        data-initial-overlap="true"
+        data-settled={String(settled !== null)}
+        data-final-position={JSON.stringify(settled?.position ?? null)}
+      />
+    </div>
+  )
+}
 
 function cloneInstances(instances: EquippedAccessoryInstance[]) {
   return instances.map((instance) => ({
@@ -176,6 +257,7 @@ function AccessoryPlacementFixture() {
 
   return (
     <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : ''}`}>
+      <IntersectionProbe />
       <main className="pedestal-main">
         <section className="pedestal-stage" data-accessory-count={instances.length}>
           <ShowroomScene
