@@ -1,6 +1,6 @@
 # CAILLOU™ - Cahier des charges produit V1
 
-> **Statut : document de référence V1**  
+> **Statut : document de référence V1, aligné après 10.5 et sur la cible 10.75**  
 > **Produit : CAILLOU™**  
 > **Nature : compagnon minéral numérique persistant, contemplatif et absurdement sérieux**  
 > **Principe directeur : faire très peu de choses, mais les faire avec un niveau de finition disproportionné.**
@@ -12,6 +12,8 @@
 Ce document définit le périmètre fonctionnel, les règles produit, les parcours utilisateurs, l'économie, les interactions et les critères d'acceptation de **CAILLOU™ V1**.
 
 Il constitue la source de vérité fonctionnelle de la V1. L'architecture technique et la persistance Supabase sont décrites dans `ARCHITECTURE-TECHNIQUE.md`. L'identité visuelle, le rendu 3D, les interactions tactiles et le ton éditorial sont décrits dans `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md`. Le pipeline des assets 3D est décrit dans `WORKFLOW-3D-BLENDER-GITHUB.md`.
+
+Les fichiers de `docs/roadmap/` décrivent l'ordre d'exécution et conservent l'historique des étapes terminées. En cas d'évolution ultérieure, le présent document exprime la cible fonctionnelle courante sans réécrire cet historique.
 
 ---
 
@@ -27,7 +29,7 @@ CAILLOU™ est une application installable dans laquelle un utilisateur :
 4. choisit un spécimen ;
 5. lui donne un nom ;
 6. retrouve ensuite son caillou sur un écran principal extrêmement sobre ;
-7. peut le manipuler, le caresser, le nettoyer, lui acheter des accessoires et, s'il le souhaite, le jeter.
+7. peut l'observer, le caresser, le nettoyer, acquérir des objets ou autorisations avec des Lithons, placer librement son caillou et ses accessoires, consulter son dossier et, s'il le souhaite, le jeter.
 
 CAILLOU™ détourne les codes du compagnon virtuel. Le caillou ne possède aucun besoin vital et ne sanctionne jamais l'absence de l'utilisateur.
 
@@ -43,7 +45,7 @@ Il n'a :
 - ni obligation de connexion ;
 - ni mort naturelle.
 
-L'utilisateur peut cependant choisir d'interagir avec lui. Ces interactions construisent un historique, des statistiques et une petite économie cosmétique.
+L'utilisateur peut cependant choisir d'interagir avec lui. Ces interactions construisent un historique, des statistiques et une petite économie volontairement sérieuse.
 
 ### 2.2 Promesse
 
@@ -58,8 +60,9 @@ CAILLOU™ doit procurer simultanément :
 3. un humour sec né du sérieux excessif accordé à un simple caillou ;
 4. un attachement léger créé par le choix, le nom et l'historique ;
 5. une progression simple et non anxiogène ;
-6. une personnalisation cosmétique par accessoires ;
-7. le plaisir de constater que le caillou reste remarquablement caillou.
+6. une personnalisation cosmétique et quelques déblocages permanents en Lithons ;
+7. une physique locale suffisamment crédible pour que le caillou et ses accessoires puissent tomber, glisser, rouler ou s'éjecter lorsque l'utilisateur les place de manière improbable ;
+8. le plaisir de constater que le caillou reste remarquablement caillou.
 
 ---
 
@@ -67,21 +70,13 @@ CAILLOU™ doit procurer simultanément :
 
 ### P1 - Le caillou n'a besoin de rien
 
-Caresser et nettoyer sont des actions volontaires de l'utilisateur. Leur absence ne provoque jamais de sanction.
+Caresser et nettoyer sont des actions volontaires. Leur absence ne provoque jamais de sanction.
 
 Le nettoyage est cosmétique. Un caillou poussiéreux n'est ni malade, ni triste, ni moins performant.
 
 ### P2 - L'absence n'est jamais punie
 
 Aucun streak, aucune récompense quotidienne obligatoire, aucune perte de monnaie et aucun message culpabilisant.
-
-Formulation conforme :
-
-> « Aucun changement préoccupant n'a été constaté durant votre absence. »
-
-Formulation interdite :
-
-> « Bernard vous a attendu pendant 34 jours. »
 
 ### P3 - Le premium fait partie de la blague
 
@@ -110,13 +105,31 @@ Pas de publicité, pas de compte à rebours commercial, pas de gacha, pas de cof
 
 ### P7 - L'avancement est persistant
 
-Le compte, le caillou actif, son historique, ses statistiques, les Lithons, les achats et les accessoires possédés sont persistés côté serveur dans Supabase.
+Le compte, le caillou actif, sa pose stabilisée, son historique, ses statistiques, les Lithons, les achats, les fonctionnalités débloquées, les accessoires possédés et les instances placées sont persistés côté serveur dans Supabase.
 
 Le stockage local peut accélérer l'interface ou permettre une reprise temporaire, mais **Supabase reste la source de vérité**.
 
 ### P8 - Les vingt cailloux sont égaux
 
 Aucun spécimen n'est rare, légendaire, supérieur ou recommandé par algorithme.
+
+### P9 - Achat et placement sont deux responsabilités distinctes
+
+La règle UX V1 est :
+
+```text
+Boutique = acquérir
+Placement = manipuler
+Rapier = arbitrer après validation
+```
+
+Une propriété commerciale ne doit pas être confondue avec une instance placée dans la scène.
+
+### P10 - La main est libre, sauf face au sol
+
+Pendant une manipulation explicite, l'utilisateur peut créer volontairement des intersections entre le caillou et les accessoires. Le système ne doit pas empêcher ce placement fin par un anti-chevauchement grossier.
+
+La seule frontière infranchissable pendant le geste est le grand carré gris du Socle, qui constitue le sol physique de référence.
 
 ---
 
@@ -143,16 +156,9 @@ Un nouvel utilisateur crée :
 
 Aucune adresse email n'est demandée dans l'expérience V1.
 
-Le pseudo est l'identité visible de l'utilisateur. Il n'existe pas de profil social public en V1.
-
 ### 5.2 Connexion
 
-Un utilisateur existant peut se reconnecter avec :
-
-- son pseudo ;
-- son mot de passe.
-
-Une session valide peut être conservée afin d'éviter une reconnexion à chaque ouverture.
+Un utilisateur existant peut se reconnecter avec son pseudo et son mot de passe. Une session valide peut être conservée.
 
 ### 5.3 Mot de passe perdu
 
@@ -162,22 +168,13 @@ La V1 n'impose pas de flux email puisqu'aucune adresse email n'est demandée. La
 
 - compte sans caillou actif : ouverture du showroom d'adoption ;
 - compte avec caillou actif : ouverture directe du Socle ;
-- compte dont le dernier caillou a été jeté : écran vide avec proposition d'adopter un nouveau spécimen.
+- compte dont le dernier caillou a été jeté : état vide avec proposition d'adopter un nouveau spécimen.
 
 ---
 
 ## 6. Catalogue des vingt spécimens
 
-### 6.1 Catalogue V1
-
-La V1 contient vingt véritables scans 3D :
-
-```text
-rock-001
-rock-002
-...
-rock-020
-```
+La V1 contient vingt véritables scans 3D : `rock-001` à `rock-020`.
 
 Base validée :
 
@@ -189,37 +186,9 @@ Base validée :
 - textures source autour de 1024 x 1024 ;
 - matériau web calibré individuellement.
 
-### 6.2 Désignation avant adoption
+Avant adoption, ils sont désignés `Spécimen 01` à `Spécimen 20`. Après adoption, le nom choisi par l'utilisateur devient l'identité principale.
 
-Avant adoption :
-
-```text
-Spécimen 01
-Spécimen 02
-...
-Spécimen 20
-```
-
-Après adoption, le nom choisi par l'utilisateur devient l'identité principale du caillou.
-
-### 6.3 Description sérieuse obligatoire
-
-Chaque spécimen possède une description dédiée, factuelle dans sa forme et absurdement institutionnelle dans son ton.
-
-Exemple :
-
-> « Masse minérale compacte présentant une silhouette asymétrique et une surface modérément irrégulière. Son centre de gravité relativement bas lui confère une aptitude particulièrement convaincante à rester exactement là où on le pose. »
-
-Des attributs éditoriaux peuvent compléter la description :
-
-- régularité de surface ;
-- masse visuelle ;
-- stabilité apparente ;
-- orientation recommandée ;
-- potentiel de déplacement spontané ;
-- conformité générale.
-
-Ces textes ne doivent pas inventer une classification géologique non vérifiée.
+Chaque spécimen possède une description sérieuse dédiée. Des attributs éditoriaux peuvent décrire régularité de surface, masse visuelle, stabilité apparente ou mobilité spontanée, sans inventer une classification géologique non vérifiée.
 
 ---
 
@@ -227,45 +196,23 @@ Ces textes ne doivent pas inventer une classification géologique non vérifiée
 
 ### Écran 1 - Authentification
 
-Nouvel utilisateur :
-
-```text
-CAILLOU™
-
-Pseudo
-Mot de passe
-
-Créer mon compte
-```
-
-Un accès « J'ai déjà un compte » permet la connexion.
+Pseudo, mot de passe, création ou connexion. Aucun onboarding marketing en carrousel.
 
 ### Écran 2 - Showroom 3D
 
-Après création du compte, l'utilisateur arrive directement dans le showroom.
-
-Règles :
-
 - un seul caillou 3D actif à la fois ;
 - navigation séquentielle `01 / 20` à `20 / 20` ;
-- flèches gauche et droite toujours disponibles ;
+- flèches gauche/droite ;
 - rotation du spécimen au doigt ou à la souris ;
 - zoom borné si retenu ;
 - même lumière et même fond pour les vingt candidats ;
-- description sérieuse du spécimen visible ;
-- CTA : **Adopter ce caillou** ;
+- description sérieuse ;
+- CTA **Adopter ce caillou** ;
 - aucun score ou indice de rareté.
-
-Le drag commencé sur le modèle sert à la rotation. La navigation par flèches reste la référence afin d'éviter les conflits gestuels.
 
 ### Écran 3 - Nommage
 
-Après sélection :
-
-- nom obligatoire ;
-- longueur raisonnable ;
-- validation explicite ;
-- création du caillou utilisateur dans Supabase.
+Nom obligatoire, longueur raisonnable, validation explicite et création dans Supabase.
 
 ### Écran 4 - Entrée dans le jeu
 
@@ -279,93 +226,64 @@ Le caillou apparaît sur le Socle.
 
 ### 8.1 Rôle
 
-Le Socle est l'écran principal et le cœur de CAILLOU™.
+Le Socle est l'écran principal et le cœur de CAILLOU™. Il reste extrêmement sobre.
 
-Il doit rester extrêmement sobre.
-
-### 8.2 Composition
+### 8.2 Composition cible
 
 ```text
 ┌──────────────────────────────┐
-│ [Bio / Stats]           [ · ]│
-│                              │
+│ [Bio / Stats]     [Placement]│
 │                              │
 │          CAILLOU 3D          │
 │                              │
 │                              │
-│                              │
-│ Caresser Nettoyer Accessoire │
+│ Caresser Nettoyer Boutique   │
 │             Jeter            │
 └──────────────────────────────┘
 ```
 
-Le placement final des quatre commandes peut être adapté au responsive, mais elles constituent la barre d'action principale.
+Le responsive peut adapter la disposition sans modifier la hiérarchie fonctionnelle.
 
-### 8.3 Manipulation libre
+### 8.3 Observation normale
 
 Hors mode spécifique :
 
-- drag : rotation horizontale et verticale bornée ;
+- drag : rotation d'observation ;
 - pinch / molette : zoom borné ;
 - inertie légère ;
 - aucune rotation automatique permanente ;
+- aucune transformation persistante n'est produite par l'observation ;
 - le caillou reste l'élément visuel dominant.
 
-### 8.4 Bouton supérieur gauche
+### 8.4 Bio / Stats
 
-Ouvre **Bio / Stats**.
+Le contrôle supérieur gauche ouvre le dossier institutionnel du caillou.
 
-### 8.5 Bouton supérieur droit
+### 8.5 Placement
 
-Un emplacement visuel est réservé à une fonctionnalité future.
+Le contrôle de Placement est l'unique entrée destinée à déplacer réellement le caillou ou ses accessoires.
 
-En V1 :
+Il ouvre un sélecteur de cible contenant :
 
-- il ne modifie aucun état produit ;
-- aucune fonctionnalité métier n'y est attachée ;
-- il doit rester graphiquement discret ;
-- son implémentation ne doit pas bloquer l'évolution future de la navigation.
+- le caillou actif ;
+- chaque instance accessoire déjà placée ;
+- une entrée permettant d'ajouter une nouvelle instance d'un type d'accessoire déjà possédé.
+
+Le caillou reste visible dans ce sélecteur sans permis, mais verrouillé avec accès vers la fiche du Permis de manutention minérale dans la Boutique.
 
 ---
 
-## 9. Action 1 - Caresser
+## 9. Action - Caresser
 
-### 9.1 Principe
+Le bouton **Caresser** active un mode tactile dédié. Une rotation normale du caillou ne doit jamais être confondue avec une caresse.
 
-Le bouton **Caresser** active un mode tactile dédié.
-
-Une rotation normale du caillou ne doit jamais être confondue avec une caresse.
-
-### 9.2 Caresse valide
-
-Une caresse valide correspond à un mouvement continu réellement effectué sur la surface interactive du caillou, avec des seuils minimaux de durée et de déplacement définis techniquement.
-
-Un simple tap ne constitue pas une caresse.
-
-### 9.3 Récompense
+Une caresse valide correspond à un mouvement continu sur la surface interactive avec des seuils techniques de durée et de déplacement. Un simple tap n'est pas une caresse.
 
 **1 caresse valide = +1 Lithon.**
 
-Aucun multiplicateur quotidien, aucune série et aucun bonus conditionné à une heure précise.
+Chaque caresse validée incrémente côté serveur les compteurs pertinents et le portefeuille. L'attribution est idempotente.
 
-### 9.4 Persistance
-
-Chaque caresse validée incrémente côté serveur :
-
-- le nombre total de caresses du caillou ;
-- le nombre total de Lithons gagnés ;
-- le solde courant de Lithons ;
-- les statistiques nécessaires à la bio.
-
-L'attribution est idempotente afin qu'un même événement ne puisse pas être compté plusieurs fois par accident réseau.
-
-### 9.5 Feedback
-
-Feedback court et sobre :
-
-> `+1 Lithon`
-
-Une micro-variation lumineuse ou haptique peut accompagner la validation, sans animation arcade.
+Feedback : `+1 Lithon`, avec micro-variation visuelle ou haptique sobre.
 
 ---
 
@@ -373,238 +291,240 @@ Une micro-variation lumineuse ou haptique peut accompagner la validation, sans a
 
 ### 10.1 Définition
 
-Le **Lithon** est la monnaie fictive interne de CAILLOU™.
-
-Il existe uniquement pour transformer les caresses en possibilité de personnalisation cosmétique.
+Le Lithon est la monnaie fictive interne de CAILLOU™. Il transforme l'attention volontaire en capacité d'acquisition cosmétique ou en déblocages permanents de fonctionnalités internes.
 
 ### 10.2 Acquisition
 
 En V1, les Lithons sont obtenus uniquement par les caresses validées.
 
-Aucun Lithon n'est :
-
-- vendu contre de l'argent réel ;
-- gagné par publicité ;
-- offert pour une connexion quotidienne ;
-- retiré pour absence ;
-- transférable entre comptes.
+Aucun Lithon n'est vendu, gagné par publicité, offert pour une connexion quotidienne, retiré pour absence ou transférable entre comptes.
 
 ### 10.3 Dépense
 
-Les Lithons servent uniquement à acheter des accessoires dans le catalogue CAILLOU™.
+Les Lithons peuvent servir à :
+
+- acheter des accessoires du catalogue ;
+- acheter des déblocages permanents inscrits dans le catalogue de fonctionnalités, comme le **Permis de manutention minérale à 1000 Lithons**.
+
+Aucun produit acheté en Lithons ne doit créer un avantage compétitif ou un mécanisme de rétention anxiogène.
 
 ### 10.4 Source de vérité
 
-Le solde affiché peut être optimiste pendant une interaction, mais le solde autoritaire est stocké dans Supabase.
-
-Chaque gain et chaque dépense doit être traçable dans un historique transactionnel interne.
+Le solde autoritaire, les prix, les achats, les déblocages et le ledger sont gérés côté Supabase. Le client ne décide jamais du prix réellement débité.
 
 ---
 
-## 11. Action 2 - Nettoyer
+## 11. Action - Nettoyer
 
-### 11.1 Principe
+Le bouton **Nettoyer** active un mode tactile dédié.
 
-Le bouton **Nettoyer** active un mode de nettoyage tactile.
+La poussière est purement cosmétique : aucune pénalité, aucune perte de Lithons, aucune baisse de statistique, aucun message culpabilisant et aucun Lithon gagné par nettoyage.
 
-La poussière est une couche visuelle progressive calculée à partir du dernier nettoyage connu.
-
-### 11.2 Règles
-
-- la poussière est purement cosmétique ;
-- aucune pénalité ;
-- aucune perte de Lithons ;
-- aucune baisse de statistique ;
-- aucun message culpabilisant ;
-- le nettoyage ne rapporte aucun Lithon.
-
-### 11.3 Interaction
-
-Le doigt ou la souris retire progressivement la poussière sur les zones parcourues.
-
-Lorsque le nettoyage est considéré comme terminé, l'application enregistre :
-
-- `last_cleaned_at` ;
-- le nombre total de nettoyages.
-
-### 11.4 Ton
-
-Exemples :
-
-> « Surface remise dans un état réglementaire. »
-
-> « Opération d'entretien minéral terminée. »
+Lorsque le nettoyage est validé, l'application enregistre `last_cleaned_at` et le compteur de nettoyages.
 
 ---
 
-## 12. Action 3 - Accessoires
+## 12. Boutique unifiée
 
 ### 12.1 Principe
 
-Le bouton **Accessoire** ouvre le catalogue d'accessoires.
+Le bouton **Boutique** ouvre la fenêtre commerciale unique de CAILLOU™.
 
-### 12.2 Achat
+La Boutique peut présenter plusieurs familles de produits tout en conservant leurs modèles backend spécialisés :
+
+- **Accessoires** ;
+- **Autorisations / services**.
+
+La V1 ne duplique pas les parcours d'achat dans des fenêtres séparées par fonctionnalité.
+
+### 12.2 Accessoires
 
 Chaque accessoire possède :
 
 - un identifiant stable ;
 - un nom ;
 - une description ;
-- un prix en Lithons ;
-- un asset visuel ;
-- un état actif/inactif dans le catalogue.
+- un prix serveur en Lithons ;
+- un asset 3D et un aperçu ;
+- un état actif/inactif ;
+- des bornes d'échelle ;
+- des paramètres physiques ;
+- une provenance/licence.
 
-L'achat :
+L'achat débite atomiquement le portefeuille, enregistre la propriété permanente du type d'accessoire et écrit le ledger. Il est idempotent avec `event_key`.
 
-1. reçoit uniquement l'identifiant stable et une clé d'événement, jamais un prix client ;
-2. vérifie l'accessoire actif, son prix serveur et le solde autoritaire ;
-3. sérialise les doubles taps concurrents sur le portefeuille ;
-4. débite les Lithons ;
-5. ajoute l'accessoire à l'inventaire permanent ;
-6. écrit le mouvement dans le ledger ;
-7. renvoie le nouveau solde et permet ensuite d'entrer dans le mode d'équipement.
+### 12.3 Fonctionnalités payantes
 
-La transaction est atomique et idempotente côté Supabase : un retry avec la même clé retourne le
-même reçu sans second débit, et le contournement de l'UI ne permet ni achat sans solde ni double
-propriété.
+Une fonctionnalité payante suit le même principe commercial sans être forcée dans la table des accessoires.
 
-### 12.3 Propriété
+Le premier contrat V1 est :
 
-Les accessoires achetés appartiennent au compte utilisateur, pas définitivement à un caillou particulier.
+```text
+Permis de manutention minérale
+Prix : 1000 Lithons
+Achat : unique
+Portée : permanente au compte
+Effet : autorise le placement/manutention du caillou
+```
 
-Ils peuvent être équipés sur le caillou actif. Jeter un caillou ne détruit donc pas les accessoires déjà achetés.
+L'achat passe par une opération serveur dédiée et apparaît comme `Acquis` après confirmation.
 
-### 12.4 Direction produit
+### 12.4 Propriété et placement
 
-Les accessoires sont cosmétiques. Ils ne donnent :
+La Boutique confère une propriété ou un droit. Elle n'est pas le lieu principal de manipulation.
 
-- aucun bonus de gain ;
-- aucun multiplicateur ;
-- aucune statistique de puissance ;
-- aucun avantage compétitif.
+Un accessoire possédé peut ensuite créer plusieurs instances depuis **Placement**, dans la limite V1 de huit instances équipées par caillou.
 
-Le catalogue doit rester cohérent avec la direction CAILLOU™ : socles, coussins, plaques, vitrines, petits objets de présentation et absurdités sobres.
+Jeter un caillou ne détruit pas les accessoires possédés ni les déblocages permanents du compte.
 
 ---
 
-## 13. Action 4 - Jeter
+## 13. Placement universel
 
-### 13.1 Principe
+### 13.1 Sélecteur de cible
 
-Le bouton **Jeter** permet de se séparer du caillou actif.
+Le mode Placement sélectionne d'abord une cible :
 
-### 13.2 Confirmation
+- le caillou ;
+- une instance accessoire ;
+- une nouvelle instance d'un accessoire déjà possédé.
 
-Exemple :
+Chaque instance doit être identifiable même lorsque plusieurs exemplaires d'un même type sont présents.
 
-> **Jeter Bernard ?**
->
-> Cette opération mettra fin à une relation minérale jusque-là correctement documentée.
+### 13.2 Grammaire commune
 
-Actions :
+Une fois la cible choisie, le canvas entier sert de surface de manipulation.
 
-- **Conserver Bernard** ;
-- **Jeter Bernard**.
+**Position** :
 
-### 13.3 Résultat
+- un doigt : translation dans le plan de vue ;
+- deux doigts : profondeur.
+
+**Orientation** :
+
+- un doigt : orientation libre ;
+- twist à deux doigts : rotation complémentaire autour de l'axe de vue.
+
+**Taille** :
+
+- disponible pour les accessoires via pinch dans les bornes du catalogue ;
+- indisponible pour le caillou.
+
+Les contrôles X/Y/Z peuvent exister comme réglage fin secondaire, jamais comme grammaire principale.
+
+### 13.3 Liberté d'intersection
+
+Pendant Placement :
+
+- la cible est pilotée cinématiquement ;
+- la gravité ne perturbe pas le geste ;
+- les collisions avec le caillou et les autres accessoires ne bloquent pas le déplacement ;
+- l'utilisateur peut volontairement créer des intersections profondes ;
+- aucun snapping de surface ni anti-pénétration grossier ne doit retirer cette liberté.
+
+### 13.4 Frontière infranchissable du carré gris
+
+Le grand carré gris est le sol physique de référence et l'unique frontière spatiale dure pendant le placement manuel.
+
+Ni le caillou ni un accessoire ne doivent pouvoir être déplacés à travers ou sous ce sol.
+
+La contrainte est appliquée pendant le geste en tenant compte de l'enveloppe de la cible, et pas uniquement après coup par une collision Rapier.
+
+### 13.5 Validation et physique
+
+Au clic sur **Terminer** :
+
+- Rapier reprend l'autorité ;
+- gravité et collisions normales redeviennent actives ;
+- une intersection créée volontairement peut provoquer glissement, rotation ou éjection rapide ;
+- cet effet physique est acceptable et ne doit pas être remplacé par une correction artificielle de placement ;
+- le résultat stabilisé est persisté côté Supabase.
+
+Pour un accessoire seul, la pose finale reste exprimée dans le repère local du caillou. Pour la manutention du caillou, caillou et accessoires sont stabilisés ensemble et la composition est persistée atomiquement.
+
+---
+
+## 14. Action - Jeter
+
+Le bouton **Jeter** permet de se séparer du caillou actif après confirmation explicite.
 
 Après confirmation :
 
-- le caillou disparaît immédiatement ;
-- aucune animation de lancer n'est jouée ;
-- aucun effet dramatique ;
-- `discarded_at` est enregistré ;
-- le compte n'a plus de caillou actif ;
-- les Lithons du compte sont conservés ;
-- les accessoires possédés sont conservés ;
-- l'historique du caillou est conservé.
+- disparition immédiate ;
+- aucune animation de lancer ;
+- `discarded_at` enregistré ;
+- aucun caillou actif ;
+- portefeuille conservé ;
+- accessoires possédés conservés ;
+- déblocages permanents conservés ;
+- historique conservé ;
+- règle explicite pour les anciennes instances du caillou afin d'éviter tout orphelin métier.
 
-Écran suivant :
-
-> **Aucun caillou actuellement sous votre responsabilité.**
-
-CTA : **Adopter un nouveau caillou**.
+Puis état vide : **Aucun caillou actuellement sous votre responsabilité.** et CTA **Adopter un nouveau caillou**.
 
 ---
 
-## 14. Bio et statistiques
+## 15. Bio et statistiques
 
-### 14.1 Rôle
+Le dossier Bio / Stats doit afficher des données fiables issues de Supabase et peut compléter celles-ci par des statistiques absurdes clairement éditoriales.
 
-Le bouton en haut à gauche ouvre une fiche traitée comme un dossier institutionnel.
+Informations minimales selon disponibilité :
 
-### 14.2 Informations minimales
-
-- nom du caillou ;
+- nom ;
 - numéro de spécimen ;
 - date d'adoption ;
 - ancienneté ;
-- nombre de caresses ;
-- nombre de nettoyages ;
-- Lithons générés par ce caillou ;
-- temps cumulé de présence/observation si fiable ;
-- accessoires actuellement équipés ;
-- nombre d'interactions ;
-- statut éditorial.
+- caresses ;
+- nettoyages ;
+- Lithons générés ;
+- solde actuel ;
+- accessoires possédés ;
+- instances actuellement placées ;
+- Permis de manutention minérale acquis ou non ;
+- temps d'observation s'il est réellement fiable ;
+- statistiques éditoriales telles que déplacement spontané `0 m`.
 
-### 14.3 Statistiques absurdes
-
-Exemples :
-
-- déplacement spontané : `0 m` ;
-- incidents diplomatiques : `0` ;
-- aptitude à rester posé : `excellente` ;
-- comportement rocheux : `99,8 %` ;
-- initiatives recensées : `aucune`.
-
-Ces données fantaisistes restent clairement humoristiques et ne prétendent pas constituer des mesures scientifiques.
+Une donnée fantaisiste ne doit jamais être présentée comme une mesure scientifique réelle.
 
 ---
 
-## 15. Progression
+## 16. Progression
 
-La progression V1 repose exclusivement sur :
+La progression V1 repose sur :
 
 - historique de caresses ;
-- Lithons gagnés ;
-- Lithons dépensés ;
+- Lithons gagnés et dépensés ;
 - accessoires possédés ;
+- fonctionnalités permanentes débloquées ;
+- instances/accessoires actuellement placés ;
 - nettoyages ;
 - ancienneté du caillou ;
 - statistiques d'usage non anxiogènes.
 
-Interdits :
-
-- streak quotidien ;
-- énergie ;
-- faim ;
-- niveau de bonheur ;
-- dette d'entretien ;
-- expiration des Lithons ;
-- perte de monnaie à l'absence.
+Interdits : streak quotidien, énergie, faim, bonheur, dette d'entretien, expiration des Lithons ou perte de monnaie à l'absence.
 
 ---
 
-## 16. Données persistantes
-
-Supabase doit conserver au minimum :
+## 17. Données persistantes minimales
 
 ### Compte
 
 - identifiant utilisateur ;
 - pseudo unique ;
-- dates de création et mise à jour.
+- dates de création/mise à jour.
 
 ### Cailloux utilisateur
 
 - identifiant ;
-- utilisateur propriétaire ;
+- propriétaire ;
 - spécimen ;
 - nom ;
-- date d'adoption ;
-- date de jet éventuelle ;
-- statut actif ;
-- dernier nettoyage.
+- adoption ;
+- jet éventuel ;
+- dernier nettoyage ;
+- pose position ;
+- pose rotation ;
+- date de stabilisation de pose.
 
 ### Progression
 
@@ -613,94 +533,83 @@ Supabase doit conserver au minimum :
 - interactions ;
 - temps d'observation si retenu ;
 - Lithons générés ;
-- autres compteurs utiles à la bio.
+- compteurs Bio utiles.
 
 ### Économie
 
-- solde de Lithons ;
+- solde ;
 - total gagné ;
 - total dépensé ;
-- journal transactionnel.
+- journal transactionnel ;
+- motif et produit concerné lorsqu'il existe.
 
 ### Accessoires
 
 - catalogue ;
+- prix et métadonnées physiques ;
+- propriété utilisateur ;
+- instances équipées ;
+- position locale ;
+- rotation locale ;
+- échelle ;
+- état/date de stabilisation.
+
+### Fonctionnalités payantes
+
+- catalogue ;
 - prix ;
-- inventaire utilisateur ;
-- équipement actuel.
+- état actif ;
+- déblocages permanents par compte ;
+- prix payé et date de déblocage.
 
 ---
 
-## 17. PWA et continuité
+## 18. PWA et continuité
 
-L'application doit :
+L'application doit être installable lorsque la plateforme le permet, mettre en cache le shell et les ressources essentielles, charger les modèles 3D à la demande et conserver un cache local non autoritaire pour une reprise rapide.
 
-- être installable ;
-- mettre en cache le shell et les ressources statiques essentielles ;
-- charger les modèles 3D à la demande ;
-- ne jamais précacher les vingt GLB au premier lancement ;
-- conserver localement un cache non autoritaire pour une reprise rapide ;
-- resynchroniser les mutations avec Supabase lorsque nécessaire.
-
-Supabase reste l'état canonique pour toute progression et toute économie.
+Les mutations économiques et les stabilisations physiques ne doivent jamais être déclarées réussies localement sans confirmation serveur. L'étape 12 formalise la réconciliation offline/reconnexion.
 
 ---
 
-## 18. Hors périmètre V1
+## 19. Hors périmètre V1
 
-Sont exclus :
-
-- réseau social ;
-- amis ;
-- messagerie ;
-- classement ;
-- échanges d'accessoires ;
-- transfert de Lithons ;
-- argent réel ;
-- paiement ;
-- publicité ;
-- achat in-app ;
-- NFT ou blockchain ;
-- gacha ;
-- loot boxes ;
-- combats ;
-- mini-jeux obligatoires ;
-- IA générative ;
-- chatbot ;
-- géolocalisation ;
-- réalité augmentée ;
-- besoins vitaux ;
-- mort ou maladie ;
-- quêtes quotidiennes ;
-- notifications culpabilisantes.
+Sont exclus : réseau social, amis, messagerie, classement, échanges d'accessoires, transfert de Lithons, argent réel, paiement, publicité, NFT/blockchain, gacha, loot boxes, combats, mini-jeux obligatoires, IA générative, chatbot, géolocalisation, réalité augmentée, besoins vitaux, mort naturelle, quêtes quotidiennes et notifications culpabilisantes.
 
 ---
 
-## 19. Critères de réussite V1
+## 20. Critères de réussite V1
 
 La V1 est considérée comme fonctionnellement réussie si :
 
-1. un nouvel utilisateur crée un compte uniquement avec pseudo et mot de passe ;
-2. il peut parcourir les vingt cailloux en 3D ;
+1. un utilisateur crée un compte avec pseudo et mot de passe ;
+2. il parcourt les vingt cailloux en 3D ;
 3. chaque caillou possède une description sérieuse dédiée ;
-4. il choisit un spécimen et lui donne un nom ;
-5. cet état est retrouvé sur un autre lancement après authentification ;
-6. le Socle affiche le caillou comme élément dominant ;
-7. le caillou peut être tourné et zoomé sans conflit gestuel ;
-8. le mode Caresser attribue exactement les Lithons attendus ;
-9. le solde serveur ne peut pas devenir négatif ;
+4. il choisit un spécimen et le nomme ;
+5. l'état est retrouvé après reconnexion ;
+6. le Socle garde le caillou comme sujet principal ;
+7. observation, caresse, nettoyage et placement ne se confondent pas ;
+8. une caresse valide attribue exactement 1 Lithon côté serveur ;
+9. le portefeuille ne peut devenir négatif ;
 10. le nettoyage reste cosmétique ;
-11. l'achat d'un accessoire est atomique et persistant ;
-12. les accessoires achetés peuvent être équipés et retirés ;
-13. Bio / Stats reflète les données Supabase ;
-14. Jeter fait disparaître immédiatement le caillou après confirmation, sans animation ;
-15. jeter conserve Lithons, inventaire et historique ;
-16. aucune absence n'entraîne de sanction ;
-17. les vingt modèles ne sont jamais simultanément actifs en mémoire GPU.
+11. la Boutique centralise les achats d'accessoires et de fonctionnalités ;
+12. l'achat d'un accessoire est atomique, persistant et distinct de ses instances ;
+13. le Permis de manutention minérale coûte exactement 1000 Lithons et reste permanent au compte ;
+14. un bouton Placement unique permet de choisir caillou ou accessoire ;
+15. caillou et accessoires partagent une grammaire tactile Position / Orientation ;
+16. la Taille n'est disponible que pour les accessoires ;
+17. les intersections entre objets restent possibles pendant Placement ;
+18. le carré gris ne peut jamais être franchi pendant la manipulation ;
+19. Rapier reprend gravité et collisions à Terminer ;
+20. les résultats stabilisés sont persistés et restaurés ;
+21. Bio / Stats reflète la source Supabase ;
+22. Jeter fait disparaître le caillou après confirmation tout en conservant portefeuille, propriétés et historique ;
+23. aucune absence n'entraîne de sanction ;
+24. les vingt modèles de cailloux ne sont jamais simultanément actifs en mémoire GPU.
 
 ---
 
-## 20. Définition de terminé pour V1.0
+## 21. Définition de terminé pour V1.0
 
 ### Authentification
 
@@ -713,32 +622,35 @@ La V1 est considérée comme fonctionnellement réussie si :
 ### Adoption
 
 - [ ] showroom 20 spécimens ;
-- [ ] description dédiée des 20 ;
-- [ ] rotation 3D ;
-- [ ] navigation précédent/suivant ;
+- [ ] descriptions dédiées ;
+- [ ] navigation et rotation 3D ;
 - [ ] un seul modèle actif ;
-- [ ] adoption ;
-- [ ] nommage ;
-- [ ] persistance Supabase.
+- [ ] adoption et nommage persistants.
 
 ### Socle
 
-- [ ] manipulation 3D ;
+- [ ] observation 3D ;
 - [ ] Caresser ;
 - [ ] Nettoyer ;
-- [ ] Accessoires ;
+- [ ] Boutique unifiée ;
+- [ ] Placement unique ;
+- [ ] sélection caillou / instances ;
+- [ ] manipulation tactile commune ;
+- [ ] sol gris infranchissable ;
+- [ ] reprise Rapier après Terminer ;
 - [ ] Jeter ;
-- [ ] Bio / Stats ;
-- [ ] emplacement supérieur droit réservé.
+- [ ] Bio / Stats.
 
 ### Économie
 
 - [ ] Lithons ;
 - [ ] 1 caresse valide = 1 Lithon ;
 - [ ] portefeuille serveur ;
-- [ ] historique des mouvements ;
-- [ ] achat atomique ;
-- [ ] impossibilité de solde négatif ;
+- [ ] ledger ;
+- [ ] achats atomiques/idempotents ;
+- [ ] accessoires persistants au compte ;
+- [ ] fonctionnalités persistantes au compte ;
+- [ ] permis 1000 Lithons ;
 - [ ] aucune monnaie réelle.
 
 ### Backend
@@ -747,22 +659,27 @@ La V1 est considérée comme fonctionnellement réussie si :
 - [ ] schéma Postgres versionné ;
 - [ ] RLS ;
 - [ ] fonctions transactionnelles ;
+- [ ] pose du caillou persistante ;
+- [ ] instances accessoires persistantes ;
+- [ ] stabilisation atomique de composition ;
 - [ ] tests de sécurité ;
-- [ ] sauvegarde et reprise multi-session.
+- [ ] reprise multi-session.
 
 ### Qualité
 
 - [ ] responsive téléphone/tablette/desktop ;
-- [ ] tests tactiles physiques ;
+- [ ] tests tactiles réels ;
 - [ ] reduced motion ;
 - [ ] qualité graphique adaptative ;
 - [ ] cache PWA ;
-- [ ] aucun conflit rotation/caresse/nettoyage ;
+- [ ] aucun conflit Orbit/Caresser/Nettoyer/Placement ;
+- [ ] intersections volontaires testées ;
+- [ ] frontière du sol testée ;
 - [ ] aucune fuite GPU après navigation répétée.
 
 ---
 
-## 21. Règle finale
+## 22. Règle finale
 
 > **CAILLOU™ peut récompenser l'attention, mais ne doit jamais réclamer l'attention.**
 
