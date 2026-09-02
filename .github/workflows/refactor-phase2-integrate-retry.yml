@@ -55,7 +55,7 @@ jobs:
         run: |
           npm run lint
           npm run typecheck
-          npm run test:unit -- --run
+          npm run test
           npm run build
           git diff --check
       - name: Commit product integration
