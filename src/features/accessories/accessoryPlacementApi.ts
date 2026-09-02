@@ -49,15 +49,12 @@ interface CreatePlacementRow {
   updated_at: string
 }
 
-interface UpdatePlacementRow {
+interface StabilizePlacementRow {
   instance_id: string
   local_position: unknown
   local_rotation: unknown
   uniform_scale: number
   updated_at: string
-}
-
-interface StabilizePlacementRow extends UpdatePlacementRow {
   stabilized_at: string
 }
 

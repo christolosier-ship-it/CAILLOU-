@@ -92,6 +92,7 @@ function Fixture() {
   const [readyAccessories, setReadyAccessories] = useState<string[]>([])
   const [individualSettled, setIndividualSettled] = useState(0)
   const [selectedWorldDraft, setSelectedWorldDraft] = useState<PlacementTransform | null>(null)
+  const [lastSettledWorld, setLastSettledWorld] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
 
   const selectedAccessoryId = target?.kind === 'accessory' ? target.instanceId : null
   const selectedWorld = useMemo(() => {
@@ -115,6 +116,7 @@ const handleWorldDraft = useCallback((_: string, transform: PlacementTransform) 
   setSelectedWorldDraft(transform)
 }, [])
 const handleIndividualSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
+  setLastSettledWorld({ instanceId, transform })
   const local = worldAccessoryToPersistence(instanceId, transform, pose)
   setInstances((current) => current.map((instance) => instance.id === instanceId
     ? { ...instance, ...local, stabilizedAt: '2026-09-02T08:30:00.000Z' }
@@ -254,6 +256,10 @@ const handleComposition = useCallback((world: SettledWorldComposition) => {
         data-selected-world-rotation={JSON.stringify(selectedWorld?.worldRotation ?? null)}
         data-selected-scale={String(selectedWorld?.uniformScale ?? 0)}
         data-individual-settled={String(individualSettled)}
+        data-last-settled-instance={lastSettledWorld?.instanceId ?? ''}
+        data-last-settled-world-position={JSON.stringify(lastSettledWorld?.transform.position ?? null)}
+        data-last-settled-world-rotation={JSON.stringify(lastSettledWorld?.transform.rotation ?? null)}
+        data-last-settled-scale={String(lastSettledWorld?.transform.scale ?? 0)}
         data-global-settled={String(settled !== null)}
         data-global-settled-rock-position={JSON.stringify(settled?.rockPose.position ?? null)}
         data-global-settled-rock-rotation={JSON.stringify(settled?.rockPose.rotation ?? null)}

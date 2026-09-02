@@ -5,6 +5,8 @@ const baseUrl = process.env.CAILLOU_E2E_BASE_URL ?? 'http://127.0.0.1:4181'
 const chromePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome'
 const outputDir = 'build/placement-unified-validation'
 const GROUND_Y = -0.02
+const PEDESTAL_HALF_SIZE = 2.75
+const PEDESTAL_EPSILON = 0.006
 await mkdir(outputDir, { recursive: true })
 
 function identityMatrix() {
@@ -159,28 +161,62 @@ async function loadGlbPositionPoints(url) {
 const ROCK_018_SUPPORT_POINTS = await loadGlbPositionPoints(`${baseUrl}/assets/rocks/rock-018/model.glb`)
 const MONOCLE_SUPPORT_POINTS = await loadGlbPositionPoints(`${baseUrl}/assets/accessories/monocle/model.glb`)
 
-function minimumWorldY(supportPoints, position, rotation, scale = 1) {
+
+function worldSupportBounds(supportPoints, position, rotation, scale = 1) {
   const length = Math.hypot(...rotation)
-  const [x, y, z, w] = length > 0.000001 ? rotation.map((value) => value / length) : [0, 0, 0, 1]
-  let minimum = Number.POSITIVE_INFINITY
-  for (const [sourceX, sourceY, sourceZ] of supportPoints) {
-    const px = sourceX * scale
-    const py = sourceY * scale
-    const pz = sourceZ * scale
-    const rotatedY = 2 * (x * y + z * w) * px
-      + (1 - 2 * (x * x + z * z)) * py
-      + 2 * (y * z - x * w) * pz
-    minimum = Math.min(minimum, position[1] + rotatedY)
+  const [qx, qy, qz, qw] = length > 0.000001 ? rotation.map((value) => value / length) : [0, 0, 0, 1]
+  const bounds = {
+    minX: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    minZ: Number.POSITIVE_INFINITY,
+    maxZ: Number.NEGATIVE_INFINITY,
   }
-  return minimum
+  for (const [sourceX, sourceY, sourceZ] of supportPoints) {
+    const x = sourceX * scale
+    const y = sourceY * scale
+    const z = sourceZ * scale
+    const rotatedX = (1 - 2 * (qy * qy + qz * qz)) * x + 2 * (qx * qy - qz * qw) * y + 2 * (qx * qz + qy * qw) * z
+    const rotatedY = 2 * (qx * qy + qz * qw) * x + (1 - 2 * (qx * qx + qz * qz)) * y + 2 * (qy * qz - qx * qw) * z
+    const rotatedZ = 2 * (qx * qz - qy * qw) * x + 2 * (qy * qz + qx * qw) * y + (1 - 2 * (qx * qx + qy * qy)) * z
+    bounds.minX = Math.min(bounds.minX, position[0] + rotatedX)
+    bounds.maxX = Math.max(bounds.maxX, position[0] + rotatedX)
+    bounds.minY = Math.min(bounds.minY, position[1] + rotatedY)
+    bounds.minZ = Math.min(bounds.minZ, position[2] + rotatedZ)
+    bounds.maxZ = Math.max(bounds.maxZ, position[2] + rotatedZ)
+  }
+  return bounds
 }
 
-function assertAboveGround(label, supportPoints, position, rotation, scale = 1) {
+function assertInsidePedestal(label, supportPoints, position, rotation, scale = 1) {
   if (!Array.isArray(position) || !Array.isArray(rotation)) throw new Error(`${label}: missing world transform`)
-  const minimum = minimumWorldY(supportPoints, position, rotation, scale)
-  if (minimum < GROUND_Y - 0.004) {
-    throw new Error(`${label}: geometry crossed hard ground boundary (minY=${minimum}, position=${JSON.stringify(position)}, rotation=${JSON.stringify(rotation)}, scale=${scale})`)
+  const bounds = worldSupportBounds(supportPoints, position, rotation, scale)
+  if (bounds.minY < GROUND_Y - PEDESTAL_EPSILON
+    || bounds.minX < -PEDESTAL_HALF_SIZE - PEDESTAL_EPSILON
+    || bounds.maxX > PEDESTAL_HALF_SIZE + PEDESTAL_EPSILON
+    || bounds.minZ < -PEDESTAL_HALF_SIZE - PEDESTAL_EPSILON
+    || bounds.maxZ > PEDESTAL_HALF_SIZE + PEDESTAL_EPSILON) {
+    throw new Error(`${label}: geometry escaped finite pedestal ${JSON.stringify(bounds)}`)
   }
+}
+
+function assertVectorClose(label, actual, expected, epsilon = 0.008) {
+  if (!Array.isArray(actual) || !Array.isArray(expected) || actual.length !== expected.length) {
+    throw new Error(`${label}: missing comparable vectors`)
+  }
+  if (actual.some((value, index) => Math.abs(value - expected[index]) > epsilon)) {
+    throw new Error(`${label}: ${JSON.stringify(actual)} != ${JSON.stringify(expected)}`)
+  }
+}
+
+function assertQuaternionEquivalent(label, actual, expected, epsilon = 0.008) {
+  if (!Array.isArray(actual) || !Array.isArray(expected) || actual.length !== 4 || expected.length !== 4) {
+    throw new Error(`${label}: missing comparable quaternions`)
+  }
+  const actualLength = Math.hypot(...actual)
+  const expectedLength = Math.hypot(...expected)
+  const dot = actual.reduce((sum, value, index) => sum + value / actualLength * expected[index] / expectedLength, 0)
+  if (1 - Math.abs(dot) > epsilon) throw new Error(`${label}: quaternion drift ${dot}`)
 }
 
 const browser = await puppeteer.launch({
@@ -221,6 +257,10 @@ async function state() {
     selectedWorldRotation: JSON.parse(element.getAttribute('data-selected-world-rotation') ?? 'null'),
     selectedScale: Number(element.getAttribute('data-selected-scale') ?? 0),
     individualSettled: Number(element.getAttribute('data-individual-settled') ?? 0),
+    lastSettledInstance: element.getAttribute('data-last-settled-instance') ?? '',
+    lastSettledWorldPosition: JSON.parse(element.getAttribute('data-last-settled-world-position') ?? 'null'),
+    lastSettledWorldRotation: JSON.parse(element.getAttribute('data-last-settled-world-rotation') ?? 'null'),
+    lastSettledScale: Number(element.getAttribute('data-last-settled-scale') ?? 0),
     globalSettled: element.getAttribute('data-global-settled') === 'true',
     globalRockPosition: JSON.parse(element.getAttribute('data-global-settled-rock-position') ?? 'null'),
     globalRockRotation: JSON.parse(element.getAttribute('data-global-settled-rock-rotation') ?? 'null'),
@@ -254,6 +294,31 @@ async function dispatchPinch(multiplier = 1.35) {
     canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 181, clientX: cx - finalHalf, clientY: cy, buttons: 0 }))
     canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 182, clientX: cx + finalHalf, clientY: cy, buttons: 0 }))
   }, multiplier)
+}
+
+
+async function dispatchTwist(radians = 0.55) {
+  await page.$eval('.pedestal-stage canvas', (canvas, angle) => {
+    const rect = canvas.getBoundingClientRect()
+    const cx = rect.left + rect.width * 0.24
+    const cy = rect.top + rect.height * 0.2
+    const radius = 34
+    const common = { pointerType: 'touch', bubbles: true, cancelable: true, buttons: 1 }
+    const start = [
+      [cx - radius, cy],
+      [cx + radius, cy],
+    ]
+    const final = [
+      [cx - Math.cos(angle) * radius, cy - Math.sin(angle) * radius],
+      [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius],
+    ]
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, pointerId: 191, clientX: start[0][0], clientY: start[0][1] }))
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, pointerId: 192, clientX: start[1][0], clientY: start[1][1] }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...common, pointerId: 191, clientX: final[0][0], clientY: final[0][1] }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...common, pointerId: 192, clientX: final[1][0], clientY: final[1][1] }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 191, clientX: final[0][0], clientY: final[0][1], buttons: 0 }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 192, clientX: final[1][0], clientY: final[1][1], buttons: 0 }))
+  }, radians)
 }
 
 try {
@@ -302,9 +367,16 @@ try {
     return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, beforeRockMove.rockPosition)
 
+
+for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
+  await dispatchSinglePointer(dx, dy, 0.2, 0.2)
+  const boundedRock = await state()
+  assertInsidePedestal('rock four-border stress', ROCK_018_SUPPORT_POINTS, boundedRock.rockPosition, boundedRock.rockRotation)
+}
+
   for (let index = 0; index < 5; index += 1) await dispatchSinglePointer(0, 540, 0.13, 0.14)
   const rockFlooredDuringPosition = await state()
-  assertAboveGround('during rock position', ROCK_018_SUPPORT_POINTS, rockFlooredDuringPosition.rockPosition, rockFlooredDuringPosition.rockRotation)
+  assertInsidePedestal('during rock position', ROCK_018_SUPPORT_POINTS, rockFlooredDuringPosition.rockPosition, rockFlooredDuringPosition.rockRotation)
 
   await page.click('.placement-tools button:nth-child(2)')
   await dispatchSinglePointer(54, 34, 0.82, 0.2)
@@ -313,7 +385,17 @@ try {
     return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, rockFlooredDuringPosition.rockRotation)
   const rockFlooredDuringOrientation = await state()
-  assertAboveGround('during rock orientation', ROCK_018_SUPPORT_POINTS, rockFlooredDuringOrientation.rockPosition, rockFlooredDuringOrientation.rockRotation)
+  assertInsidePedestal('during rock orientation', ROCK_018_SUPPORT_POINTS, rockFlooredDuringOrientation.rockPosition, rockFlooredDuringOrientation.rockRotation)
+
+
+const beforeRockTwist = rockFlooredDuringOrientation.rockRotation
+await dispatchTwist(0.62)
+await page.waitForFunction((before) => {
+  const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-rock-rotation') ?? '[0,0,0,1]')
+  return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+}, {}, beforeRockTwist)
+const rockAfterTwist = await state()
+assertInsidePedestal('during rock two-finger twist', ROCK_018_SUPPORT_POINTS, rockAfterTwist.rockPosition, rockAfterTwist.rockRotation)
 
   await page.click('.placement-panel-heading > button')
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'orbit', { timeout: 15_000 })
@@ -322,10 +404,15 @@ try {
   if (!Array.isArray(rockAfterRapier.globalRockPosition) || !Array.isArray(rockAfterRapier.globalRockRotation)) {
     throw new Error('global rock settlement was not reported')
   }
-  assertAboveGround('after rock Rapier settlement', ROCK_018_SUPPORT_POINTS, rockAfterRapier.globalRockPosition, rockAfterRapier.globalRockRotation)
+  assertInsidePedestal('after rock Rapier settlement', ROCK_018_SUPPORT_POINTS, rockAfterRapier.globalRockPosition, rockAfterRapier.globalRockRotation)
 
   await page.$eval('#reopen-placement', (button) => button.click())
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
+
+const reopenedRock = await state()
+assertVectorClose('rock persisted position rehydration', reopenedRock.rockPosition, rockAfterRapier.globalRockPosition)
+assertQuaternionEquivalent('rock persisted rotation rehydration', reopenedRock.rockRotation, rockAfterRapier.globalRockRotation)
+
   await page.click('.placement-targets > button:nth-child(2)')
   await page.waitForFunction(() => (document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') ?? '').includes('000000000001'))
   const beforeAccessory = await state()
@@ -335,9 +422,16 @@ try {
     return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, beforeAccessory.selectedWorldPosition)
 
+
+for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
+  await dispatchSinglePointer(dx, dy, 0.18, 0.18)
+  const boundedAccessory = await state()
+  assertInsidePedestal('accessory four-border stress', MONOCLE_SUPPORT_POINTS, boundedAccessory.selectedWorldPosition, boundedAccessory.selectedWorldRotation, boundedAccessory.selectedScale)
+}
+
   for (let index = 0; index < 4; index += 1) await dispatchSinglePointer(0, 520, 0.12, 0.12)
   const floored = await state()
-  assertAboveGround(
+  assertInsidePedestal(
     'during accessory position',
     MONOCLE_SUPPORT_POINTS,
     floored.selectedWorldPosition,
@@ -351,13 +445,24 @@ try {
   await page.waitForFunction((before) => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-scale') ?? 0) > before + 0.01, {}, beforeScale)
   const scaled = await state()
   if (scaled.selectedScale > 1.35 + 0.001) throw new Error(`accessory exceeded scaleMax: ${scaled.selectedScale}`)
-  assertAboveGround(
+  assertInsidePedestal(
     'during accessory scale',
     MONOCLE_SUPPORT_POINTS,
     scaled.selectedWorldPosition,
     scaled.selectedWorldRotation,
     scaled.selectedScale,
   )
+
+
+await page.click('.placement-tools button:nth-child(2)')
+const beforeAccessoryTwist = (await state()).selectedWorldRotation
+await dispatchTwist(-0.58)
+await page.waitForFunction((before) => {
+  const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-world-rotation') ?? 'null')
+  return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+}, {}, beforeAccessoryTwist)
+const accessoryAfterTwist = await state()
+assertInsidePedestal('during accessory two-finger twist', MONOCLE_SUPPORT_POINTS, accessoryAfterTwist.selectedWorldPosition, accessoryAfterTwist.selectedWorldRotation, accessoryAfterTwist.selectedScale)
 
   await page.click('.placement-owned summary')
   await page.click('.placement-owned-grid button')
@@ -371,6 +476,23 @@ try {
   await page.click('.placement-panel-heading > button')
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'orbit')
   await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-individual-settled') ?? 0) >= 1, { timeout: 12_000 })
+
+
+const settledAccessory = await state()
+if (!settledAccessory.lastSettledInstance || !Array.isArray(settledAccessory.lastSettledWorldPosition) || !Array.isArray(settledAccessory.lastSettledWorldRotation)) {
+  throw new Error('accessory final settled world pose was not captured')
+}
+await page.$eval('#reopen-placement', (button) => button.click())
+await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
+await page.click('.placement-targets > button:last-child')
+await page.waitForFunction((instanceId) => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') === instanceId, {}, settledAccessory.lastSettledInstance)
+const rehydratedAccessory = await state()
+assertVectorClose('accessory persisted position rehydration', rehydratedAccessory.selectedWorldPosition, settledAccessory.lastSettledWorldPosition)
+assertQuaternionEquivalent('accessory persisted rotation rehydration', rehydratedAccessory.selectedWorldRotation, settledAccessory.lastSettledWorldRotation)
+if (Math.abs(rehydratedAccessory.selectedScale - settledAccessory.lastSettledScale) > 0.008) {
+  throw new Error(`accessory persisted scale rehydration drift: ${rehydratedAccessory.selectedScale} != ${settledAccessory.lastSettledScale}`)
+}
+assertInsidePedestal('rehydrated accessory pose', MONOCLE_SUPPORT_POINTS, rehydratedAccessory.selectedWorldPosition, rehydratedAccessory.selectedWorldRotation, rehydratedAccessory.selectedScale)
 
   const targetSizes = await page.$$eval('.placement-panel button, .accessory-shop button', (buttons) => buttons.every((button) => {
     const rect = button.getBoundingClientRect()
@@ -395,12 +517,18 @@ try {
     permitPriceLithons: 1000,
     shopHasNoDirectPlacement: true,
     sharedCanvasPositionGesture: true,
+    fourBorderStressRock: true,
+    fourBorderStressAccessory: true,
     canvasRockOrientation: true,
-    rockHardFloorDuringPlacement: true,
-    rockHardFloorAfterRapier: true,
+    rockTwoFingerTwist: true,
+    rockFinitePedestalDuringPlacement: true,
+    rockFinitePedestalAfterRapier: true,
+    rockPersistenceRehydration: true,
     canvasAccessoryPosition: true,
-    accessoryScale: true,
-    accessoryHardFloor: true,
+    accessoryTwoFingerPinch: true,
+    accessoryTwoFingerTwist: true,
+    accessoryFinitePedestal: true,
+    accessoryPersistenceRehydration: true,
     duplicateOwnedInstances: final.instanceCount === 2,
     individualRapierSettlement: final.individualSettled >= 1,
   }
