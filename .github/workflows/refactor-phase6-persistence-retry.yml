@@ -88,6 +88,11 @@ jobs:
               'unified fixture scene callbacks',
           )'''
           script = script[:bad_start] + robust + script[bad_end:]
+          script = script.replace(
+              '"  const reopenPlacement = useCallback(() => {\\n    setTarget(null)\\n",',
+              '"const reopenPlacement = useCallback(() => {\\n    setTarget(null)\\n",',
+              1,
+          )
 
           exec(compile(script, 'phase6-transform.py', 'exec'))
       - name: Validate phase 6
