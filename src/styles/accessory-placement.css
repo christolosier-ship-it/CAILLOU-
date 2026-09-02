@@ -45,6 +45,11 @@
 .accessory-editor-instances span { overflow: hidden; text-overflow: ellipsis; }
 
 .accessory-editor-hint { margin: 0; color: var(--color-graphite); font-size: .68rem; line-height: 1.4; }
+.accessory-editor-fine { border: 1px solid rgb(52 51 48 / 10%); border-radius: 12px; overflow: clip; }
+.accessory-editor-fine summary { min-height: 44px; display: flex; align-items: center; padding: 0 12px; color: var(--color-graphite); font-size: .7rem; font-weight: 600; cursor: pointer; list-style-position: inside; }
+.accessory-editor-fine[open] summary { border-bottom: 1px solid rgb(52 51 48 / 9%); }
+.accessory-editor-fine > .accessory-editor-control-grid { margin: 8px; }
+.accessory-editor-fine > .accessory-editor-scale { margin: 0 8px 8px; }
 .accessory-editor-control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .accessory-editor fieldset { min-width: 0; display: grid; gap: 4px; margin: 0; padding: 8px; border: 1px solid rgb(52 51 48 / 10%); border-radius: 12px; }
 .accessory-editor legend { padding: 0 5px; color: var(--color-graphite); font-size: .65rem; }
