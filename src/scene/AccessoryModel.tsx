@@ -64,8 +64,7 @@ export function AccessoryModel({
   const [object, setObject] = useState<Object3D | null>(null)
   const [selectionRadius, setSelectionRadius] = useState(0.5)
   const [placementGeometry, setPlacementGeometry] = useState<PlacementGeometry | null>(null)
-  const [simulating, setSimulating] = useState(false)
-  const handledUnsettledTransformRef = useRef<string | null>(null)
+  const reportedRecoveryRef = useRef<string | null>(null)
   const disposedCallbackRef = useRef(onDisposed)
   const loadCallbackRef = useRef(onLoadStateChange)
   const invalidate = useThree((state) => state.invalidate)
@@ -151,6 +150,11 @@ export function AccessoryModel({
     return accessoryLocalToWorld(instance.id, instance, rockPose)
   }, [instance, placementTransform, rockPose])
 
+  const recoveryRequested = instance.stabilizedAt === null
+    && !compositionFrozen
+    && !globalSettling
+    && !settlingRequested
+  const dynamicRecovery = recoveryRequested && physics.enabled && physics.dynamic
   const renderScale = placementTransform?.scale ?? instance.uniformScale
   const world = worldFromInstance()
   const bodyTransform: PlacementTransform = {
@@ -158,13 +162,11 @@ export function AccessoryModel({
     rotation: [...world.worldRotation],
     scale: renderScale,
   }
-  const bodyState: PlacementBodyState = globalSettling
+  const bodyState: PlacementBodyState = globalSettling || settlingRequested || dynamicRecovery
     ? 'settling'
-    : settlingRequested || simulating && physics.dynamic
-      ? 'settling'
-      : compositionFrozen
-        ? 'editing'
-        : 'fixed'
+    : compositionFrozen
+      ? 'editing'
+      : 'fixed'
   const bodyPhysics = useMemo<PlacementBodyPhysicsConfig>(() => ({
     collider: physics.enabled ? physics.collider : 'hull',
     mass: physics.mass,
@@ -182,16 +184,14 @@ export function AccessoryModel({
   }), [globalSettling, physics])
 
   useEffect(() => {
-    if (!object || !placementGeometry || instance.stabilizedAt !== null || compositionFrozen || globalSettling || settlingRequested) return
-    const nextKey = transformKey(instance)
-    if (handledUnsettledTransformRef.current === nextKey) return
-    handledUnsettledTransformRef.current = nextKey
-
-    if (physics.enabled && physics.dynamic) {
-      setSimulating(true)
+    if (!recoveryRequested) {
+      reportedRecoveryRef.current = null
       return
     }
-
+    if (!object || !placementGeometry || dynamicRecovery) return
+    const key = transformKey(instance)
+    if (reportedRecoveryRef.current === key) return
+    reportedRecoveryRef.current = key
     const canonicalWorld = worldFromInstance()
     const safe = constrainTransformToPedestal({
       position: [...canonicalWorld.worldPosition],
@@ -200,29 +200,14 @@ export function AccessoryModel({
     }, placementGeometry)
     onSettledWorld?.(instance.id, safe)
   }, [
-    compositionFrozen,
-    globalSettling,
+    dynamicRecovery,
     instance,
     object,
     onSettledWorld,
-    physics.dynamic,
-    physics.enabled,
     placementGeometry,
-    settlingRequested,
+    recoveryRequested,
     worldFromInstance,
   ])
-
-  useEffect(() => {
-    if (instance.stabilizedAt == null || !simulating || globalSettling) return
-    handledUnsettledTransformRef.current = null
-    setSimulating(false)
-    invalidate()
-  }, [globalSettling, instance.stabilizedAt, invalidate, simulating])
-
-  useEffect(() => {
-    if (!globalSettling) return
-    setSimulating(false)
-  }, [globalSettling])
 
   const handleBodySettled = useCallback((transform: PlacementTransform) => {
     const settledWorld: WorldAccessoryTransform = {
@@ -235,11 +220,9 @@ export function AccessoryModel({
       onGlobalSettled?.(settledWorld)
       return
     }
-    if (!simulating && !settlingRequested) return
+    if (!settlingRequested && !dynamicRecovery) return
     onSettledWorld?.(instance.id, transform)
-    setSimulating(false)
-    invalidate()
-  }, [globalSettling, instance.id, invalidate, onGlobalSettled, onSettledWorld, settlingRequested, simulating])
+  }, [dynamicRecovery, globalSettling, instance.id, onGlobalSettled, onSettledWorld, settlingRequested])
 
   if (!object || !placementGeometry) return null
 

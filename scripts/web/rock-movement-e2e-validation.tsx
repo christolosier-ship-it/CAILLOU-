@@ -54,7 +54,7 @@ const INSTANCE: EquippedAccessoryInstance = {
   uniformScale: 1,
 }
 
-type Mode = 'placement' | 'composition-settle' | 'orbit'
+type Mode = 'placement' | 'settling' | 'orbit'
 
 function Fixture() {
   const [mode, setMode] = useState<Mode>('placement')
@@ -81,7 +81,7 @@ const handleSettled = useCallback((world: SettledWorldComposition) => {
 }, [])
 
   return (
-    <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'composition-settle' ? ' is-composition-settling' : ''}`}>
+    <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'settling' ? ' is-composition-settling' : ''}`}>
       <main className="pedestal-main">
         <section className="pedestal-stage">
           <ShowroomScene
@@ -94,7 +94,7 @@ const handleSettled = useCallback((world: SettledWorldComposition) => {
             rockPose={pose}
             onRockPoseDraft={setPose}
             onCompositionSettled={handleSettled}
-            placementTarget={mode === 'placement' ? ROCK_TARGET : null}
+            placementTarget={mode === 'orbit' ? null : ROCK_TARGET}
             placementTool={tool}
             accessories={[INSTANCE]}
             onAccessoryLoadStateChange={handleAccessoryLoadState}
@@ -102,7 +102,7 @@ const handleSettled = useCallback((world: SettledWorldComposition) => {
           <div className="rock-e2e-controls" style={{ position: 'absolute', zIndex: 30, left: 12, bottom: 12, display: 'flex', gap: 8 }}>
             <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('position') }}>Position</button>
             <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('orientation') }}>Orientation</button>
-            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('composition-settle')}>Lâcher</button>
+            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('settling')}>Lâcher</button>
           </div>
         </section>
       </main>

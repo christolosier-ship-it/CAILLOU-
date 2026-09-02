@@ -376,7 +376,7 @@ try {
     const rect = button.getBoundingClientRect()
     return rect.width === 0 || rect.height === 0 || rect.height >= 44
   }))
-  if (!targetSizes) throw new Error('10.75 has a visible tactile target below 44px')
+  if (!targetSizes) throw new Error('Placement has a visible tactile target below 44px')
 
   await page.screenshot({ path: `${outputDir}/placement-phone.png`, fullPage: true })
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
@@ -406,7 +406,7 @@ try {
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] 10.75 correction E2E PASS: unified gestures + real-geometry hard floor before/after Rapier')
+  console.log('[CAILLOU] Placement harmonisation E2E PASS: one controller + real-geometry pedestal + shared settlement')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

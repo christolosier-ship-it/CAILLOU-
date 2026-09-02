@@ -17,7 +17,6 @@ export interface AccessoryPhysicsConfig {
 
 export const ACCESSORY_WORLD_GRAVITY = [0, -3.4, 0] as const
 export const ACCESSORY_SETTLE_TIMEOUT_MS = 3_500
-export const ACCESSORY_CONTACT_CLEARANCE = 0.018
 
 function record(value: Json | null | undefined): Record<string, Json | undefined> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -57,10 +56,4 @@ export function parseAccessoryPhysics(
     gravityScale: dynamic ? finiteNumber(source.gravityScale, 0.9, 0, 2) : 0,
     ccd: dynamic && source.ccd !== false,
   }
-}
-
-export function isAccessoryTransformWithinPhysicsBounds(position: readonly number[]) {
-  return position.length === 3
-    && position.every((value) => Number.isFinite(value) && Math.abs(value) <= 4)
-    && position[1]! > -3.2
 }

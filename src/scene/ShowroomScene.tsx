@@ -18,14 +18,16 @@ import type { PlacementTarget, PlacementTool, PlacementTransform } from '../feat
 import { normalizePlacementTransform, ROCK_PLACEMENT_SCALE_LIMITS } from '../features/placement/placementTransform'
 import type { PlacementScaleLimits } from '../features/placement/placementTransform'
 import {
-  PEDESTAL_GROUND_CENTER_Y,
-  PEDESTAL_GROUND_COLOR,
-  PEDESTAL_GROUND_FRICTION,
-  PEDESTAL_GROUND_HALF_EXTENTS,
-  PEDESTAL_GROUND_RESTITUTION,
-  PEDESTAL_GROUND_SIZE,
-  PEDESTAL_GROUND_THICKNESS,
-  PEDESTAL_GROUND_Y,
+  PEDESTAL_FLOOR_CENTER_Y,
+  PEDESTAL_FLOOR_COLOR,
+  PEDESTAL_FLOOR_FRICTION,
+  PEDESTAL_FLOOR_HALF_EXTENTS,
+  PEDESTAL_FLOOR_RESTITUTION,
+  PEDESTAL_FLOOR_SIZE,
+  PEDESTAL_FLOOR_THICKNESS,
+  PEDESTAL_FLOOR_TOP_Y,
+} from '../features/placement/pedestalFloor'
+import {
   ROCK_SETTLE_TIMEOUT_MS,
   accessoryLocalToWorld,
   normalizeRockPose,
@@ -41,8 +43,7 @@ export type ShowroomInteractionMode =
   | 'caress'
   | 'cleaning'
   | 'placement'
-  | 'composition-settle'
-  | 'accessory-settle'
+  | 'settling'
 
 interface ShowroomSceneProps {
   rock: RockCatalogEntry
@@ -305,19 +306,19 @@ const ROCK_PLACEMENT_BODY_PHYSICS: PlacementBodyPhysicsConfig = {
   settleLinearVelocityY: -0.03,
 }
 
-function PedestalGround() {
+function PedestalFloor() {
   return (
     <RigidBody
       type="fixed"
       colliders={false}
-      position={[0, PEDESTAL_GROUND_CENTER_Y, 0]}
-      friction={PEDESTAL_GROUND_FRICTION}
-      restitution={PEDESTAL_GROUND_RESTITUTION}
+      position={[0, PEDESTAL_FLOOR_CENTER_Y, 0]}
+      friction={PEDESTAL_FLOOR_FRICTION}
+      restitution={PEDESTAL_FLOOR_RESTITUTION}
     >
-      <CuboidCollider args={PEDESTAL_GROUND_HALF_EXTENTS} />
+      <CuboidCollider args={PEDESTAL_FLOOR_HALF_EXTENTS} />
       <mesh name="CAILLOU_PEDESTAL_FLOOR" receiveShadow>
-        <boxGeometry args={[PEDESTAL_GROUND_SIZE, PEDESTAL_GROUND_THICKNESS, PEDESTAL_GROUND_SIZE]} />
-        <meshStandardMaterial color={PEDESTAL_GROUND_COLOR} roughness={0.96} metalness={0.02} />
+        <boxGeometry args={[PEDESTAL_FLOOR_SIZE, PEDESTAL_FLOOR_THICKNESS, PEDESTAL_FLOOR_SIZE]} />
+        <meshStandardMaterial color={PEDESTAL_FLOOR_COLOR} roughness={0.96} metalness={0.02} />
       </mesh>
     </RigidBody>
   )
@@ -387,9 +388,10 @@ export function ShowroomScene({
   const surfaceMode = interactionMode === 'caress' || interactionMode === 'cleaning'
   const cleaningMode = interactionMode === 'cleaning'
   const placementMode = interactionMode === 'placement'
-  const accessorySettling = interactionMode === 'accessory-settle' && placementTarget?.kind === 'accessory'
+  const settlingMode = interactionMode === 'settling'
+  const accessorySettling = settlingMode && placementTarget?.kind === 'accessory'
   const placementRockTarget = placementMode && placementTarget?.kind === 'rock'
-  const globalSettling = interactionMode === 'composition-settle'
+  const globalSettling = settlingMode && placementTarget?.kind === 'rock'
   const orbitMode = interactionMode === 'orbit'
 
   useEffect(() => {
@@ -546,7 +548,7 @@ const handlePlacementTransformEnd = useCallback((transform: PlacementTransform) 
             updateLoop="independent"
             paused={!object}
           >
-            <PedestalGround />
+            <PedestalFloor />
 
             <group ref={setVisualGroup} position={rockPose.position} quaternion={rockPose.rotation}>
               <RockModel
@@ -623,9 +625,9 @@ const handlePlacementTransformEnd = useCallback((transform: PlacementTransform) 
         {object ? (
           <ContactShadows
             key={`${rock.id}-${retryKey}-shadow`}
-            position={[0, PEDESTAL_GROUND_Y + 0.002, 0]}
+            position={[0, PEDESTAL_FLOOR_TOP_Y + 0.002, 0]}
             opacity={0.3}
-            scale={PEDESTAL_GROUND_SIZE}
+            scale={PEDESTAL_FLOOR_SIZE}
             blur={2.6}
             far={4}
             frames={1}

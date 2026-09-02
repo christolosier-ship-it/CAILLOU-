@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isAccessoryTransformWithinPhysicsBounds, parseAccessoryPhysics } from './accessoryPhysics'
+import { parseAccessoryPhysics } from './accessoryPhysics'
 
 describe('accessory physics contract', () => {
   it('keeps wearable accessories dynamic with safe defaults', () => {
@@ -40,10 +40,4 @@ describe('accessory physics contract', () => {
     expect(config.gravityScale).toBe(2)
   })
 
-  it('rejects transforms that escaped the V1 physics envelope', () => {
-    expect(isAccessoryTransformWithinPhysicsBounds([0, 0, 0])).toBe(true)
-    expect(isAccessoryTransformWithinPhysicsBounds([0, -3.3, 0])).toBe(false)
-    expect(isAccessoryTransformWithinPhysicsBounds([4.01, 0, 0])).toBe(false)
-    expect(isAccessoryTransformWithinPhysicsBounds([Number.NaN, 0, 0])).toBe(false)
-  })
 })

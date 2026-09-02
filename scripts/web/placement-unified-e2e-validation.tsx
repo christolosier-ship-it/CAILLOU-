@@ -80,7 +80,7 @@ function Fixture() {
   const [permitUnlocked, setPermitUnlocked] = useState(false)
   const [balance, setBalance] = useState(1500)
   const [shopOpen, setShopOpen] = useState(false)
-  const [mode, setMode] = useState<'placement' | 'accessory-settle' | 'composition-settle' | 'orbit'>('placement')
+  const [mode, setMode] = useState<'placement' | 'settling' | 'orbit'>('placement')
   const [target, setTarget] = useState<PlacementTarget | null>(null)
   const [tool, setTool] = useState<PlacementTool>('position')
   const [pose, setPose] = useState<RockPose>(INITIAL_POSE)
@@ -124,17 +124,9 @@ const handleIndividualSettled = useCallback((instanceId: string, transform: Plac
   setTarget(null)
   setMode('orbit')
 }, [pose])
+
 const handleDone = useCallback(() => {
-  if (target?.kind === 'rock') {
-    setMode('composition-settle')
-    return
-  }
-  if (target?.kind === 'accessory') {
-    setMode('accessory-settle')
-    return
-  }
-  setTarget(null)
-  setMode('orbit')
+  setMode(target ? 'settling' : 'orbit')
 }, [target])
 const handleComposition = useCallback((world: SettledWorldComposition) => {
   const draft: RockCompositionDraft = worldCompositionToPersistence(world)
@@ -155,7 +147,7 @@ const handleComposition = useCallback((world: SettledWorldComposition) => {
   }, [])
 
   return (
-    <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'composition-settle' ? ' is-composition-settling' : ''}`}>
+    <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'settling' ? ' is-composition-settling' : ''}`}>
       <main className="pedestal-main">
         <section className="pedestal-stage">
           <ShowroomScene

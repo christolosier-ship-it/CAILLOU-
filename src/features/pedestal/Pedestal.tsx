@@ -35,7 +35,7 @@ interface PedestalProps {
   registerCleaningMutation?: RegisterCleaningMutation | undefined
 }
 
-type PedestalMode = 'orbit' | 'caress' | 'cleaning' | 'placement' | 'accessory-settle' | 'composition-settle'
+type PedestalMode = 'orbit' | 'caress' | 'cleaning' | 'placement' | 'settling'
 type ShopFocus = 'default' | 'permit'
 
 interface ActiveSurfaceGesture {
@@ -169,8 +169,9 @@ const {
   const caressMode = mode === 'caress'
   const cleaningMode = mode === 'cleaning'
   const placementMode = mode === 'placement'
-  const accessorySettling = mode === 'accessory-settle'
-  const globalSettling = mode === 'composition-settle'
+  const settlingMode = mode === 'settling'
+  const accessorySettling = settlingMode && placementTarget?.kind === 'accessory'
+  const globalSettling = settlingMode && placementTarget?.kind === 'rock'
   const mutationBlocked = caressPending
     || cleaningPending
     || retryInput !== null
@@ -453,17 +454,10 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
   }, [mutationBlocked, placementTarget])
 
 
+
 const handlePlacementDone = useCallback(() => {
   if (mutationBlocked || mode !== 'placement') return
-  if (placementTarget?.kind === 'rock') {
-    setMode('composition-settle')
-    return
-  }
-  if (placementTarget?.kind === 'accessory') {
-    setMode('accessory-settle')
-    return
-  }
-  setMode('orbit')
+  setMode(placementTarget ? 'settling' : 'orbit')
 }, [mode, mutationBlocked, placementTarget])
 
 
@@ -473,7 +467,7 @@ const handleAccessorySettled = useCallback((instanceId: string, transform: Place
   accessoryPersistenceRef.current.add(instanceId)
   setAccessoryPersistenceCount(accessoryPersistenceRef.current.size)
   setAccessoryRenderError(null)
-  const targetedSettlement = mode === 'accessory-settle'
+  const targetedSettlement = accessorySettling
     && placementTarget?.kind === 'accessory'
     && placementTarget.instanceId === instanceId
 
@@ -514,7 +508,7 @@ const handleAccessorySettled = useCallback((instanceId: string, transform: Place
   acceptStabilizedAccessory,
   accessoryInstances,
   globalSettling,
-  mode,
+  accessorySettling,
   placementTarget,
   refreshAccessoryPlacements,
   rockPose,
@@ -531,7 +525,7 @@ const handleAccessorySettled = useCallback((instanceId: string, transform: Place
 
 
 const handleCompositionSettled = useCallback((composition: SettledWorldComposition) => {
-  if (compositionPending || mode !== 'composition-settle') return
+  if (compositionPending || !globalSettling) return
   setCompositionPending(true)
   setRockMovementError(null)
   void persistRockCompositionWorld({
@@ -570,7 +564,7 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
   acceptComposition,
   activeRock.id,
   compositionPending,
-  mode,
+  globalSettling,
   onServerStateChanged,
   refreshAccessoryPlacements,
 ])

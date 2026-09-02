@@ -4,7 +4,6 @@ import {
   ROCK_MOVEMENT_PRICE_LITHONS,
   accessoryLocalToWorld,
   accessoryWorldToLocal,
-  clampRockPosition,
   parseRockRotation,
 } from './rockMovementRules'
 
@@ -15,17 +14,12 @@ function expectTupleClose(actual: number[], expected: number[]) {
   actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 5))
 }
 
-describe('rock movement rules', () => {
+describe('rock movement persistence-frame rules', () => {
   it('keeps the premium permit price locked at 1000 Lithons', () => {
     expect(ROCK_MOVEMENT_PRICE_LITHONS).toBe(1000)
   })
 
-  it('clamps the manipulation envelope without flattening the Y axis', () => {
-    expect(clampRockPosition([9, 9, -9])).toEqual([2.4, 3.4, -2.4])
-    expect(clampRockPosition([-9, -9, 9])).toEqual([-2.4, -0.25, 2.4])
-  })
-
-  it('normalizes a quaternion', () => {
+  it('normalizes a quaternion without applying a second spatial envelope', () => {
     const rotation = parseRockRotation([0, 0, 2, 2])
     expect(Math.abs(Math.hypot(...rotation) - 1)).toBeLessThan(EPSILON)
   })
@@ -46,8 +40,7 @@ describe('rock movement rules', () => {
 
     expect(roundTrip.instanceId).toBe('instance')
     expectTupleClose(roundTrip.localPosition, local.localPosition)
-    const expectedRotation = parseRockRotation(local.localRotation)
-    expectTupleClose(roundTrip.localRotation, expectedRotation)
+    expectTupleClose(roundTrip.localRotation, parseRockRotation(local.localRotation))
     expect(roundTrip.uniformScale).toBe(local.uniformScale)
   })
 })
