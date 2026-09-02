@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { StabilizedRockComposition } from '../rockMovement/rockMovementTypes'
 import {
@@ -22,13 +22,19 @@ export function useAccessoryPlacements(userRockId: string) {
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(() => new Set())
   const [error, setError] = useState<string | null>(null)
+  const canonicalInstancesRef = useRef<EquippedAccessoryInstance[]>([])
+
+  const replaceCanonical = useCallback((next: EquippedAccessoryInstance[]) => {
+    canonicalInstancesRef.current = next
+    setInstances(next)
+  }, [])
 
   const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const next = await loadAccessoryPlacements(userRockId)
-      setInstances(next)
+      replaceCanonical(next)
       setDirtyIds(new Set())
       return next
     } catch (nextError) {
@@ -37,7 +43,7 @@ export function useAccessoryPlacements(userRockId: string) {
     } finally {
       setLoading(false)
     }
-  }, [userRockId])
+  }, [replaceCanonical, userRockId])
 
   useEffect(() => {
     let active = true
@@ -45,7 +51,9 @@ export function useAccessoryPlacements(userRockId: string) {
     setError(null)
     setDirtyIds(new Set())
     void loadAccessoryPlacements(userRockId).then((next) => {
-      if (active) setInstances(next)
+      if (!active) return
+      canonicalInstancesRef.current = next
+      setInstances(next)
     }).catch((nextError) => {
       if (active) setError(nextError instanceof Error ? nextError.message : 'Les placements n’ont pas pu être relus.')
     }).finally(() => {
@@ -71,6 +79,7 @@ export function useAccessoryPlacements(userRockId: string) {
         eventKey: crypto.randomUUID(),
         transform: defaultAccessoryTransform(accessory, instances.length),
       })
+      canonicalInstancesRef.current = [...canonicalInstancesRef.current, created]
       setInstances((current) => [...current, created])
       return created
     } catch (nextError) {
@@ -86,7 +95,7 @@ export function useAccessoryPlacements(userRockId: string) {
     if (!currentInstance || pendingId) return
     const nextTransform = clampAccessoryTransform(transform, currentInstance.scaleMin, currentInstance.scaleMax)
     setInstances((current) => current.map((instance) => instance.id === instanceId
-      ? { ...instance, ...nextTransform, physicsSettled: undefined }
+      ? { ...instance, ...nextTransform, stabilizedAt: null, physicsSettled: undefined }
       : instance))
     setDirtyIds((current) => {
       const next = new Set(current)
@@ -98,49 +107,18 @@ export function useAccessoryPlacements(userRockId: string) {
 
   const commitDrafts = useCallback(async () => {
     if (pendingId) return false
-    const dirty = instances.filter((instance) => dirtyIds.has(instance.id))
-    if (dirty.length === 0) return true
+    if (dirtyIds.size === 0) return true
 
-    setPendingId('accessory-edit')
+    // 10.75 correction: a placement draft remains strictly local until Rapier
+    // has produced the final pose. Leaving Placement only arms the dynamic
+    // settlement; no intermediate transform is written to Supabase here.
+    setInstances((current) => current.map((instance) => dirtyIds.has(instance.id)
+      ? { ...instance, stabilizedAt: null, physicsSettled: undefined }
+      : instance))
+    setDirtyIds(new Set())
     setError(null)
-    try {
-      const confirmed = new Map<string, Awaited<ReturnType<typeof updateAccessoryPlacement>>>()
-      for (const instance of dirty) {
-        const result = await updateAccessoryPlacement({
-          instanceId: instance.id,
-          transform: {
-            localPosition: instance.localPosition,
-            localRotation: instance.localRotation,
-            uniformScale: instance.uniformScale,
-          },
-        })
-        confirmed.set(instance.id, result)
-      }
-
-      setInstances((current) => current.map((instance) => {
-        const result = confirmed.get(instance.id)
-        return result
-          ? { ...instance, ...result, stabilizedAt: null, physicsSettled: undefined }
-          : instance
-      }))
-      setDirtyIds(new Set())
-      return true
-    } catch (nextError) {
-      try {
-        const canonical = await loadAccessoryPlacements(userRockId)
-        setInstances(canonical)
-        setDirtyIds(new Set())
-      } catch {
-        // Keep the visible draft if the canonical reread is also unavailable.
-      }
-      setError(nextError instanceof Error
-        ? `${nextError.message} La session d’édition reste ouverte.`
-        : 'Le brouillon n’a pas pu être confirmé ; la session d’édition reste ouverte.')
-      return false
-    } finally {
-      setPendingId(null)
-    }
-  }, [dirtyIds, instances, pendingId, userRockId])
+    return true
+  }, [dirtyIds, pendingId])
 
   const update = useCallback(async (instanceId: string, transform: AccessoryTransform) => {
     if (pendingId) return
@@ -155,15 +133,13 @@ export function useAccessoryPlacements(userRockId: string) {
     try {
       if (!physicallySettled) {
         const result = await updateAccessoryPlacement({ instanceId, transform: nextTransform })
-        setInstances((current) => current.map((instance) => instance.id === instanceId
-          ? { ...instance, ...result, stabilizedAt: null, physicsSettled: undefined }
-          : instance))
+        const nextInstance = { ...currentInstance, ...result, stabilizedAt: null, physicsSettled: undefined }
+        canonicalInstancesRef.current = canonicalInstancesRef.current.map((instance) => instance.id === instanceId
+          ? nextInstance
+          : instance)
+        setInstances((current) => current.map((instance) => instance.id === instanceId ? nextInstance : instance))
         return
       }
-
-      setInstances((current) => current.map((instance) => instance.id === instanceId
-        ? { ...instance, ...nextTransform }
-        : instance))
 
       const input = { instanceId, transform: nextTransform, eventKey: crypto.randomUUID() }
       let result
@@ -174,11 +150,21 @@ export function useAccessoryPlacements(userRockId: string) {
         result = await stabilizeAccessoryPlacement(input)
       }
 
-      setInstances((current) => current.map((instance) => instance.id === instanceId
-        ? { ...instance, ...result, physicsSettled: undefined }
-        : instance))
+      const nextInstance = { ...currentInstance, ...result, physicsSettled: undefined }
+      canonicalInstancesRef.current = canonicalInstancesRef.current.map((instance) => instance.id === instanceId
+        ? nextInstance
+        : instance)
+      setInstances((current) => current.map((instance) => instance.id === instanceId ? nextInstance : instance))
+      setDirtyIds((current) => {
+        const next = new Set(current)
+        next.delete(instanceId)
+        return next
+      })
     } catch (nextError) {
-      setInstances((current) => current.map((instance) => instance.id === instanceId ? currentInstance : instance))
+      const canonical = canonicalInstancesRef.current.find((instance) => instance.id === instanceId)
+      if (canonical) {
+        setInstances((current) => current.map((instance) => instance.id === instanceId ? canonical : instance))
+      }
       setError(nextError instanceof Error
         ? `${nextError.message} Le dernier état serveur connu a été restauré.`
         : 'La pose n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
@@ -189,16 +175,25 @@ export function useAccessoryPlacements(userRockId: string) {
 
   const acceptComposition = useCallback((composition: StabilizedRockComposition) => {
     const settled = new Map(composition.accessories.map((item) => [item.instanceId, item]))
-    setInstances((current) => current.map((instance) => {
-      const transform = settled.get(instance.id)
-      return transform ? {
-        ...instance,
-        ...transform,
-        stabilizedAt: composition.stabilizedAt,
-        updatedAt: composition.stabilizedAt,
-        physicsSettled: undefined,
-      } : instance
-    }))
+    let nextCanonical: EquippedAccessoryInstance[] = []
+    setInstances((current) => {
+      nextCanonical = current.map((instance) => {
+        const transform = settled.get(instance.id)
+        return transform ? {
+          ...instance,
+          ...transform,
+          stabilizedAt: composition.stabilizedAt,
+          updatedAt: composition.stabilizedAt,
+          physicsSettled: undefined,
+        } : instance
+      })
+      return nextCanonical
+    })
+    queueMicrotask(() => {
+      if (nextCanonical.length > 0 || canonicalInstancesRef.current.length === 0) {
+        canonicalInstancesRef.current = nextCanonical
+      }
+    })
     setDirtyIds(new Set())
     setError(null)
   }, [])
@@ -209,6 +204,7 @@ export function useAccessoryPlacements(userRockId: string) {
     setError(null)
     try {
       await removeAccessoryPlacement({ instanceId, eventKey: crypto.randomUUID() })
+      canonicalInstancesRef.current = canonicalInstancesRef.current.filter((instance) => instance.id !== instanceId)
       setInstances((current) => current.filter((instance) => instance.id !== instanceId))
       setDirtyIds((current) => {
         const next = new Set(current)
