@@ -10,6 +10,8 @@ import {
 import type { Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
+import { createPlacementGeometry } from '../features/placement/placementGeometry'
+import type { PlacementGeometry } from '../features/placement/placementGeometry'
 import { disposeRockObject } from './rockResources'
 
 export type RockLoadState = 'loading' | 'ready' | 'error'
@@ -31,6 +33,7 @@ interface RockModelProps {
   cleaningActive?: boolean
   onLoadStateChange?: ((state: RockLoadState, message?: string) => void) | undefined
   onObjectReady?: ((object: Object3D | null) => void) | undefined
+  onPlacementGeometryReady?: ((geometry: PlacementGeometry | null) => void) | undefined
   onSurfacePointerDown?: ((sample: RockSurfacePointerSample) => void) | undefined
   onSurfacePointerMove?: ((sample: RockSurfacePointerSample) => void) | undefined
   onSurfacePointerUp?: ((sample: RockSurfacePointerSample) => void) | undefined
@@ -129,6 +132,7 @@ export function RockModel({
   cleaningActive = false,
   onLoadStateChange,
   onObjectReady,
+  onPlacementGeometryReady,
   onSurfacePointerDown,
   onSurfacePointerMove,
   onSurfacePointerUp,
@@ -146,6 +150,7 @@ export function RockModel({
 
     onLoadStateChange?.('loading')
     onObjectReady?.(null)
+    onPlacementGeometryReady?.(null)
 
     async function load() {
       try {
@@ -159,6 +164,7 @@ export function RockModel({
         const resourcePath = assetUrl.href.slice(0, assetUrl.href.lastIndexOf('/') + 1)
         const gltf = await loader.parseAsync(buffer, resourcePath)
         loadedObject = gltf.scene
+        const placementGeometry = createPlacementGeometry(loadedObject)
 
         loadedObject.traverse((child) => {
           if (!(child instanceof Mesh)) return
@@ -174,6 +180,7 @@ export function RockModel({
 
         setObject(loadedObject)
         onObjectReady?.(loadedObject)
+        onPlacementGeometryReady?.(placementGeometry)
         onLoadStateChange?.('ready')
       } catch (error) {
         if (!active || controller.signal.aborted) return
@@ -188,9 +195,10 @@ export function RockModel({
       active = false
       controller.abort()
       onObjectReady?.(null)
+      onPlacementGeometryReady?.(null)
       if (loadedObject) disposeRockObject(loadedObject)
     }
-  }, [onLoadStateChange, onObjectReady, path])
+  }, [onLoadStateChange, onObjectReady, onPlacementGeometryReady, path])
 
   useEffect(() => {
     if (!object || dustAmount <= 0) {

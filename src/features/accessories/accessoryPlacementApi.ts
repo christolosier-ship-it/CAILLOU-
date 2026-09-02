@@ -8,8 +8,6 @@ import type {
   RemoveAccessoryPlacementInput,
   StabilizeAccessoryPlacementInput,
   StabilizeAccessoryPlacementResult,
-  UpdateAccessoryPlacementInput,
-  UpdateAccessoryPlacementResult,
 } from './accessoryTypes'
 
 interface PlacementRpcError {
@@ -51,15 +49,12 @@ interface CreatePlacementRow {
   updated_at: string
 }
 
-interface UpdatePlacementRow {
+interface StabilizePlacementRow {
   instance_id: string
   local_position: unknown
   local_rotation: unknown
   uniform_scale: number
   updated_at: string
-}
-
-interface StabilizePlacementRow extends UpdatePlacementRow {
   stabilized_at: string
 }
 
@@ -203,27 +198,6 @@ export async function createAccessoryPlacement(
     equippedAt: row.equipped_at,
     updatedAt: row.updated_at,
     stabilizedAt: null,
-    ...parseTransform(row),
-  }
-}
-
-export async function updateAccessoryPlacement(
-  input: UpdateAccessoryPlacementInput,
-): Promise<UpdateAccessoryPlacementResult> {
-  const { data, error } = await placementRpc('update_equipped_accessory', {
-    p_instance_id: input.instanceId,
-    p_local_position: input.transform.localPosition,
-    p_local_rotation: input.transform.localRotation,
-    p_uniform_scale: input.transform.uniformScale,
-  }).single()
-
-  if (error) throw toAccessoryPlacementError(error)
-  if (!data) throw new AccessoryPlacementError('Le registre n’a retourné aucun transform.', 'unknown', true)
-
-  const row = data as UpdatePlacementRow
-  return {
-    instanceId: row.instance_id,
-    updatedAt: row.updated_at,
     ...parseTransform(row),
   }
 }

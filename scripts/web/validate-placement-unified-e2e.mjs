@@ -5,36 +5,218 @@ const baseUrl = process.env.CAILLOU_E2E_BASE_URL ?? 'http://127.0.0.1:4181'
 const chromePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome'
 const outputDir = 'build/placement-unified-validation'
 const GROUND_Y = -0.02
-// The production catalogue stores bounds before the export-axis remap. The GLB
-// runtime used by Three.js exposes X unchanged, exported Z as Y, and -Y as Z.
-const ROCK_018_BOUNDS = {
-  min: [-0.9306801557540894, 0, -1.0000003576278687],
-  max: [0.930679976940155, 1.3231968879699707, 0.9999995827674866],
-}
+const PEDESTAL_HALF_SIZE = 2.75
+const PEDESTAL_EPSILON = 0.006
 await mkdir(outputDir, { recursive: true })
 
-function rockMinimumWorldY(position, rotation) {
-  const length = Math.hypot(...rotation)
-  const [x, y, z, w] = length > 0.000001 ? rotation.map((value) => value / length) : [0, 0, 0, 1]
-  let minimum = Number.POSITIVE_INFINITY
-  for (const px of [ROCK_018_BOUNDS.min[0], ROCK_018_BOUNDS.max[0]]) {
-    for (const py of [ROCK_018_BOUNDS.min[1], ROCK_018_BOUNDS.max[1]]) {
-      for (const pz of [ROCK_018_BOUNDS.min[2], ROCK_018_BOUNDS.max[2]]) {
-        const rotatedY = 2 * (x * y + z * w) * px
-          + (1 - 2 * (x * x + z * z)) * py
-          + 2 * (y * z - x * w) * pz
-        minimum = Math.min(minimum, position[1] + rotatedY)
+function identityMatrix() {
+  return [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1,
+  ]
+}
+
+function multiplyMatrices(left, right) {
+  const output = new Array(16).fill(0)
+  for (let column = 0; column < 4; column += 1) {
+    for (let row = 0; row < 4; row += 1) {
+      for (let index = 0; index < 4; index += 1) {
+        output[column * 4 + row] += left[index * 4 + row] * right[column * 4 + index]
       }
     }
   }
-  return minimum
+  return output
 }
 
-function assertRockAboveGround(label, position, rotation) {
-  const minimum = rockMinimumWorldY(position, rotation)
-  if (minimum < GROUND_Y - 0.004) {
-    throw new Error(`${label}: rock crossed hard ground boundary (minY=${minimum}, position=${JSON.stringify(position)}, rotation=${JSON.stringify(rotation)})`)
+function matrixFromNode(node) {
+  if (Array.isArray(node.matrix) && node.matrix.length === 16) return [...node.matrix]
+
+  const [tx, ty, tz] = node.translation ?? [0, 0, 0]
+  const [rawX, rawY, rawZ, rawW] = node.rotation ?? [0, 0, 0, 1]
+  const [sx, sy, sz] = node.scale ?? [1, 1, 1]
+  const length = Math.hypot(rawX, rawY, rawZ, rawW)
+  const [x, y, z, w] = length > 0.000001
+    ? [rawX / length, rawY / length, rawZ / length, rawW / length]
+    : [0, 0, 0, 1]
+
+  return [
+    (1 - 2 * (y * y + z * z)) * sx,
+    2 * (x * y + z * w) * sx,
+    2 * (x * z - y * w) * sx,
+    0,
+    2 * (x * y - z * w) * sy,
+    (1 - 2 * (x * x + z * z)) * sy,
+    2 * (y * z + x * w) * sy,
+    0,
+    2 * (x * z + y * w) * sz,
+    2 * (y * z - x * w) * sz,
+    (1 - 2 * (x * x + y * y)) * sz,
+    0,
+    tx,
+    ty,
+    tz,
+    1,
+  ]
+}
+
+function transformPoint(point, matrix) {
+  const [x, y, z] = point
+  const transformedW = matrix[3] * x + matrix[7] * y + matrix[11] * z + matrix[15]
+  const reciprocalW = transformedW && Math.abs(transformedW - 1) > 0.000001 ? 1 / transformedW : 1
+  return [
+    (matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12]) * reciprocalW,
+    (matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13]) * reciprocalW,
+    (matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14]) * reciprocalW,
+  ]
+}
+
+async function loadGlbPositionPoints(url) {
+  const response = await fetch(url)
+  if (!response.ok) throw new Error(`unable to load GLB support geometry: HTTP ${response.status}`)
+
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  if (view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) {
+    throw new Error('fixture asset is not a supported glTF 2.0 binary')
   }
+
+  let offset = 12
+  let document = null
+  let binaryOffset = -1
+  let binaryLength = 0
+  while (offset + 8 <= bytes.byteLength) {
+    const chunkLength = view.getUint32(offset, true)
+    const chunkType = view.getUint32(offset + 4, true)
+    const chunkOffset = offset + 8
+    if (chunkType === 0x4e4f534a) {
+      const json = new TextDecoder().decode(bytes.subarray(chunkOffset, chunkOffset + chunkLength))
+        .replaceAll(String.fromCharCode(0), '')
+        .trim()
+      document = JSON.parse(json)
+    } else if (chunkType === 0x004e4942) {
+      binaryOffset = chunkOffset
+      binaryLength = chunkLength
+    }
+    offset = chunkOffset + chunkLength
+  }
+
+  if (!document || binaryOffset < 0) throw new Error('fixture GLB is missing JSON or BIN chunks')
+
+  const pointsByMesh = (document.meshes ?? []).map((mesh) => {
+    const points = []
+    for (const primitive of mesh.primitives ?? []) {
+      const accessorIndex = primitive.attributes?.POSITION
+      if (accessorIndex === undefined) continue
+      const accessor = document.accessors?.[accessorIndex]
+      if (!accessor || accessor.componentType !== 5126 || accessor.type !== 'VEC3') {
+        throw new Error('fixture POSITION accessor must remain FLOAT VEC3')
+      }
+      const bufferView = document.bufferViews?.[accessor.bufferView]
+      if (!bufferView || (bufferView.buffer ?? 0) !== 0) throw new Error('fixture POSITION must use the embedded GLB buffer')
+
+      const stride = bufferView.byteStride ?? 12
+      const firstByte = binaryOffset + (bufferView.byteOffset ?? 0) + (accessor.byteOffset ?? 0)
+      const lastByte = firstByte + Math.max(0, accessor.count - 1) * stride + 12
+      if (lastByte > binaryOffset + binaryLength) throw new Error('fixture POSITION accessor exceeds the GLB BIN chunk')
+
+      for (let index = 0; index < accessor.count; index += 1) {
+        const pointOffset = firstByte + index * stride
+        const point = [
+          view.getFloat32(pointOffset, true),
+          view.getFloat32(pointOffset + 4, true),
+          view.getFloat32(pointOffset + 8, true),
+        ]
+        if (point.every(Number.isFinite)) points.push(point)
+      }
+    }
+    return points
+  })
+
+  const transformedPoints = []
+  const nodes = document.nodes ?? []
+  const childIndexes = new Set(nodes.flatMap((node) => node.children ?? []))
+  const sceneRoots = document.scenes?.[document.scene ?? 0]?.nodes
+  const rootIndexes = sceneRoots ?? nodes.map((_, index) => index).filter((index) => !childIndexes.has(index))
+
+  const visit = (nodeIndex, parentMatrix) => {
+    const node = nodes[nodeIndex]
+    if (!node) return
+    const worldMatrix = multiplyMatrices(parentMatrix, matrixFromNode(node))
+    if (node.mesh !== undefined) {
+      for (const point of pointsByMesh[node.mesh] ?? []) transformedPoints.push(transformPoint(point, worldMatrix))
+    }
+    for (const childIndex of node.children ?? []) visit(childIndex, worldMatrix)
+  }
+
+  for (const rootIndex of rootIndexes) visit(rootIndex, identityMatrix())
+  if (transformedPoints.length === 0) {
+    for (const meshPoints of pointsByMesh) transformedPoints.push(...meshPoints)
+  }
+  if (transformedPoints.length === 0) throw new Error('fixture GLB has no usable POSITION vertices')
+  return transformedPoints
+}
+
+const ROCK_018_SUPPORT_POINTS = await loadGlbPositionPoints(`${baseUrl}/assets/rocks/rock-018/model.glb`)
+const MONOCLE_SUPPORT_POINTS = await loadGlbPositionPoints(`${baseUrl}/assets/accessories/monocle/model.glb`)
+
+
+function worldSupportBounds(supportPoints, position, rotation, scale = 1) {
+  const length = Math.hypot(...rotation)
+  const [qx, qy, qz, qw] = length > 0.000001 ? rotation.map((value) => value / length) : [0, 0, 0, 1]
+  const bounds = {
+    minX: Number.POSITIVE_INFINITY,
+    maxX: Number.NEGATIVE_INFINITY,
+    minY: Number.POSITIVE_INFINITY,
+    minZ: Number.POSITIVE_INFINITY,
+    maxZ: Number.NEGATIVE_INFINITY,
+  }
+  for (const [sourceX, sourceY, sourceZ] of supportPoints) {
+    const x = sourceX * scale
+    const y = sourceY * scale
+    const z = sourceZ * scale
+    const rotatedX = (1 - 2 * (qy * qy + qz * qz)) * x + 2 * (qx * qy - qz * qw) * y + 2 * (qx * qz + qy * qw) * z
+    const rotatedY = 2 * (qx * qy + qz * qw) * x + (1 - 2 * (qx * qx + qz * qz)) * y + 2 * (qy * qz - qx * qw) * z
+    const rotatedZ = 2 * (qx * qz - qy * qw) * x + 2 * (qy * qz + qx * qw) * y + (1 - 2 * (qx * qx + qy * qy)) * z
+    bounds.minX = Math.min(bounds.minX, position[0] + rotatedX)
+    bounds.maxX = Math.max(bounds.maxX, position[0] + rotatedX)
+    bounds.minY = Math.min(bounds.minY, position[1] + rotatedY)
+    bounds.minZ = Math.min(bounds.minZ, position[2] + rotatedZ)
+    bounds.maxZ = Math.max(bounds.maxZ, position[2] + rotatedZ)
+  }
+  return bounds
+}
+
+function assertInsidePedestal(label, supportPoints, position, rotation, scale = 1) {
+  if (!Array.isArray(position) || !Array.isArray(rotation)) throw new Error(`${label}: missing world transform`)
+  const bounds = worldSupportBounds(supportPoints, position, rotation, scale)
+  if (bounds.minY < GROUND_Y - PEDESTAL_EPSILON
+    || bounds.minX < -PEDESTAL_HALF_SIZE - PEDESTAL_EPSILON
+    || bounds.maxX > PEDESTAL_HALF_SIZE + PEDESTAL_EPSILON
+    || bounds.minZ < -PEDESTAL_HALF_SIZE - PEDESTAL_EPSILON
+    || bounds.maxZ > PEDESTAL_HALF_SIZE + PEDESTAL_EPSILON) {
+    throw new Error(`${label}: geometry escaped finite pedestal ${JSON.stringify(bounds)}`)
+  }
+}
+
+function assertVectorClose(label, actual, expected, epsilon = 0.008) {
+  if (!Array.isArray(actual) || !Array.isArray(expected) || actual.length !== expected.length) {
+    throw new Error(`${label}: missing comparable vectors`)
+  }
+  if (actual.some((value, index) => Math.abs(value - expected[index]) > epsilon)) {
+    throw new Error(`${label}: ${JSON.stringify(actual)} != ${JSON.stringify(expected)}`)
+  }
+}
+
+function assertQuaternionEquivalent(label, actual, expected, epsilon = 0.008) {
+  if (!Array.isArray(actual) || !Array.isArray(expected) || actual.length !== 4 || expected.length !== 4) {
+    throw new Error(`${label}: missing comparable quaternions`)
+  }
+  const actualLength = Math.hypot(...actual)
+  const expectedLength = Math.hypot(...expected)
+  const dot = actual.reduce((sum, value, index) => sum + value / actualLength * expected[index] / expectedLength, 0)
+  if (1 - Math.abs(dot) > epsilon) throw new Error(`${label}: quaternion drift ${dot}`)
 }
 
 const browser = await puppeteer.launch({
@@ -72,8 +254,13 @@ async function state() {
     rockRotation: JSON.parse(element.getAttribute('data-rock-rotation') ?? '[0,0,0,1]'),
     instanceCount: Number(element.getAttribute('data-instance-count') ?? 0),
     selectedWorldPosition: JSON.parse(element.getAttribute('data-selected-world-position') ?? 'null'),
+    selectedWorldRotation: JSON.parse(element.getAttribute('data-selected-world-rotation') ?? 'null'),
     selectedScale: Number(element.getAttribute('data-selected-scale') ?? 0),
     individualSettled: Number(element.getAttribute('data-individual-settled') ?? 0),
+    lastSettledInstance: element.getAttribute('data-last-settled-instance') ?? '',
+    lastSettledWorldPosition: JSON.parse(element.getAttribute('data-last-settled-world-position') ?? 'null'),
+    lastSettledWorldRotation: JSON.parse(element.getAttribute('data-last-settled-world-rotation') ?? 'null'),
+    lastSettledScale: Number(element.getAttribute('data-last-settled-scale') ?? 0),
     globalSettled: element.getAttribute('data-global-settled') === 'true',
     globalRockPosition: JSON.parse(element.getAttribute('data-global-settled-rock-position') ?? 'null'),
     globalRockRotation: JSON.parse(element.getAttribute('data-global-settled-rock-rotation') ?? 'null'),
@@ -107,6 +294,31 @@ async function dispatchPinch(multiplier = 1.35) {
     canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 181, clientX: cx - finalHalf, clientY: cy, buttons: 0 }))
     canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 182, clientX: cx + finalHalf, clientY: cy, buttons: 0 }))
   }, multiplier)
+}
+
+
+async function dispatchTwist(radians = 0.55) {
+  await page.$eval('.pedestal-stage canvas', (canvas, angle) => {
+    const rect = canvas.getBoundingClientRect()
+    const cx = rect.left + rect.width * 0.24
+    const cy = rect.top + rect.height * 0.2
+    const radius = 34
+    const common = { pointerType: 'touch', bubbles: true, cancelable: true, buttons: 1 }
+    const start = [
+      [cx - radius, cy],
+      [cx + radius, cy],
+    ]
+    const final = [
+      [cx - Math.cos(angle) * radius, cy - Math.sin(angle) * radius],
+      [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius],
+    ]
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, pointerId: 191, clientX: start[0][0], clientY: start[0][1] }))
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, pointerId: 192, clientX: start[1][0], clientY: start[1][1] }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...common, pointerId: 191, clientX: final[0][0], clientY: final[0][1] }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...common, pointerId: 192, clientX: final[1][0], clientY: final[1][1] }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 191, clientX: final[0][0], clientY: final[0][1], buttons: 0 }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 192, clientX: final[1][0], clientY: final[1][1], buttons: 0 }))
+  }, radians)
 }
 
 try {
@@ -155,9 +367,16 @@ try {
     return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, beforeRockMove.rockPosition)
 
+
+for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
+  await dispatchSinglePointer(dx, dy, 0.2, 0.2)
+  const boundedRock = await state()
+  assertInsidePedestal('rock four-border stress', ROCK_018_SUPPORT_POINTS, boundedRock.rockPosition, boundedRock.rockRotation)
+}
+
   for (let index = 0; index < 5; index += 1) await dispatchSinglePointer(0, 540, 0.13, 0.14)
   const rockFlooredDuringPosition = await state()
-  assertRockAboveGround('during rock position', rockFlooredDuringPosition.rockPosition, rockFlooredDuringPosition.rockRotation)
+  assertInsidePedestal('during rock position', ROCK_018_SUPPORT_POINTS, rockFlooredDuringPosition.rockPosition, rockFlooredDuringPosition.rockRotation)
 
   await page.click('.placement-tools button:nth-child(2)')
   await dispatchSinglePointer(54, 34, 0.82, 0.2)
@@ -166,7 +385,17 @@ try {
     return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, rockFlooredDuringPosition.rockRotation)
   const rockFlooredDuringOrientation = await state()
-  assertRockAboveGround('during rock orientation', rockFlooredDuringOrientation.rockPosition, rockFlooredDuringOrientation.rockRotation)
+  assertInsidePedestal('during rock orientation', ROCK_018_SUPPORT_POINTS, rockFlooredDuringOrientation.rockPosition, rockFlooredDuringOrientation.rockRotation)
+
+
+const beforeRockTwist = rockFlooredDuringOrientation.rockRotation
+await dispatchTwist(0.62)
+await page.waitForFunction((before) => {
+  const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-rock-rotation') ?? '[0,0,0,1]')
+  return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+}, {}, beforeRockTwist)
+const rockAfterTwist = await state()
+assertInsidePedestal('during rock two-finger twist', ROCK_018_SUPPORT_POINTS, rockAfterTwist.rockPosition, rockAfterTwist.rockRotation)
 
   await page.click('.placement-panel-heading > button')
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'orbit', { timeout: 15_000 })
@@ -175,10 +404,15 @@ try {
   if (!Array.isArray(rockAfterRapier.globalRockPosition) || !Array.isArray(rockAfterRapier.globalRockRotation)) {
     throw new Error('global rock settlement was not reported')
   }
-  assertRockAboveGround('after rock Rapier settlement', rockAfterRapier.globalRockPosition, rockAfterRapier.globalRockRotation)
+  assertInsidePedestal('after rock Rapier settlement', ROCK_018_SUPPORT_POINTS, rockAfterRapier.globalRockPosition, rockAfterRapier.globalRockRotation)
 
   await page.$eval('#reopen-placement', (button) => button.click())
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
+
+const reopenedRock = await state()
+assertVectorClose('rock persisted position rehydration', reopenedRock.rockPosition, rockAfterRapier.globalRockPosition)
+assertQuaternionEquivalent('rock persisted rotation rehydration', reopenedRock.rockRotation, rockAfterRapier.globalRockRotation)
+
   await page.click('.placement-targets > button:nth-child(2)')
   await page.waitForFunction(() => (document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') ?? '').includes('000000000001'))
   const beforeAccessory = await state()
@@ -188,11 +422,22 @@ try {
     return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, beforeAccessory.selectedWorldPosition)
 
+
+for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
+  await dispatchSinglePointer(dx, dy, 0.18, 0.18)
+  const boundedAccessory = await state()
+  assertInsidePedestal('accessory four-border stress', MONOCLE_SUPPORT_POINTS, boundedAccessory.selectedWorldPosition, boundedAccessory.selectedWorldRotation, boundedAccessory.selectedScale)
+}
+
   for (let index = 0; index < 4; index += 1) await dispatchSinglePointer(0, 520, 0.12, 0.12)
   const floored = await state()
-  if (!Array.isArray(floored.selectedWorldPosition) || floored.selectedWorldPosition[1] < 0.285) {
-    throw new Error(`accessory crossed the hard ground boundary: ${JSON.stringify(floored.selectedWorldPosition)}`)
-  }
+  assertInsidePedestal(
+    'during accessory position',
+    MONOCLE_SUPPORT_POINTS,
+    floored.selectedWorldPosition,
+    floored.selectedWorldRotation,
+    floored.selectedScale,
+  )
 
   await page.click('.placement-tools button:nth-child(3)')
   const beforeScale = (await state()).selectedScale
@@ -200,7 +445,24 @@ try {
   await page.waitForFunction((before) => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-scale') ?? 0) > before + 0.01, {}, beforeScale)
   const scaled = await state()
   if (scaled.selectedScale > 1.35 + 0.001) throw new Error(`accessory exceeded scaleMax: ${scaled.selectedScale}`)
-  if (scaled.selectedWorldPosition[1] < 0.285) throw new Error('scale change pushed accessory through the ground')
+  assertInsidePedestal(
+    'during accessory scale',
+    MONOCLE_SUPPORT_POINTS,
+    scaled.selectedWorldPosition,
+    scaled.selectedWorldRotation,
+    scaled.selectedScale,
+  )
+
+
+await page.click('.placement-tools button:nth-child(2)')
+const beforeAccessoryTwist = (await state()).selectedWorldRotation
+await dispatchTwist(-0.58)
+await page.waitForFunction((before) => {
+  const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-world-rotation') ?? 'null')
+  return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+}, {}, beforeAccessoryTwist)
+const accessoryAfterTwist = await state()
+assertInsidePedestal('during accessory two-finger twist', MONOCLE_SUPPORT_POINTS, accessoryAfterTwist.selectedWorldPosition, accessoryAfterTwist.selectedWorldRotation, accessoryAfterTwist.selectedScale)
 
   await page.click('.placement-owned summary')
   await page.click('.placement-owned-grid button')
@@ -215,11 +477,28 @@ try {
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'orbit')
   await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-individual-settled') ?? 0) >= 1, { timeout: 12_000 })
 
+
+const settledAccessory = await state()
+if (!settledAccessory.lastSettledInstance || !Array.isArray(settledAccessory.lastSettledWorldPosition) || !Array.isArray(settledAccessory.lastSettledWorldRotation)) {
+  throw new Error('accessory final settled world pose was not captured')
+}
+await page.$eval('#reopen-placement', (button) => button.click())
+await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
+await page.click('.placement-targets > button:last-child')
+await page.waitForFunction((instanceId) => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') === instanceId, {}, settledAccessory.lastSettledInstance)
+const rehydratedAccessory = await state()
+assertVectorClose('accessory persisted position rehydration', rehydratedAccessory.selectedWorldPosition, settledAccessory.lastSettledWorldPosition)
+assertQuaternionEquivalent('accessory persisted rotation rehydration', rehydratedAccessory.selectedWorldRotation, settledAccessory.lastSettledWorldRotation)
+if (Math.abs(rehydratedAccessory.selectedScale - settledAccessory.lastSettledScale) > 0.008) {
+  throw new Error(`accessory persisted scale rehydration drift: ${rehydratedAccessory.selectedScale} != ${settledAccessory.lastSettledScale}`)
+}
+assertInsidePedestal('rehydrated accessory pose', MONOCLE_SUPPORT_POINTS, rehydratedAccessory.selectedWorldPosition, rehydratedAccessory.selectedWorldRotation, rehydratedAccessory.selectedScale)
+
   const targetSizes = await page.$$eval('.placement-panel button, .accessory-shop button', (buttons) => buttons.every((button) => {
     const rect = button.getBoundingClientRect()
     return rect.width === 0 || rect.height === 0 || rect.height >= 44
   }))
-  if (!targetSizes) throw new Error('10.75 has a visible tactile target below 44px')
+  if (!targetSizes) throw new Error('Placement has a visible tactile target below 44px')
 
   await page.screenshot({ path: `${outputDir}/placement-phone.png`, fullPage: true })
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
@@ -238,18 +517,24 @@ try {
     permitPriceLithons: 1000,
     shopHasNoDirectPlacement: true,
     sharedCanvasPositionGesture: true,
+    fourBorderStressRock: true,
+    fourBorderStressAccessory: true,
     canvasRockOrientation: true,
-    rockHardFloorDuringPlacement: true,
-    rockHardFloorAfterRapier: true,
+    rockTwoFingerTwist: true,
+    rockFinitePedestalDuringPlacement: true,
+    rockFinitePedestalAfterRapier: true,
+    rockPersistenceRehydration: true,
     canvasAccessoryPosition: true,
-    accessoryScale: true,
-    accessoryHardFloor: true,
+    accessoryTwoFingerPinch: true,
+    accessoryTwoFingerTwist: true,
+    accessoryFinitePedestal: true,
+    accessoryPersistenceRehydration: true,
     duplicateOwnedInstances: final.instanceCount === 2,
     individualRapierSettlement: final.individualSettled >= 1,
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] 10.75 correction E2E PASS: unified gestures + hard floor before/after Rapier')
+  console.log('[CAILLOU] Placement harmonisation E2E PASS: one controller + real-geometry pedestal + shared settlement')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

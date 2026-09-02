@@ -30,6 +30,7 @@ page.on('requestfailed', (request) => consoleLines.push(`[requestfailed] ${reque
 async function state() {
   return page.$eval('#rock-movement-e2e-state', (element) => ({
     mode: element.getAttribute('data-mode') ?? '',
+    tool: element.getAttribute('data-tool') ?? '',
     rockReady: element.getAttribute('data-rock-ready') === 'true',
     accessoryReady: element.getAttribute('data-accessory-ready') === 'true',
     settled: element.getAttribute('data-settled') === 'true',
@@ -68,6 +69,10 @@ try {
   }, { timeout: 30_000 })
 
   const initial = await state()
+  if (initial.mode !== 'placement' || initial.tool !== 'position') {
+    throw new Error(`fixture did not start in Placement/Position: ${initial.mode}/${initial.tool}`)
+  }
+
   await dispatchSinglePointer(58, -42)
   await page.waitForFunction((before) => {
     const value = JSON.parse(document.querySelector('#rock-movement-e2e-state')?.getAttribute('data-rock-position') ?? '[0,0,0]')
@@ -75,7 +80,10 @@ try {
   }, {}, initial.position)
 
   await page.click('button:nth-of-type(2)')
-  await page.waitForFunction(() => document.querySelector('#rock-movement-e2e-state')?.getAttribute('data-mode') === 'rock-orientation')
+  await page.waitForFunction(() => {
+    const output = document.querySelector('#rock-movement-e2e-state')
+    return output?.getAttribute('data-mode') === 'placement' && output?.getAttribute('data-tool') === 'orientation'
+  })
   await dispatchSinglePointer(64, 34)
   await page.waitForFunction((before) => {
     const value = JSON.parse(document.querySelector('#rock-movement-e2e-state')?.getAttribute('data-rock-rotation') ?? '[0,0,0,1]')
@@ -123,6 +131,7 @@ try {
     status: 'pass',
     phone: true,
     tablet: true,
+    placementController: true,
     positionGesture: true,
     orientationGesture: true,
     dynamicRockHull: true,
@@ -133,7 +142,7 @@ try {
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] rock movement E2E PASS: 6D gestures + global Rapier settlement + phone/tablet')
+  console.log('[CAILLOU] rock movement E2E PASS: unified Placement gestures + global Rapier settlement + phone/tablet')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

@@ -29,9 +29,11 @@ page.on('requestfailed', (request) => consoleLines.push(`[requestfailed] ${reque
 
 async function state() {
   return page.$eval('#accessory-placement-e2e-state', (element) => ({
+    mode: element.getAttribute('data-mode') ?? '',
     instanceCount: Number(element.getAttribute('data-instance-count') ?? '0'),
     selectedId: element.getAttribute('data-selected-id') ?? '',
     loadedCount: Number(element.getAttribute('data-loaded-count') ?? '0'),
+    draftCount: Number(element.getAttribute('data-draft-count') ?? '0'),
     saveCount: Number(element.getAttribute('data-save-count') ?? '0'),
     disposeCount: Number(element.getAttribute('data-dispose-count') ?? '0'),
     disposedGeometries: Number(element.getAttribute('data-disposed-geometries') ?? '0'),
@@ -41,24 +43,66 @@ async function state() {
   }))
 }
 
-async function touch(selector) {
-  const rect = await page.$eval(selector, (element) => {
-    element.scrollIntoView({ block: 'center', inline: 'center' })
-    const box = element.getBoundingClientRect()
-    return { x: box.x, y: box.y, width: box.width, height: box.height }
-  })
-  await new Promise((resolve) => setTimeout(resolve, 80))
-  const visibleRect = await page.$eval(selector, (element) => {
-    const box = element.getBoundingClientRect()
-    return { x: box.x, y: box.y, width: box.width, height: box.height }
-  })
-  const target = visibleRect.width > 0 && visibleRect.height > 0 ? visibleRect : rect
-  await page.touchscreen.tap(target.x + target.width / 2, target.y + target.height / 2)
+function vectorChanged(left, right, epsilon = 0.001) {
+  return Array.isArray(left) && Array.isArray(right)
+    && left.length === right.length
+    && left.some((value, index) => Math.abs(value - right[index]) > epsilon)
 }
 
-async function openFineControls() {
-  const isOpen = await page.$eval('.accessory-editor-fine', (element) => element.hasAttribute('open'))
-  if (!isOpen) await touch('.accessory-editor-fine summary')
+async function dispatchSinglePointer(dx, dy, xRatio = 0.22, yRatio = 0.2) {
+  await page.$eval('.pedestal-stage canvas', (canvas, deltaX, deltaY, relativeX, relativeY) => {
+    const rect = canvas.getBoundingClientRect()
+    const startX = rect.left + rect.width * relativeX
+    const startY = rect.top + rect.height * relativeY
+    const init = { pointerId: 275, pointerType: 'touch', bubbles: true, cancelable: true }
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: startX, clientY: startY, buttons: 1 }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: startX + deltaX, clientY: startY + deltaY, buttons: 1 }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: startX + deltaX, clientY: startY + deltaY, buttons: 0 }))
+  }, dx, dy, xRatio, yRatio)
+}
+
+async function dispatchPinch(multiplier = 1.35) {
+  await page.$eval('.pedestal-stage canvas', (canvas, ratio) => {
+    const rect = canvas.getBoundingClientRect()
+    const cx = rect.left + rect.width * 0.24
+    const cy = rect.top + rect.height * 0.22
+    const initialHalf = 28
+    const finalHalf = initialHalf * ratio
+    const common = { pointerType: 'touch', bubbles: true, cancelable: true, buttons: 1 }
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, pointerId: 281, clientX: cx - initialHalf, clientY: cy }))
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, pointerId: 282, clientX: cx + initialHalf, clientY: cy }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...common, pointerId: 281, clientX: cx - finalHalf, clientY: cy }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...common, pointerId: 282, clientX: cx + finalHalf, clientY: cy }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 281, clientX: cx - finalHalf, clientY: cy, buttons: 0 }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 282, clientX: cx + finalHalf, clientY: cy, buttons: 0 }))
+  }, multiplier)
+}
+
+async function dispatchTwist(radians = 0.55) {
+  await page.$eval('.pedestal-stage canvas', (canvas, angle) => {
+    const rect = canvas.getBoundingClientRect()
+    const cx = rect.left + rect.width * 0.24
+    const cy = rect.top + rect.height * 0.22
+    const radius = 34
+    const common = { pointerType: 'touch', bubbles: true, cancelable: true, buttons: 1 }
+    const finalX = Math.cos(angle) * radius
+    const finalY = Math.sin(angle) * radius
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, pointerId: 291, clientX: cx - radius, clientY: cy }))
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, pointerId: 292, clientX: cx + radius, clientY: cy }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...common, pointerId: 291, clientX: cx - finalX, clientY: cy - finalY }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...common, pointerId: 292, clientX: cx + finalX, clientY: cy + finalY }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 291, clientX: cx - finalX, clientY: cy - finalY, buttons: 0 }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 292, clientX: cx + finalX, clientY: cy + finalY, buttons: 0 }))
+  }, radians)
+}
+
+async function settleAfterDraft(previousSaveCount) {
+  await page.click('#placement-settle')
+  await page.waitForFunction((before) => {
+    const output = document.querySelector('#accessory-placement-e2e-state')
+    return Number(output?.getAttribute('data-save-count') ?? '0') > before
+      && output?.getAttribute('data-mode') === 'orbit'
+  }, { timeout: 15_000 }, previousSaveCount)
 }
 
 try {
@@ -72,58 +116,99 @@ try {
   if (!response || status >= 400) throw new Error(`fixture returned HTTP ${status || 'unknown'}`)
 
   await page.waitForSelector('.pedestal-stage canvas', { timeout: 30_000 })
-  await page.waitForSelector('.accessory-editor', { timeout: 30_000 })
+  await page.waitForSelector('#placement-intersection-probe', { timeout: 30_000 })
   await page.waitForFunction(() => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-loaded-count') ?? '0') === 2, { timeout: 30_000 })
+
+  const probeBefore = await page.$eval('#placement-intersection-probe', (element) => ({
+    mode: element.getAttribute('data-mode'),
+    initialOverlap: element.getAttribute('data-initial-overlap') === 'true',
+    settled: element.getAttribute('data-settled') === 'true',
+  }))
+  if (probeBefore.mode !== 'editing' || !probeBefore.initialOverlap || probeBefore.settled) {
+    throw new Error(`intersection probe did not start overlapped in editing: ${JSON.stringify(probeBefore)}`)
+  }
+  await page.evaluate(() => document.querySelector('#release-intersection-probe')?.click())
+  await page.waitForFunction(() => document.querySelector('#placement-intersection-probe')?.getAttribute('data-settled') === 'true', { timeout: 8_000 })
+  const probeAfter = await page.$eval('#placement-intersection-probe', (element) => ({
+    finalPosition: JSON.parse(element.getAttribute('data-final-position') ?? 'null'),
+  }))
+  const probeDisplacement = Array.isArray(probeAfter.finalPosition)
+    ? Math.hypot(
+        probeAfter.finalPosition[0] - 0.05,
+        probeAfter.finalPosition[1] - 1.25,
+        probeAfter.finalPosition[2],
+      )
+    : 0
+  if (!Array.isArray(probeAfter.finalPosition)
+    || !probeAfter.finalPosition.every(Number.isFinite)
+    || probeDisplacement < 0.1) {
+    throw new Error(`shared PlacementBody did not resolve the zero-gravity overlap: ${JSON.stringify(probeAfter)}`)
+  }
 
   const initial = await state()
   if (initial.instanceCount !== 2 || initial.loadedCount !== 2) {
     throw new Error(`expected two simultaneously loaded accessories, got ${JSON.stringify(initial)}`)
   }
 
-  const first = initial.transforms.find((item) => item.id === initial.selectedId)
-  if (!first) throw new Error('selected accessory missing from initial transform set')
+  const initialMonocle = initial.transforms.find((item) => item.id.endsWith('0001'))
+  if (!initialMonocle) throw new Error('monocle missing from initial transform set')
 
-  await openFineControls()
-  await touch('button[aria-label="Déplacer X positif"]')
-  await page.waitForFunction(() => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') >= 1)
+  await page.click('#placement-select-monocle')
+  const draftsBeforePosition = initial.draftCount
+  await dispatchSinglePointer(72, -34)
+  await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, draftsBeforePosition)
+  await settleAfterDraft(initial.saveCount)
   let current = await state()
-  let selected = current.transforms.find((item) => item.id === current.selectedId)
-  if (!selected || Math.abs(selected.position[0] - (first.position[0] + 0.05)) > 0.0001) {
-    throw new Error('touch X translation did not persist the expected local position')
+  let monocle = current.transforms.find((item) => item.id.endsWith('0001'))
+  if (!monocle || !vectorChanged(monocle.position, initialMonocle.position)) {
+    throw new Error('canvas position gesture was not persisted after settlement')
   }
 
-  await touch('button[aria-label="Tourner Z positif"]')
-  await page.waitForFunction(() => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') >= 2)
+  await page.click('#placement-select-monocle')
+  await page.click('#placement-orientation')
+  const rotationBefore = [...monocle.rotation]
+  const draftsBeforeOrientation = current.draftCount
+  await dispatchTwist(0.62)
+  await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, draftsBeforeOrientation)
+  await settleAfterDraft(current.saveCount)
   current = await state()
-  selected = current.transforms.find((item) => item.id === current.selectedId)
-  if (!selected || selected.rotation[2] === 0) throw new Error('touch Z rotation did not modify the quaternion')
+  monocle = current.transforms.find((item) => item.id.endsWith('0001'))
+  if (!monocle || !vectorChanged(monocle.rotation, rotationBefore)) {
+    throw new Error('two-finger twist was not persisted after settlement')
+  }
 
-  await touch('button[aria-label="Agrandir l’accessoire"]')
-  await page.waitForFunction(() => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') >= 3)
+  await page.click('#placement-select-monocle')
+  await page.click('#placement-size')
+  const scaleBefore = monocle.scale
+  const draftsBeforeScale = current.draftCount
+  await dispatchPinch(1.3)
+  await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, draftsBeforeScale)
+  await settleAfterDraft(current.saveCount)
   current = await state()
-  selected = current.transforms.find((item) => item.id === current.selectedId)
-  if (!selected || Math.abs(selected.scale - 1.05) > 0.001) throw new Error('touch scale control did not persist 1.05x')
+  monocle = current.transforms.find((item) => item.id.endsWith('0001'))
+  if (!monocle || monocle.scale <= scaleBefore + 0.005 || monocle.scale > 1.351) {
+    throw new Error(`pinch scale was not persisted within limits: ${monocle?.scale}`)
+  }
 
-  await touch('button[aria-label="Sélectionner Lunettes rondes 2"]')
-  await page.waitForFunction(() => document.querySelector('.accessory-editor')?.getAttribute('data-selected-accessory')?.endsWith('0002') ?? false)
-  await touch('button[aria-label="Déplacer Y négatif"]')
-  await page.waitForFunction(() => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') >= 4)
-
+  await page.click('#placement-select-glasses')
+  const glassesBefore = current.transforms.find((item) => item.id.endsWith('0002'))
+  const draftsBeforeGlasses = current.draftCount
+  await dispatchSinglePointer(-52, 26, 0.78, 0.2)
+  await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, draftsBeforeGlasses)
+  await settleAfterDraft(current.saveCount)
   current = await state()
+  const glassesAfterPhone = current.transforms.find((item) => item.id.endsWith('0002'))
+  if (!glassesBefore || !glassesAfterPhone || !vectorChanged(glassesAfterPhone.position, glassesBefore.position)) {
+    throw new Error('second accessory did not persist independently')
+  }
   if (JSON.stringify(current.transforms) !== JSON.stringify(current.serverTransforms)) {
     throw new Error('client and simulated server transforms diverged before reload')
   }
 
-  const phoneTargets = await page.$$eval('.accessory-editor button, .accessory-editor summary', (targets) => targets
-    .filter((target) => {
-      const rect = target.getBoundingClientRect()
-      const style = getComputedStyle(target)
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
-    })
-    .every((target) => {
-      const rect = target.getBoundingClientRect()
-      return rect.width >= 44 && rect.height >= 44
-    }))
+  const phoneTargets = await page.$$eval('.placement-fixture-controls button', (targets) => targets.every((target) => {
+    const rect = target.getBoundingClientRect()
+    return rect.width >= 44 && rect.height >= 44
+  }))
   if (!phoneTargets) throw new Error('one or more visible phone placement targets are below 44px')
   await page.screenshot({ path: `${outputDir}/placement-phone.png`, fullPage: true })
 
@@ -140,30 +225,43 @@ try {
     throw new Error('accessory rehydration did not dispose previous GPU geometry')
   }
 
-  // Keep touch/mobile emulation enabled while widening to tablet. Toggling isMobile/hasTouch
-  // makes Puppeteer reload the page and would invalidate the persistence counters we are testing.
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
-  await openFineControls()
-  const savesBeforeTablet = afterReload.saveCount
-  await touch('button[aria-label="Déplacer Z positif"]')
-  await page.waitForFunction((expected) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-save-count') ?? '0') > expected, {}, savesBeforeTablet)
+  await page.click('#placement-select-glasses')
+  await page.click('#placement-position')
+  const tabletBefore = await state()
+  const tabletGlassesBefore = tabletBefore.transforms.find((item) => item.id.endsWith('0002'))
+  await dispatchPinch(1.42)
+  await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, tabletBefore.draftCount)
+  await settleAfterDraft(tabletBefore.saveCount)
   const tablet = await state()
-  if (tablet.instanceCount !== 2) throw new Error('tablet precision edit unexpectedly changed instance count')
+  const tabletGlassesAfter = tablet.transforms.find((item) => item.id.endsWith('0002'))
+  if (!tabletGlassesBefore || !tabletGlassesAfter || !vectorChanged(tabletGlassesAfter.position, tabletGlassesBefore.position)) {
+    throw new Error('tablet two-finger depth gesture did not persist')
+  }
+  if (tablet.instanceCount !== 2) throw new Error('tablet edit unexpectedly changed instance count')
   await page.screenshot({ path: `${outputDir}/placement-tablet.png`, fullPage: true })
 
-  const disposeBeforeRemove = tablet.disposeCount
-  const selectedName = await page.$eval('.accessory-editor-heading h2', (element) => element.textContent?.trim() ?? '')
-  await touch(`button[aria-label="Retirer ${selectedName} du caillou"]`)
+  await page.click('#placement-select-glasses')
+  const disposeBeforeRemove = (await state()).disposeCount
+  await page.click('#placement-remove')
   await page.waitForFunction(() => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-instance-count') ?? '0') === 1)
   await page.waitForFunction((before) => Number(document.querySelector('#accessory-placement-e2e-state')?.getAttribute('data-dispose-count') ?? '0') > before, {}, disposeBeforeRemove)
   const removed = await state()
 
+  const severeConsole = consoleLines.filter((line) => line.startsWith('[pageerror]') || line.includes('WebGL context lost') || line.includes('Unhandled'))
+  if (severeConsole.length > 0) throw new Error(`browser errors observed: ${severeConsole.join(' | ')}`)
+
   const report = {
     status: 'pass',
     simultaneousInstances: initial.instanceCount,
-    phoneTouchTranslation: true,
-    phoneTouchRotation: true,
-    phoneTouchScale: true,
+    intentionalIntersectionDuringEditing: true,
+    rapierResolvedIntersectionWithoutGravity: true,
+    intersectionResolutionDistance: probeDisplacement,
+    phoneCanvasPosition: true,
+    twoFingerTwist: true,
+    twoFingerScale: true,
+    persistenceAfterSettlementOnly: true,
+    independentSecondInstance: true,
     exactReloadRestore: true,
     tabletDepthTranslation: true,
     instanceRemoval: removed.instanceCount === 1,
@@ -175,7 +273,7 @@ try {
 
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] accessory placement E2E PASS: 2 GLB → phone touch XYZ/rotation/scale → exact reload → tablet depth → remove → GPU dispose')
+  console.log('[CAILLOU] multi-accessory E2E PASS: zero-gravity collision resolution + unified gestures + settled persistence + reload + GPU disposal')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

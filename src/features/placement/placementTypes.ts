@@ -5,8 +5,15 @@ export type PlacementTarget =
   | { kind: 'accessory'; instanceId: string }
 
 export type PlacementVector3 = [number, number, number]
+export type PlacementQuaternion = [number, number, number, number]
 
 export interface PlacementBounds {
   min: PlacementVector3
   max: PlacementVector3
+}
+
+export interface PlacementTransform {
+  position: PlacementVector3
+  rotation: PlacementQuaternion
+  scale: number
 }

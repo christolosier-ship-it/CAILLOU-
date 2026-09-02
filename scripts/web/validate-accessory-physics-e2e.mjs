@@ -29,25 +29,33 @@ page.on('requestfailed', (request) => consoleLines.push(`[requestfailed] ${reque
 
 async function state() {
   return page.$eval('#accessory-physics-e2e-state', (element) => ({
+    mode: element.getAttribute('data-mode') ?? '',
     instanceCount: Number(element.getAttribute('data-instance-count') ?? '0'),
     loadedCount: Number(element.getAttribute('data-loaded-count') ?? '0'),
     selectedId: element.getAttribute('data-selected-id') ?? '',
-    saveCount: Number(element.getAttribute('data-save-count') ?? '0'),
+    draftCount: Number(element.getAttribute('data-draft-count') ?? '0'),
+    settledCount: Number(element.getAttribute('data-settled-count') ?? '0'),
     collisions: Number(element.getAttribute('data-probe-collisions') ?? '0'),
     settled: element.getAttribute('data-probe-settled') === 'true',
     finalY: Number(element.getAttribute('data-probe-final-y') ?? '1'),
-    transforms: JSON.parse(element.getAttribute('data-transforms') ?? '[]'),
+    selectedWorldPosition: JSON.parse(element.getAttribute('data-selected-world-position') ?? 'null'),
+    selectedWorldRotation: JSON.parse(element.getAttribute('data-selected-world-rotation') ?? 'null'),
+    selectedScale: Number(element.getAttribute('data-selected-scale') ?? '0'),
+    lastSettledPosition: JSON.parse(element.getAttribute('data-last-settled-position') ?? 'null'),
+    lastSettledRotation: JSON.parse(element.getAttribute('data-last-settled-rotation') ?? 'null'),
   }))
 }
 
-async function touch(selector) {
-  await page.$eval(selector, (element) => element.scrollIntoView({ block: 'center', inline: 'center' }))
-  await new Promise((resolve) => setTimeout(resolve, 80))
-  const rect = await page.$eval(selector, (element) => {
-    const box = element.getBoundingClientRect()
-    return { x: box.x, y: box.y, width: box.width, height: box.height }
-  })
-  await page.touchscreen.tap(rect.x + rect.width / 2, rect.y + rect.height / 2)
+async function dispatchSinglePointer(dx, dy, xRatio = 0.18, yRatio = 0.18) {
+  await page.$eval('.pedestal-stage canvas', (canvas, deltaX, deltaY, relativeX, relativeY) => {
+    const rect = canvas.getBoundingClientRect()
+    const startX = rect.left + rect.width * relativeX
+    const startY = rect.top + rect.height * relativeY
+    const init = { pointerId: 271, pointerType: 'touch', bubbles: true, cancelable: true }
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...init, clientX: startX, clientY: startY, buttons: 1 }))
+    canvas.dispatchEvent(new PointerEvent('pointermove', { ...init, clientX: startX + deltaX, clientY: startY + deltaY, buttons: 1 }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...init, clientX: startX + deltaX, clientY: startY + deltaY, buttons: 0 }))
+  }, dx, dy, xRatio, yRatio)
 }
 
 try {
@@ -61,51 +69,51 @@ try {
   if (!response || status >= 400) throw new Error(`fixture returned HTTP ${status || 'unknown'}`)
 
   await page.waitForSelector('.pedestal-stage canvas', { timeout: 30_000 })
-  await page.waitForSelector('.accessory-editor', { timeout: 30_000 })
+  await page.waitForSelector('.physics-fixture-controls', { timeout: 30_000 })
   await page.waitForFunction(() => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-loaded-count') ?? '0') === 2, { timeout: 30_000 })
   await page.waitForFunction(() => document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-probe-settled') === 'true', { timeout: 20_000 })
 
   const phone = await state()
-  if (phone.instanceCount !== 2 || phone.loadedCount !== 2) {
-    throw new Error(`two accessory GLBs were not ready: ${JSON.stringify(phone)}`)
-  }
+  if (phone.instanceCount !== 2 || phone.loadedCount !== 2) throw new Error(`two accessory GLBs were not ready: ${JSON.stringify(phone)}`)
   if (phone.collisions < 1) throw new Error('Rapier gravity probe never collided with the static collider')
-  if (phone.finalY < -0.16 || phone.finalY > -0.04) {
-    throw new Error(`Rapier body settled outside expected contact band: y=${phone.finalY}`)
+  if (phone.finalY < -0.16 || phone.finalY > -0.04) throw new Error(`Rapier body settled outside expected contact band: y=${phone.finalY}`)
+  if (!Array.isArray(phone.selectedWorldPosition)) throw new Error('selected accessory world pose was not exposed')
+
+  const phoneDrafts = phone.draftCount
+  const phonePosition = [...phone.selectedWorldPosition]
+  await dispatchSinglePointer(72, 36)
+  await page.waitForFunction((before) => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-draft-count') ?? '0') > before, {}, phoneDrafts)
+  const afterPhone = await state()
+  if (!afterPhone.selectedWorldPosition.some((value, index) => Math.abs(value - phonePosition[index]) > 0.005)) {
+    throw new Error('phone canvas position gesture did not move the selected accessory')
   }
 
-  const initialFirst = phone.transforms.find((item) => item.id === phone.selectedId)
-  if (!initialFirst) throw new Error('selected accessory missing from physics fixture')
-  await touch('.accessory-editor-fine summary')
-  await touch('button[aria-label="Déplacer X positif"]')
-  await page.waitForFunction(() => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-save-count') ?? '0') >= 1)
-  const afterTouch = await state()
-  const movedFirst = afterTouch.transforms.find((item) => item.id === afterTouch.selectedId)
-  if (!movedFirst || Math.abs(movedFirst.position[0] - (initialFirst.position[0] + 0.05)) > 0.0001) {
-    throw new Error('phone tactile precision edit did not survive physics integration')
-  }
-
-  const phoneTargets = await page.$$eval('.accessory-editor button, .accessory-editor summary', (targets) => targets
-    .filter((target) => {
-      const rect = target.getBoundingClientRect()
-      const style = getComputedStyle(target)
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
-    })
-    .every((target) => {
-      const rect = target.getBoundingClientRect()
-      return rect.width >= 44 && rect.height >= 44
-    }))
-  if (!phoneTargets) throw new Error('one or more visible phone physics editor targets are below 44px')
+  const phoneTargets = await page.$$eval('.physics-fixture-controls button', (targets) => targets.every((target) => {
+    const rect = target.getBoundingClientRect()
+    return rect.width >= 44 && rect.height >= 44
+  }))
+  if (!phoneTargets) throw new Error('one or more visible phone physics controls are below 44px')
   await page.screenshot({ path: `${outputDir}/physics-phone.png`, fullPage: true })
 
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
-  await touch('button[aria-label="Sélectionner Lunettes rondes 2"]')
-  await page.waitForFunction(() => document.querySelector('.accessory-editor')?.getAttribute('data-selected-accessory')?.endsWith('0002') ?? false)
-  const savesBeforeTablet = (await state()).saveCount
-  await touch('button[aria-label="Tourner Z positif"]')
-  await page.waitForFunction((expected) => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-save-count') ?? '0') > expected, {}, savesBeforeTablet)
+  await page.click('#physics-select-glasses')
+  await page.waitForFunction(() => document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-selected-id')?.endsWith('0002') ?? false)
+  await page.click('#physics-orientation')
+  const beforeTablet = await state()
+  if (!Array.isArray(beforeTablet.selectedWorldRotation)) throw new Error('tablet selected accessory rotation is missing')
+  await dispatchSinglePointer(58, 32, 0.8, 0.2)
+  await page.waitForFunction((before) => {
+    const value = JSON.parse(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-selected-world-rotation') ?? 'null')
+    return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+  }, {}, beforeTablet.selectedWorldRotation)
+
+  const beforeSettlement = (await state()).settledCount
+  await page.click('#physics-settle')
+  await page.waitForFunction((before) => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-settled-count') ?? '0') > before, { timeout: 12_000 }, beforeSettlement)
   const tablet = await state()
-  if (tablet.instanceCount !== 2 || !tablet.settled) throw new Error('tablet resize destabilized physics or accessory instances')
+  if (tablet.mode !== 'orbit' || !Array.isArray(tablet.lastSettledPosition) || !Array.isArray(tablet.lastSettledRotation)) {
+    throw new Error('unified accessory PlacementBody did not report its final settled world pose')
+  }
   await page.screenshot({ path: `${outputDir}/physics-tablet.png`, fullPage: true })
 
   const severeConsole = consoleLines.filter((line) => line.startsWith('[pageerror]') || line.includes('WebGL context lost') || line.includes('Unhandled'))
@@ -118,13 +126,14 @@ try {
     settledSleepingBody: true,
     finalProbeY: tablet.finalY,
     simultaneousAccessoryGlbs: tablet.instanceCount,
-    phoneTouchEdit: true,
-    tabletTouchEdit: true,
-    saveCount: tablet.saveCount,
+    phoneUnifiedCanvasPosition: true,
+    tabletUnifiedCanvasOrientation: true,
+    sharedAccessorySettlement: true,
+    settledCount: tablet.settledCount,
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] accessory physics E2E PASS: Rapier gravity/collision/sleep + 2 GLB + phone/tablet touch')
+  console.log('[CAILLOU] accessory physics E2E PASS: Rapier probe + 2 GLB + unified canvas gestures + shared settlement')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})

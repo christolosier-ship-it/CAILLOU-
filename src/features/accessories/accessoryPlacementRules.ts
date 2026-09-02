@@ -1,4 +1,4 @@
-import { Quaternion, Vector3 } from 'three'
+import { Quaternion } from 'three'
 
 import type { Json } from '../../lib/supabase/database.types'
 import type {
@@ -9,18 +9,6 @@ import type {
 } from './accessoryTypes'
 
 export const MAX_EQUIPPED_ACCESSORIES = 8
-export const ACCESSORY_POSITION_LIMIT = 4
-export const ACCESSORY_NUDGE_STEP = 0.05
-export const ACCESSORY_ROTATION_STEP = Math.PI / 24
-export const ACCESSORY_SCALE_STEP = 0.05
-
-export type AccessoryAxis = 'x' | 'y' | 'z'
-
-const AXIS_VECTORS: Record<AccessoryAxis, Vector3> = {
-  x: new Vector3(1, 0, 0),
-  y: new Vector3(0, 1, 0),
-  z: new Vector3(0, 0, 1),
-}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -48,29 +36,8 @@ export function parseLocalRotation(value: Json | null): AccessoryLocalRotation |
   return [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
 }
 
-export function clampAccessoryPosition(position: AccessoryLocalPosition): AccessoryLocalPosition {
-  return [
-    clamp(position[0], -ACCESSORY_POSITION_LIMIT, ACCESSORY_POSITION_LIMIT),
-    clamp(position[1], -ACCESSORY_POSITION_LIMIT, ACCESSORY_POSITION_LIMIT),
-    clamp(position[2], -ACCESSORY_POSITION_LIMIT, ACCESSORY_POSITION_LIMIT),
-  ]
-}
-
 export function clampAccessoryScale(value: number, min: number, max: number) {
   return clamp(Number.isFinite(value) ? value : 1, min, max)
-}
-
-export function clampAccessoryTransform(
-  transform: AccessoryTransform,
-  scaleMin: number,
-  scaleMax: number,
-): AccessoryTransform {
-  const rotation = new Quaternion(...transform.localRotation).normalize()
-  return {
-    localPosition: clampAccessoryPosition(transform.localPosition),
-    localRotation: [rotation.x, rotation.y, rotation.z, rotation.w],
-    uniformScale: clampAccessoryScale(transform.uniformScale, scaleMin, scaleMax),
-  }
 }
 
 export function defaultAccessoryTransform(
@@ -89,42 +56,5 @@ export function defaultAccessoryTransform(
     localPosition,
     localRotation: [0, 0, 0, 1],
     uniformScale: clampAccessoryScale(1, accessory.scaleMin, accessory.scaleMax),
-  }
-}
-
-export function nudgeAccessoryTransform(
-  transform: AccessoryTransform,
-  axis: AccessoryAxis,
-  amount: number,
-): AccessoryTransform {
-  const next = [...transform.localPosition] as AccessoryLocalPosition
-  const index = axis === 'x' ? 0 : axis === 'y' ? 1 : 2
-  next[index] += amount
-  return { ...transform, localPosition: clampAccessoryPosition(next) }
-}
-
-export function rotateAccessoryTransform(
-  transform: AccessoryTransform,
-  axis: AccessoryAxis,
-  radians: number,
-): AccessoryTransform {
-  const current = new Quaternion(...transform.localRotation).normalize()
-  const delta = new Quaternion().setFromAxisAngle(AXIS_VECTORS[axis], radians)
-  current.multiply(delta).normalize()
-  return {
-    ...transform,
-    localRotation: [current.x, current.y, current.z, current.w],
-  }
-}
-
-export function scaleAccessoryTransform(
-  transform: AccessoryTransform,
-  amount: number,
-  min: number,
-  max: number,
-): AccessoryTransform {
-  return {
-    ...transform,
-    uniformScale: clampAccessoryScale(transform.uniformScale + amount, min, max),
   }
 }

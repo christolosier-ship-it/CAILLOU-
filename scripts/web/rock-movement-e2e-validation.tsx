@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 
 import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import { worldCompositionToPersistence } from '../../src/features/placement/placementPersistence'
+import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
+import type { PlacementTarget, PlacementTool } from '../../src/features/placement/placementTypes'
 import type { RockCompositionDraft, RockPose } from '../../src/features/rockMovement/rockMovementTypes'
 import { ShowroomScene } from '../../src/scene/ShowroomScene'
 import '../../src/styles/global.css'
@@ -17,6 +20,7 @@ const INITIAL_POSE: RockPose = {
   position: [0, 0.52, 0],
   rotation: [0, 0, 0, 1],
 }
+const ROCK_TARGET: PlacementTarget = { kind: 'rock' }
 
 const INSTANCE: EquippedAccessoryInstance = {
   id: '105e0000-0000-4000-8000-000000000001',
@@ -50,10 +54,11 @@ const INSTANCE: EquippedAccessoryInstance = {
   uniformScale: 1,
 }
 
-type Mode = 'rock-position' | 'rock-orientation' | 'composition-settle' | 'orbit'
+type Mode = 'placement' | 'settling' | 'orbit'
 
 function Fixture() {
-  const [mode, setMode] = useState<Mode>('rock-position')
+  const [mode, setMode] = useState<Mode>('placement')
+  const [tool, setTool] = useState<PlacementTool>('position')
   const [pose, setPose] = useState<RockPose>(INITIAL_POSE)
   const [settled, setSettled] = useState<RockCompositionDraft | null>(null)
   const [rockReady, setRockReady] = useState(false)
@@ -67,14 +72,16 @@ function Fixture() {
     setAccessoryReady(state === 'ready')
   }, [])
 
-  const handleSettled = useCallback((draft: RockCompositionDraft) => {
-    setSettled(draft)
-    setPose(draft.rockPose)
-    setMode('orbit')
-  }, [])
+
+const handleSettled = useCallback((world: SettledWorldComposition) => {
+  const draft = worldCompositionToPersistence(world)
+  setSettled(draft)
+  setPose(draft.rockPose)
+  setMode('orbit')
+}, [])
 
   return (
-    <div className={`pedestal-shell${mode.startsWith('rock-') ? ' is-rock-movement-mode' : mode === 'composition-settle' ? ' is-composition-settling' : ''}`}>
+    <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'settling' ? ' is-composition-settling' : ''}`}>
       <main className="pedestal-main">
         <section className="pedestal-stage">
           <ShowroomScene
@@ -87,15 +94,15 @@ function Fixture() {
             rockPose={pose}
             onRockPoseDraft={setPose}
             onCompositionSettled={handleSettled}
+            placementTarget={mode === 'orbit' ? null : ROCK_TARGET}
+            placementTool={tool}
             accessories={[INSTANCE]}
-            onAccessorySelect={() => undefined}
-            onAccessoryTransformCommit={() => undefined}
             onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
           <div className="rock-e2e-controls" style={{ position: 'absolute', zIndex: 30, left: 12, bottom: 12, display: 'flex', gap: 8 }}>
-            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('rock-position')}>Position</button>
-            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('rock-orientation')}>Orientation</button>
-            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('composition-settle')}>Lâcher</button>
+            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('position') }}>Position</button>
+            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('orientation') }}>Orientation</button>
+            <button type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('settling')}>Lâcher</button>
           </div>
         </section>
       </main>
@@ -103,6 +110,7 @@ function Fixture() {
         id="rock-movement-e2e-state"
         hidden
         data-mode={mode}
+        data-tool={tool}
         data-rock-ready={String(rockReady)}
         data-accessory-ready={String(accessoryReady)}
         data-settled={String(settled !== null)}

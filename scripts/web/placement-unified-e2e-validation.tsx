@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client'
 
 import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import { AccessoryShop } from '../../src/features/accessories/AccessoryShop'
-import type { AccessoryCatalogItem, AccessoryShopSnapshot, AccessoryTransform, EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import type { AccessoryCatalogItem, AccessoryShopSnapshot, EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
 import { PlacementPanel } from '../../src/features/placement/PlacementPanel'
-import type { PlacementTarget, PlacementTool } from '../../src/features/placement/placementTypes'
+import { worldAccessoryToPersistence, worldCompositionToPersistence } from '../../src/features/placement/placementPersistence'
+import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
+import type { PlacementTarget, PlacementTool, PlacementTransform } from '../../src/features/placement/placementTypes'
 import { accessoryLocalToWorld } from '../../src/features/rockMovement/rockMovementRules'
 import type { RockCompositionDraft, RockPose } from '../../src/features/rockMovement/rockMovementTypes'
 import { ShowroomScene } from '../../src/scene/ShowroomScene'
@@ -78,7 +80,7 @@ function Fixture() {
   const [permitUnlocked, setPermitUnlocked] = useState(false)
   const [balance, setBalance] = useState(1500)
   const [shopOpen, setShopOpen] = useState(false)
-  const [mode, setMode] = useState<'placement' | 'composition-settle' | 'orbit'>('placement')
+  const [mode, setMode] = useState<'placement' | 'settling' | 'orbit'>('placement')
   const [target, setTarget] = useState<PlacementTarget | null>(null)
   const [tool, setTool] = useState<PlacementTool>('position')
   const [pose, setPose] = useState<RockPose>(INITIAL_POSE)
@@ -89,13 +91,16 @@ function Fixture() {
   const [rockReady, setRockReady] = useState(false)
   const [readyAccessories, setReadyAccessories] = useState<string[]>([])
   const [individualSettled, setIndividualSettled] = useState(0)
+  const [selectedWorldDraft, setSelectedWorldDraft] = useState<PlacementTransform | null>(null)
+  const [lastSettledWorld, setLastSettledWorld] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
 
   const selectedAccessoryId = target?.kind === 'accessory' ? target.instanceId : null
   const selectedWorld = useMemo(() => {
     if (!selectedAccessoryId) return null
     const instance = instances.find((candidate) => candidate.id === selectedAccessoryId)
+    if (selectedWorldDraft) return { instanceId: selectedAccessoryId, worldPosition: selectedWorldDraft.position, worldRotation: selectedWorldDraft.rotation, uniformScale: selectedWorldDraft.scale }
     return instance ? accessoryLocalToWorld(instance.id, instance, pose) : null
-  }, [instances, pose, selectedAccessoryId])
+  }, [instances, pose, selectedAccessoryId, selectedWorldDraft])
 
   const handleRockLoadState = useCallback((state: 'loading' | 'ready' | 'error') => {
     setRockReady(state === 'ready')
@@ -106,43 +111,45 @@ function Fixture() {
     if (state !== 'ready') return
     setReadyAccessories((current) => current.includes(id) ? current : [...current, id])
   }, [])
-  const handleDraft = useCallback((instanceId: string, transform: AccessoryTransform) => {
-    setInstances((current) => current.map((instance) => instance.id === instanceId
-      ? { ...instance, ...transform, stabilizedAt: null }
-      : instance))
-  }, [])
-  const handleCommit = useCallback((instanceId: string, transform: AccessoryTransform) => {
-    setInstances((current) => current.map((instance) => instance.id === instanceId
-      ? { ...instance, ...transform, stabilizedAt: '2026-09-02T08:30:00.000Z' }
-      : instance))
-    setIndividualSettled((current) => current + 1)
-  }, [])
-  const handleDone = useCallback(() => {
-    if (target?.kind === 'rock') {
-      setMode('composition-settle')
-      return
-    }
-    setTarget(null)
-    setMode('orbit')
-  }, [target])
-  const handleComposition = useCallback((draft: RockCompositionDraft) => {
-    setSettled(draft)
-    setPose(draft.rockPose)
-    setInstances((current) => current.map((instance) => {
-      const next = draft.accessories.find((candidate) => candidate.instanceId === instance.id)
-      return next ? { ...instance, ...next, stabilizedAt: '2026-09-02T08:31:00.000Z' } : instance
-    }))
-    setTarget(null)
-    setMode('orbit')
-  }, [])
+
+const handleWorldDraft = useCallback((_: string, transform: PlacementTransform) => {
+  setSelectedWorldDraft(transform)
+}, [])
+const handleIndividualSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
+  setLastSettledWorld({ instanceId, transform })
+  const local = worldAccessoryToPersistence(instanceId, transform, pose)
+  setInstances((current) => current.map((instance) => instance.id === instanceId
+    ? { ...instance, ...local, stabilizedAt: '2026-09-02T08:30:00.000Z' }
+    : instance))
+  setSelectedWorldDraft(null)
+  setIndividualSettled((current) => current + 1)
+  setTarget(null)
+  setMode('orbit')
+}, [pose])
+
+const handleDone = useCallback(() => {
+  setMode(target ? 'settling' : 'orbit')
+}, [target])
+const handleComposition = useCallback((world: SettledWorldComposition) => {
+  const draft: RockCompositionDraft = worldCompositionToPersistence(world)
+  setSettled(draft)
+  setPose(draft.rockPose)
+  setInstances((current) => current.map((instance) => {
+    const next = draft.accessories.find((candidate) => candidate.instanceId === instance.id)
+    return next ? { ...instance, ...next, stabilizedAt: '2026-09-02T08:31:00.000Z' } : instance
+  }))
+  setTarget(null)
+  setMode('orbit')
+}, [])
   const reopenPlacement = useCallback(() => {
+    setSelectedWorldDraft(null)
     setTarget(null)
     setTool('position')
     setMode('placement')
   }, [])
 
   return (
-    <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'composition-settle' ? ' is-composition-settling' : ''}`}>
+    <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'settling' ? ' is-composition-settling' : ''}`}>
       <main className="pedestal-main">
         <section className="pedestal-stage">
           <ShowroomScene
@@ -160,8 +167,8 @@ function Fixture() {
             accessories={instances}
             selectedAccessoryId={selectedAccessoryId}
             onAccessorySelect={handleAccessorySelectNoop}
-            onAccessoryTransformDraft={handleDraft}
-            onAccessoryTransformCommit={handleCommit}
+            onAccessoryPlacementDraft={handleWorldDraft}
+            onAccessorySettled={handleIndividualSettled}
             onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
 
@@ -246,8 +253,13 @@ function Fixture() {
         data-rock-rotation={JSON.stringify(pose.rotation)}
         data-instance-count={String(instances.length)}
         data-selected-world-position={JSON.stringify(selectedWorld?.worldPosition ?? null)}
+        data-selected-world-rotation={JSON.stringify(selectedWorld?.worldRotation ?? null)}
         data-selected-scale={String(selectedWorld?.uniformScale ?? 0)}
         data-individual-settled={String(individualSettled)}
+        data-last-settled-instance={lastSettledWorld?.instanceId ?? ''}
+        data-last-settled-world-position={JSON.stringify(lastSettledWorld?.transform.position ?? null)}
+        data-last-settled-world-rotation={JSON.stringify(lastSettledWorld?.transform.rotation ?? null)}
+        data-last-settled-scale={String(lastSettledWorld?.transform.scale ?? 0)}
         data-global-settled={String(settled !== null)}
         data-global-settled-rock-position={JSON.stringify(settled?.rockPose.position ?? null)}
         data-global-settled-rock-rotation={JSON.stringify(settled?.rockPose.rotation ?? null)}

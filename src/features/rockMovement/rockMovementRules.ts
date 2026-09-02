@@ -11,12 +11,6 @@ import type {
 
 export const ROCK_MOVEMENT_FEATURE_ID = 'rock_movement'
 export const ROCK_MOVEMENT_PRICE_LITHONS = 1000
-export const PEDESTAL_GROUND_SIZE = 5.5
-export const PEDESTAL_GROUND_Y = -0.02
-export const PEDESTAL_GROUND_THICKNESS = 0.12
-export const ROCK_POSITION_XZ_LIMIT = 2.4
-export const ROCK_POSITION_MIN_Y = -0.25
-export const ROCK_POSITION_MAX_Y = 3.4
 export const ROCK_SETTLE_TIMEOUT_MS = 4500
 
 export const DEFAULT_ROCK_POSE: RockPose = {
@@ -32,7 +26,7 @@ function finiteTuple(value: unknown, size: number): number[] | null {
 
 export function parseRockPosition(value: unknown): RockPosition {
   const tuple = finiteTuple(value, 3)
-  return tuple ? clampRockPosition([tuple[0]!, tuple[1]!, tuple[2]!]) : [...DEFAULT_ROCK_POSE.position]
+  return tuple ? [tuple[0]!, tuple[1]!, tuple[2]!] : [...DEFAULT_ROCK_POSE.position]
 }
 
 export function parseRockRotation(value: unknown): RockRotation {
@@ -44,17 +38,9 @@ export function parseRockRotation(value: unknown): RockRotation {
   return [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
 }
 
-export function clampRockPosition(position: RockPosition): RockPosition {
-  return [
-    Math.max(-ROCK_POSITION_XZ_LIMIT, Math.min(ROCK_POSITION_XZ_LIMIT, position[0])),
-    Math.max(ROCK_POSITION_MIN_Y, Math.min(ROCK_POSITION_MAX_Y, position[1])),
-    Math.max(-ROCK_POSITION_XZ_LIMIT, Math.min(ROCK_POSITION_XZ_LIMIT, position[2])),
-  ]
-}
-
 export function normalizeRockPose(pose: RockPose): RockPose {
   return {
-    position: clampRockPosition(pose.position),
+    position: parseRockPosition(pose.position),
     rotation: parseRockRotation(pose.rotation),
   }
 }
@@ -101,12 +87,4 @@ export function accessoryWorldToLocal(
     localRotation: [localRotation.x, localRotation.y, localRotation.z, localRotation.w],
     uniformScale: transform.uniformScale,
   }
-}
-
-export function angleBetweenTouches(first: { x: number; y: number }, second: { x: number; y: number }) {
-  return Math.atan2(second.y - first.y, second.x - first.x)
-}
-
-export function distanceBetweenTouches(first: { x: number; y: number }, second: { x: number; y: number }) {
-  return Math.hypot(second.x - first.x, second.y - first.y)
 }
