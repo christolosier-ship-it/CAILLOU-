@@ -6,10 +6,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 import {
   ACCESSORY_SETTLE_TIMEOUT_MS,
-  isAccessoryTransformWithinPhysicsBounds,
   parseAccessoryPhysics,
 } from '../features/accessories/accessoryPhysics'
-import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
+import type { EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
 import { PlacementBody } from '../features/placement/PlacementBody'
 import type { PlacementBodyPhysicsConfig } from '../features/placement/PlacementBody'
 import type { PlacementBodyState } from '../features/placement/placementBodyState'
@@ -20,7 +19,6 @@ import type { PlacementTransform } from '../features/placement/placementTypes'
 import {
   ROCK_SETTLE_TIMEOUT_MS,
   accessoryLocalToWorld,
-  accessoryWorldToLocal,
 } from '../features/rockMovement/rockMovementRules'
 import type { RockPose, WorldAccessoryTransform } from '../features/rockMovement/rockMovementTypes'
 import { disposeRockObject } from './rockResources'
@@ -32,7 +30,8 @@ interface AccessoryModelProps {
   rockPose: RockPose
   compositionFrozen?: boolean
   globalSettling?: boolean
-  onTransformCommit: (instanceId: string, transform: AccessoryTransform) => void
+  settlingRequested?: boolean
+  onSettledWorld?: ((instanceId: string, transform: PlacementTransform) => void) | undefined
   onGlobalSettled?: (transform: WorldAccessoryTransform) => void
   placementTransform?: PlacementTransform | null
   onPlacementGeometryReady?: (instanceId: string, geometry: PlacementGeometry | null) => void
@@ -54,7 +53,8 @@ export function AccessoryModel({
   rockPose,
   compositionFrozen = false,
   globalSettling = false,
-  onTransformCommit,
+  settlingRequested = false,
+  onSettledWorld,
   onGlobalSettled,
   placementTransform = null,
   onPlacementGeometryReady,
@@ -160,7 +160,7 @@ export function AccessoryModel({
   }
   const bodyState: PlacementBodyState = globalSettling
     ? 'settling'
-    : simulating && physics.dynamic
+    : settlingRequested || simulating && physics.dynamic
       ? 'settling'
       : compositionFrozen
         ? 'editing'
@@ -182,7 +182,7 @@ export function AccessoryModel({
   }), [globalSettling, physics])
 
   useEffect(() => {
-    if (!object || !placementGeometry || instance.stabilizedAt !== null || compositionFrozen || globalSettling) return
+    if (!object || !placementGeometry || instance.stabilizedAt !== null || compositionFrozen || globalSettling || settlingRequested) return
     const nextKey = transformKey(instance)
     if (handledUnsettledTransformRef.current === nextKey) return
     handledUnsettledTransformRef.current = nextKey
@@ -198,23 +198,17 @@ export function AccessoryModel({
       rotation: [...canonicalWorld.worldRotation],
       scale: instance.uniformScale,
     }, placementGeometry)
-    const local = accessoryWorldToLocal({
-      instanceId: instance.id,
-      worldPosition: [...safe.position],
-      worldRotation: [...safe.rotation],
-      uniformScale: safe.scale,
-    }, rockPose)
-    onTransformCommit(instance.id, { ...local, physicsSettled: true })
+    onSettledWorld?.(instance.id, safe)
   }, [
     compositionFrozen,
     globalSettling,
     instance,
     object,
-    onTransformCommit,
+    onSettledWorld,
     physics.dynamic,
     physics.enabled,
     placementGeometry,
-    rockPose,
+    settlingRequested,
     worldFromInstance,
   ])
 
@@ -241,16 +235,11 @@ export function AccessoryModel({
       onGlobalSettled?.(settledWorld)
       return
     }
-    if (!simulating) return
-
-    const local = accessoryWorldToLocal(settledWorld, rockPose)
-    if (isAccessoryTransformWithinPhysicsBounds(local.localPosition)) {
-      handledUnsettledTransformRef.current = transformKey({ ...instance, ...local })
-      onTransformCommit(instance.id, { ...local, physicsSettled: true })
-    }
+    if (!simulating && !settlingRequested) return
+    onSettledWorld?.(instance.id, transform)
     setSimulating(false)
     invalidate()
-  }, [globalSettling, instance, invalidate, onGlobalSettled, onTransformCommit, rockPose, simulating])
+  }, [globalSettling, instance.id, invalidate, onGlobalSettled, onSettledWorld, settlingRequested, simulating])
 
   if (!object || !placementGeometry) return null
 

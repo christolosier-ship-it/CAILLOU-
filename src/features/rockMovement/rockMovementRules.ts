@@ -47,7 +47,7 @@ function finiteTuple(value: unknown, size: number): number[] | null {
 
 export function parseRockPosition(value: unknown): RockPosition {
   const tuple = finiteTuple(value, 3)
-  return tuple ? clampRockPosition([tuple[0]!, tuple[1]!, tuple[2]!]) : [...DEFAULT_ROCK_POSE.position]
+  return tuple ? [tuple[0]!, tuple[1]!, tuple[2]!] : [...DEFAULT_ROCK_POSE.position]
 }
 
 export function parseRockRotation(value: unknown): RockRotation {
@@ -69,7 +69,7 @@ export function clampRockPosition(position: RockPosition): RockPosition {
 
 export function normalizeRockPose(pose: RockPose): RockPose {
   return {
-    position: clampRockPosition(pose.position),
+    position: parseRockPosition(pose.position),
     rotation: parseRockRotation(pose.rotation),
   }
 }

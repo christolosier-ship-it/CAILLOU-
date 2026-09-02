@@ -7,13 +7,13 @@ import type { Group, Object3D } from 'three'
 
 import type { RockCatalogEntry } from '../content/rockCatalog'
 import { ACCESSORY_WORLD_GRAVITY } from '../features/accessories/accessoryPhysics'
-import { clampAccessoryTransform } from '../features/accessories/accessoryPlacementRules'
-import type { AccessoryTransform, EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
+import type { EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
 import { PlacementBody } from '../features/placement/PlacementBody'
 import type { PlacementBodyPhysicsConfig } from '../features/placement/PlacementBody'
 import { constrainPlacementPosition, constrainTransformToPedestal } from '../features/placement/placementConstraints'
 import type { PlacementGeometry } from '../features/placement/placementGeometry'
 import { resolvePlacementGesture } from '../features/placement/placementGesturePolicy'
+import type { SettledWorldComposition } from '../features/placement/placementPersistence'
 import type { PlacementTarget, PlacementTool, PlacementTransform } from '../features/placement/placementTypes'
 import { normalizePlacementTransform, ROCK_PLACEMENT_SCALE_LIMITS } from '../features/placement/placementTransform'
 import type { PlacementScaleLimits } from '../features/placement/placementTransform'
@@ -28,10 +28,9 @@ import {
   PEDESTAL_GROUND_Y,
   ROCK_SETTLE_TIMEOUT_MS,
   accessoryLocalToWorld,
-  accessoryWorldToLocal,
   normalizeRockPose,
 } from '../features/rockMovement/rockMovementRules'
-import type { RockCompositionDraft, RockPose, WorldAccessoryTransform } from '../features/rockMovement/rockMovementTypes'
+import type { RockPose, WorldAccessoryTransform } from '../features/rockMovement/rockMovementTypes'
 import { AccessoryModel } from './AccessoryModel'
 import { RockModel } from './RockModel'
 import type { RockLoadState, RockSurfacePointerSample } from './RockModel'
@@ -43,6 +42,7 @@ export type ShowroomInteractionMode =
   | 'cleaning'
   | 'placement'
   | 'composition-settle'
+  | 'accessory-settle'
 
 interface ShowroomSceneProps {
   rock: RockCatalogEntry
@@ -53,7 +53,7 @@ interface ShowroomSceneProps {
   interactionMode?: ShowroomInteractionMode
   rockPose?: RockPose
   onRockPoseDraft?: (pose: RockPose) => void
-  onCompositionSettled?: (draft: RockCompositionDraft) => void
+  onCompositionSettled?: (composition: SettledWorldComposition) => void
   placementTarget?: PlacementTarget | null
   placementTool?: PlacementTool
   dustAmount?: number
@@ -64,8 +64,8 @@ interface ShowroomSceneProps {
   onSurfacePointerCancel?: (sample: RockSurfacePointerSample) => void
   accessories?: EquippedAccessoryInstance[]
   selectedAccessoryId?: string | null
-  onAccessoryTransformDraft?: (instanceId: string, transform: AccessoryTransform) => void
-  onAccessoryTransformCommit?: (instanceId: string, transform: AccessoryTransform) => void
+  onAccessoryPlacementDraft?: (instanceId: string, transform: PlacementTransform) => void
+  onAccessorySettled?: (instanceId: string, transform: PlacementTransform) => void
   onAccessoryLoadStateChange?: (
     instanceId: string,
     state: 'loading' | 'ready' | 'error',
@@ -343,8 +343,8 @@ export function ShowroomScene({
   onSurfacePointerCancel,
   accessories = [],
   selectedAccessoryId = null,
-  onAccessoryTransformDraft,
-  onAccessoryTransformCommit,
+  onAccessoryPlacementDraft,
+  onAccessorySettled,
   onAccessoryLoadStateChange,
   onAccessoryDisposed,
 }: ShowroomSceneProps) {
@@ -387,6 +387,7 @@ export function ShowroomScene({
   const surfaceMode = interactionMode === 'caress' || interactionMode === 'cleaning'
   const cleaningMode = interactionMode === 'cleaning'
   const placementMode = interactionMode === 'placement'
+  const accessorySettling = interactionMode === 'accessory-settle' && placementTarget?.kind === 'accessory'
   const placementRockTarget = placementMode && placementTarget?.kind === 'rock'
   const globalSettling = interactionMode === 'composition-settle'
   const orbitMode = interactionMode === 'orbit'
@@ -406,18 +407,32 @@ export function ShowroomScene({
     compositionReportedRef.current = false
   }, [globalSettling])
 
-  const tryReportComposition = useCallback(() => {
-    const finalRock = finalRockRef.current
-    if (!globalSettling || !finalRock || compositionReportedRef.current) return
-    if (finalAccessoriesRef.current.size !== accessories.length) return
-    compositionReportedRef.current = true
-    const localAccessories = accessories.map((instance) => {
+
+const tryReportComposition = useCallback(() => {
+  const finalRock = finalRockRef.current
+  if (!globalSettling || !finalRock || compositionReportedRef.current) return
+  if (finalAccessoriesRef.current.size !== accessories.length) return
+  compositionReportedRef.current = true
+  onCompositionSettled?.({
+    rockTransform: {
+      position: [...finalRock.position],
+      rotation: [...finalRock.rotation],
+      scale: 1,
+    },
+    accessories: accessories.map((instance) => {
       const world = finalAccessoriesRef.current.get(instance.id)
       if (!world) throw new Error(`Missing settled transform for ${instance.id}`)
-      return accessoryWorldToLocal(world, finalRock)
-    })
-    onCompositionSettled?.({ rockPose: finalRock, accessories: localAccessories })
-  }, [accessories, globalSettling, onCompositionSettled])
+      return {
+        instanceId: instance.id,
+        transform: {
+          position: [...world.worldPosition],
+          rotation: [...world.worldRotation],
+          scale: world.uniformScale,
+        },
+      }
+    }),
+  })
+}, [accessories, globalSettling, onCompositionSettled])
 
   const handleRockSettled = useCallback((pose: RockPose) => {
     finalRockRef.current = pose
@@ -437,12 +452,12 @@ export function ShowroomScene({
   }, [tryReportComposition])
 
 
-  const placementDraftKey = placementMode && placementTarget
+  const placementDraftKey = (placementMode || accessorySettling) && placementTarget
     ? placementTarget.kind === 'rock' ? 'rock' : `accessory:${placementTarget.instanceId}`
     : null
 
   useEffect(() => {
-    if (!placementMode || !placementTarget || !placementDraftKey) {
+    if ((!placementMode && !accessorySettling) || !placementTarget || !placementDraftKey) {
       setActivePlacementDraft(null)
       return
     }
@@ -470,7 +485,7 @@ export function ShowroomScene({
         }, { min: instance.scaleMin, max: instance.scaleMax }),
       }
     })
-  }, [accessories, placementDraftKey, placementMode, placementTarget, rockPose])
+  }, [accessories, accessorySettling, placementDraftKey, placementMode, placementTarget, rockPose])
 
   const placementGeometry = useMemo(() => {
     if (!placementTarget) return null
@@ -485,29 +500,22 @@ export function ShowroomScene({
     return instance ? { min: instance.scaleMin, max: instance.scaleMax } : { min: 1, max: 1 }
   }, [accessories, placementTarget])
 
-  const handlePlacementTransformDraft = useCallback((transform: PlacementTransform) => {
-    if (!placementTarget || !placementDraftKey) return
-    setActivePlacementDraft({ key: placementDraftKey, transform })
-    if (placementTarget.kind === 'rock') {
-      onRockPoseDraft?.({ position: [...transform.position], rotation: [...transform.rotation] })
-    }
-  }, [onRockPoseDraft, placementDraftKey, placementTarget])
 
-  const handlePlacementTransformEnd = useCallback((transform: PlacementTransform) => {
-    if (!placementTarget || placementTarget.kind !== 'accessory') return
-    const instance = accessories.find((candidate) => candidate.id === placementTarget.instanceId)
-    if (!instance) return
-    const local = accessoryWorldToLocal({
-      instanceId: instance.id,
-      worldPosition: [...transform.position],
-      worldRotation: [...transform.rotation],
-      uniformScale: transform.scale,
-    }, rockPose)
-    onAccessoryTransformDraft?.(
-      instance.id,
-      clampAccessoryTransform(local, instance.scaleMin, instance.scaleMax),
-    )
-  }, [accessories, onAccessoryTransformDraft, placementTarget, rockPose])
+const handlePlacementTransformDraft = useCallback((transform: PlacementTransform) => {
+  if (!placementTarget || !placementDraftKey) return
+  setActivePlacementDraft({ key: placementDraftKey, transform })
+  if (placementTarget.kind === 'rock') {
+    onRockPoseDraft?.({ position: [...transform.position], rotation: [...transform.rotation] })
+  } else {
+    onAccessoryPlacementDraft?.(placementTarget.instanceId, transform)
+  }
+}, [onAccessoryPlacementDraft, onRockPoseDraft, placementDraftKey, placementTarget])
+
+
+const handlePlacementTransformEnd = useCallback((transform: PlacementTransform) => {
+  if (!placementTarget || placementTarget.kind !== 'accessory') return
+  onAccessoryPlacementDraft?.(placementTarget.instanceId, transform)
+}, [onAccessoryPlacementDraft, placementTarget])
 
   return (
     <div
@@ -582,11 +590,12 @@ export function ShowroomScene({
                 instance={instance}
                 selected={selectedAccessoryId === instance.id}
                 rockPose={rockPose}
-                compositionFrozen={placementMode}
+                compositionFrozen={placementMode || accessorySettling}
                 globalSettling={globalSettling}
-                onTransformCommit={(instanceId, transform) => onAccessoryTransformCommit?.(instanceId, transform)}
+                settlingRequested={accessorySettling && placementTarget?.kind === 'accessory' && placementTarget.instanceId === instance.id}
+                onSettledWorld={onAccessorySettled}
                 onGlobalSettled={handleAccessorySettled}
-                placementTransform={placementMode && placementTarget?.kind === 'accessory' && placementTarget.instanceId === instance.id
+                placementTransform={(placementMode || accessorySettling) && placementTarget?.kind === 'accessory' && placementTarget.instanceId === instance.id
                   ? activePlacementDraft?.transform ?? null
                   : null}
                 onPlacementGeometryReady={handleAccessoryGeometryReady}

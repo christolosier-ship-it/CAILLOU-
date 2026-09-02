@@ -14,7 +14,7 @@ import {
   clampAccessoryTransform,
   defaultAccessoryTransform,
 } from './accessoryPlacementRules'
-import type { AccessoryCatalogItem, AccessoryTransform, EquippedAccessoryInstance } from './accessoryTypes'
+import type { AccessoryCatalogItem, AccessoryTransform, EquippedAccessoryInstance, StabilizeAccessoryPlacementResult } from './accessoryTypes'
 
 export function useAccessoryPlacements(userRockId: string) {
   const [instances, setInstances] = useState<EquippedAccessoryInstance[]>([])
@@ -198,6 +198,21 @@ export function useAccessoryPlacements(userRockId: string) {
     setError(null)
   }, [])
 
+
+const acceptStabilizedAccessory = useCallback((result: StabilizeAccessoryPlacementResult) => {
+  const apply = (items: EquippedAccessoryInstance[]) => items.map((instance) => instance.id === result.instanceId
+    ? { ...instance, ...result }
+    : instance)
+  canonicalInstancesRef.current = apply(canonicalInstancesRef.current)
+  setInstances((current) => apply(current))
+  setDirtyIds((current) => {
+    const next = new Set(current)
+    next.delete(result.instanceId)
+    return next
+  })
+  setError(null)
+}, [])
+
   const remove = useCallback(async (instanceId: string) => {
     if (pendingId) return false
     setPendingId(instanceId)
@@ -232,6 +247,7 @@ export function useAccessoryPlacements(userRockId: string) {
     draft,
     commitDrafts,
     update,
+    acceptStabilizedAccessory,
     acceptComposition,
     remove,
     clearError: () => setError(null),

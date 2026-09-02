@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 
 import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import { worldCompositionToPersistence } from '../../src/features/placement/placementPersistence'
+import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
 import type { PlacementTarget, PlacementTool } from '../../src/features/placement/placementTypes'
 import type { RockCompositionDraft, RockPose } from '../../src/features/rockMovement/rockMovementTypes'
 import { ShowroomScene } from '../../src/scene/ShowroomScene'
@@ -70,11 +72,13 @@ function Fixture() {
     setAccessoryReady(state === 'ready')
   }, [])
 
-  const handleSettled = useCallback((draft: RockCompositionDraft) => {
-    setSettled(draft)
-    setPose(draft.rockPose)
-    setMode('orbit')
-  }, [])
+
+const handleSettled = useCallback((world: SettledWorldComposition) => {
+  const draft = worldCompositionToPersistence(world)
+  setSettled(draft)
+  setPose(draft.rockPose)
+  setMode('orbit')
+}, [])
 
   return (
     <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'composition-settle' ? ' is-composition-settling' : ''}`}>
@@ -93,7 +97,6 @@ function Fixture() {
             placementTarget={mode === 'placement' ? ROCK_TARGET : null}
             placementTool={tool}
             accessories={[INSTANCE]}
-            onAccessoryTransformCommit={() => undefined}
             onAccessoryLoadStateChange={handleAccessoryLoadState}
           />
           <div className="rock-e2e-controls" style={{ position: 'absolute', zIndex: 30, left: 12, bottom: 12, display: 'flex', gap: 8 }}>
