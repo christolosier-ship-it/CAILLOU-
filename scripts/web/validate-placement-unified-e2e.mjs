@@ -5,9 +5,11 @@ const baseUrl = process.env.CAILLOU_E2E_BASE_URL ?? 'http://127.0.0.1:4181'
 const chromePath = process.env.CHROME_PATH ?? '/usr/bin/google-chrome'
 const outputDir = 'build/placement-unified-validation'
 const GROUND_Y = -0.02
+// The production catalogue stores bounds before the export-axis remap. The GLB
+// runtime used by Three.js exposes X unchanged, exported Z as Y, and -Y as Z.
 const ROCK_018_BOUNDS = {
-  min: [-0.9306801557540894, -1.0000003576278687, 0],
-  max: [0.930679976940155, 0.9999995827674866, 1.3231968879699707],
+  min: [-0.9306801557540894, 0, -1.0000003576278687],
+  max: [0.930679976940155, 1.3231968879699707, 0.9999995827674866],
 }
 await mkdir(outputDir, { recursive: true })
 
