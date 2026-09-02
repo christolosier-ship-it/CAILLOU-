@@ -47,6 +47,12 @@ jobs:
               1,
           )
           exec(compile(script, 'phase7-cleanup.py', 'exec'))
+          for normalized in [
+              Path('src/features/accessories/accessoryPhysics.ts'),
+              Path('src/features/accessories/accessoryPhysics.test.ts'),
+              Path('src/features/accessories/accessoryPlacementApi.ts'),
+          ]:
+              normalized.write_text(normalized.read_text().rstrip() + '\n')
       - name: Validate phase 7 cleanup
         run: |
           npm run check
