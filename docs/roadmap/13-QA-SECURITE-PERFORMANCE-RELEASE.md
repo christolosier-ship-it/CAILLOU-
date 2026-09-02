@@ -2,7 +2,7 @@
 
 ## Prompt d'exécution
 
-Tu travailles sur CAILLOU™ lorsque les étapes 01 à 12 sont terminées, y compris le jalon accessoires 10A–10D. Lis l'index roadmap, ce fichier et les quatre documents normatifs. Inspecte GitHub, Supabase et Vercel dans leur état réel avant d'agir.
+Tu travailles sur CAILLOU™ lorsque les étapes 01 à 12 sont terminées, y compris 10A–10D, 10.5 et 10.75. Lis l'index roadmap, ce fichier et les quatre documents normatifs. Inspecte GitHub, Supabase et Vercel dans leur état réel avant d'agir.
 
 ### Objectif
 
@@ -24,12 +24,21 @@ Effectuer la passe de consolidation finale et décider si CAILLOU™ peut être 
 - Socle ;
 - caresse/Lithons ;
 - nettoyage ;
-- catalogue accessoires ;
-- boutique et achats ;
+- Boutique unifiée ;
+- achat accessoires ;
+- achat/déblocage de fonctionnalités ;
+- Permis de manutention minérale à 1000 Lithons ;
+- propriété accessoires distincte des instances ;
 - multi-équipement ;
-- placement, rotation et échelle ;
-- collisions et gravité ;
-- persistance/reprise des placements ;
+- Placement unique ;
+- sélecteur caillou / instances ;
+- manipulation commune Position / Orientation ;
+- échelle accessoires ;
+- placement libre avec intersections volontaires ;
+- carré gris infranchissable pendant le geste ;
+- reprise Rapier à Terminer ;
+- stabilisation individuelle et globale ;
+- persistance/reprise des placements et de la pose du caillou ;
 - Bio/Stats ;
 - Jeter puis nouvelle adoption.
 
@@ -38,10 +47,17 @@ Effectuer la passe de consolidation finale et décider si CAILLOU™ peut être 
 - utilisateur A/B ;
 - service-role absent du client ;
 - transactions Lithons/achats ;
+- `purchase_accessory` ;
+- `purchase_feature_unlock` ;
 - idempotence ;
+- prix autoritaires ;
 - possession d'accessoires distincte des instances équipées ;
+- déblocages permanents distincts des possessions d'accessoires ;
 - impossibilité d'équiper un accessoire non possédé ;
-- intégrité des instances multi-accessoires et de leurs transforms ;
+- impossibilité de manutention du caillou sans permis ;
+- intégrité des instances, transforms et pose du caillou ;
+- `stabilize_equipped_accessory` ;
+- `stabilize_rock_composition` atomique/idempotent ;
 - comportement des instances lorsque le caillou est jeté ;
 - advisors sécurité/performance ;
 - contraintes et index.
@@ -51,14 +67,17 @@ Effectuer la passe de consolidation finale et décider si CAILLOU™ peut être 
 - GLB accessoires retenus, provenance/licences et poids ;
 - mémoire GPU sur cycles complets ;
 - temps de chargement ;
-- frame time pendant rotation ;
-- frame time pendant manipulation/gravité ;
+- frame time pendant observation ;
+- frame time pendant Placement ;
+- frame time pendant gravité/stabilisation ;
 - chauffe sur session prolongée ;
 - qualité adaptative ;
 - accessoires + poussière ;
 - plusieurs accessoires simultanés ;
 - stabilité des colliders ;
-- absence de pénétration visible ;
+- intersections volontaires pendant Placement non bloquées ;
+- absence de franchissement du sol gris ;
+- résolution Rapier d'une forte pénétration sans crash ni perte de cible ;
 - absence de jitter/tunneling bloquant ;
 - endormissement des corps physiques ;
 - coût CPU/GPU lorsque la scène est au repos ;
@@ -74,8 +93,14 @@ Effectuer la passe de consolidation finale et décider si CAILLOU™ peut être 
 - reduced motion ;
 - zones tactiles ;
 - erreurs et chargements ;
-- conflits entre OrbitControls, caresse, nettoyage et manipulation d'accessoires ;
-- sélection/édition claire de plusieurs accessoires.
+- Boutique unique et lisible ;
+- état `Acquis`/`Possédé`/`Verrouillé` ;
+- Placement unique ;
+- cible clairement identifiée ;
+- canvas entier utilisable après sélection ;
+- conflits entre OrbitControls, Caresser, Nettoyer et Placement ;
+- ajout et sélection claire de plusieurs instances ;
+- réglage fin utilisable comme alternative à la gestuelle.
 
 #### PWA / Vercel
 - Preview/Production ;
@@ -83,8 +108,10 @@ Effectuer la passe de consolidation finale et décider si CAILLOU™ peut être 
 - service worker ;
 - mise à jour ;
 - cache ;
-- cache des GLB accessoires équipés ;
-- reprise des transforms après offline/reconnexion ;
+- cache des GLB nécessaires ;
+- reprise de la pose du caillou et des transforms ;
+- reprise Boutique/propriétés/déblocages ;
+- reconnexion pendant une stabilisation atomique ;
 - réseau médiocre ;
 - erreurs runtime pertinentes.
 
@@ -92,7 +119,9 @@ Effectuer la passe de consolidation finale et décider si CAILLOU™ peut être 
 
 Éviter la prolifération de tests sans valeur. Prioriser les parcours critiques, invariants économiques, RLS, régressions 3D/physique et E2E essentiels.
 
-Pour la physique, les tests automatisés ne remplacent pas une validation visuelle/tactile sur appareil réel. Mesurer les scénarios utiles plutôt que chercher une couverture artificielle exhaustive.
+Pour la physique et le tactile, les tests automatisés ne remplacent pas une validation visuelle sur appareil réel. Mesurer les scénarios utiles plutôt que chercher une couverture artificielle exhaustive.
+
+Les intersections volontaires de 10.75 ne doivent pas être signalées comme défauts par des assertions historiques « aucune pénétration ». Le défaut à rechercher est une perte de contrôle, un franchissement du sol, un crash, une pose non persistée ou une résolution physique bloquante.
 
 ### Critères de release
 
@@ -100,7 +129,11 @@ Pour la physique, les tests automatisés ne remplacent pas une validation visuel
 - Aucun risque de sécurité ou économique critique ouvert.
 - Tous les contrôles essentiels verts.
 - Parcours principal validé sur appareils réels disponibles.
-- Plusieurs accessoires simultanés restent manipulables et persistants sans régression critique.
+- Boutique unifiée et Permis fonctionnels sans double circuit d'achat.
+- Plusieurs accessoires simultanés restent manipulables et persistants.
+- Placement caillou/accessoires partage une grammaire cohérente.
+- Les intersections volontaires sont possibles pendant le geste et le sol reste infranchissable.
+- Rapier reprend proprement l'autorité à Terminer.
 - Collisions/gravité acceptables sur mobile/tablette cibles.
 - Performance au repos proche du coût attendu d'une scène stable ; aucune simulation physique inutile permanente.
 - Documentation de référence synchronisée avec le produit réel.
@@ -126,6 +159,8 @@ Pour la physique, les tests automatisés ne remplacent pas une validation visuel
 - Audit Vercel :
 - Appareils testés :
 - Performance 3D/physique :
+- Boutique / économie :
+- Placement universel :
 - Multi-accessoires :
 - Sécurité :
 - Licences/crédits :
