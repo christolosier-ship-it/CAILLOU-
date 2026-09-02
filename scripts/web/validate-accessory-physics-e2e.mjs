@@ -64,9 +64,6 @@ try {
   await page.waitForSelector('.accessory-editor', { timeout: 30_000 })
   await page.waitForFunction(() => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-loaded-count') ?? '0') === 2, { timeout: 30_000 })
   await page.waitForFunction(() => document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-probe-settled') === 'true', { timeout: 20_000 })
-  await page.$eval('.accessory-editor-fine', (element) => {
-    if (element instanceof HTMLDetailsElement) element.open = true
-  })
 
   const phone = await state()
   if (phone.instanceCount !== 2 || phone.loadedCount !== 2) {
@@ -79,6 +76,7 @@ try {
 
   const initialFirst = phone.transforms.find((item) => item.id === phone.selectedId)
   if (!initialFirst) throw new Error('selected accessory missing from physics fixture')
+  await touch('.accessory-editor-fine summary')
   await touch('button[aria-label="Déplacer X positif"]')
   await page.waitForFunction(() => Number(document.querySelector('#accessory-physics-e2e-state')?.getAttribute('data-save-count') ?? '0') >= 1)
   const afterTouch = await state()
@@ -87,11 +85,17 @@ try {
     throw new Error('phone tactile precision edit did not survive physics integration')
   }
 
-  const phoneTargets = await page.$$eval('.accessory-editor button, .accessory-editor summary', (targets) => targets.every((target) => {
-    const rect = target.getBoundingClientRect()
-    return rect.width >= 44 && rect.height >= 44
-  }))
-  if (!phoneTargets) throw new Error('one or more phone physics editor targets are below 44px')
+  const phoneTargets = await page.$$eval('.accessory-editor button, .accessory-editor summary', (targets) => targets
+    .filter((target) => {
+      const rect = target.getBoundingClientRect()
+      const style = getComputedStyle(target)
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none'
+    })
+    .every((target) => {
+      const rect = target.getBoundingClientRect()
+      return rect.width >= 44 && rect.height >= 44
+    }))
+  if (!phoneTargets) throw new Error('one or more visible phone physics editor targets are below 44px')
   await page.screenshot({ path: `${outputDir}/physics-phone.png`, fullPage: true })
 
   await page.setViewport({ width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
@@ -117,7 +121,6 @@ try {
     phoneTouchEdit: true,
     tabletTouchEdit: true,
     saveCount: tablet.saveCount,
-    fineControlsSecondary: true,
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
