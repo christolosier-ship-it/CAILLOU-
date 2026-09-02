@@ -93,6 +93,16 @@ jobs:
               '"const reopenPlacement = useCallback(() => {\\n    setTarget(null)\\n",',
               1,
           )
+          script = script.replace(
+              "onSettledWorld?: (instanceId: string, transform: PlacementTransform) => void",
+              "onSettledWorld?: ((instanceId: string, transform: PlacementTransform) => void) | undefined",
+              1,
+          )
+          script = script.replace(
+              "? { ...instance, ...result, physicsSettled: undefined }",
+              "? { ...instance, ...result }",
+              1,
+          )
 
           exec(compile(script, 'phase6-transform.py', 'exec'))
       - name: Validate phase 6
