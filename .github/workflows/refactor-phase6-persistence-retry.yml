@@ -1,0 +1,110 @@
+name: Execute refactor phase 6 persistence retry
+
+on:
+  push:
+    branches:
+      - refactor/harmonisation-sol-placement
+    paths:
+      - .github/workflows/refactor-phase6-persistence-retry.yml
+
+permissions:
+  contents: write
+
+jobs:
+  phase6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/harmonisation-sol-placement
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Apply robust phase 6 persistence boundary
+        shell: python
+        run: |
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/refactor-phase6-persistence.yml').read_text()
+          start = workflow.index('      - name: Apply phase 6 persistence boundary')
+          end = workflow.index('      - name: Validate phase 6', start)
+          section = workflow[start:end]
+          script = section.split('        run: |\n', 1)[1]
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in script.splitlines())
+
+          bad_start = script.index("text = sub_once(\n    text,\n    r\"  const handleDraft = useCallback")
+          bad_end_marker = "text = sub_once(text, r\"  const handleCommit = useCallback.*?\\n  const handleWorldDraft\", \"  const handleWorldDraft\", 'unified fixture obsolete commit', re.S)"
+          bad_end = script.index(bad_end_marker, bad_start) + len(bad_end_marker)
+
+          robust = '''text = sub_once(
+              text,
+              r"  const handleDraft = useCallback.*?\\n  const reopenPlacement = useCallback",
+              dedent(\"\"\"
+                const handleWorldDraft = useCallback((_: string, transform: PlacementTransform) => {
+                  setSelectedWorldDraft(transform)
+                }, [])
+                const handleIndividualSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
+                  const local = worldAccessoryToPersistence(instanceId, transform, pose)
+                  setInstances((current) => current.map((instance) => instance.id === instanceId
+                    ? { ...instance, ...local, stabilizedAt: '2026-09-02T08:30:00.000Z' }
+                    : instance))
+                  setSelectedWorldDraft(null)
+                  setIndividualSettled((current) => current + 1)
+                  setTarget(null)
+                  setMode('orbit')
+                }, [pose])
+                const handleDone = useCallback(() => {
+                  if (target?.kind === 'rock') {
+                    setMode('composition-settle')
+                    return
+                  }
+                  if (target?.kind === 'accessory') {
+                    setMode('accessory-settle')
+                    return
+                  }
+                  setTarget(null)
+                  setMode('orbit')
+                }, [target])
+                const handleComposition = useCallback((world: SettledWorldComposition) => {
+                  const draft: RockCompositionDraft = worldCompositionToPersistence(world)
+                  setSettled(draft)
+                  setPose(draft.rockPose)
+                  setInstances((current) => current.map((instance) => {
+                    const next = draft.accessories.find((candidate) => candidate.instanceId === instance.id)
+                    return next ? { ...instance, ...next, stabilizedAt: '2026-09-02T08:31:00.000Z' } : instance
+                  }))
+                  setTarget(null)
+                  setMode('orbit')
+                }, [])
+                const reopenPlacement = useCallback\"\"\").rstrip(),
+              'unified fixture persistence callbacks',
+              re.S,
+          )
+          text = replace_once(
+              text,
+              "            onAccessoryTransformDraft={handleDraft}\\n            onAccessoryTransformCommit={handleCommit}\\n",
+              "            onAccessoryPlacementDraft={handleWorldDraft}\\n            onAccessorySettled={handleIndividualSettled}\\n",
+              'unified fixture scene callbacks',
+          )'''
+          script = script[:bad_start] + robust + script[bad_end:]
+
+          exec(compile(script, 'phase6-transform.py', 'exec'))
+      - name: Validate phase 6
+        run: |
+          npm run check
+          git diff --check
+          grep -q "persistAccessoryWorldTransform" src/features/pedestal/Pedestal.tsx
+          grep -q "persistRockCompositionWorld" src/features/pedestal/Pedestal.tsx
+          grep -q "accessory-settle" src/features/pedestal/Pedestal.tsx src/scene/ShowroomScene.tsx
+          ! grep -q "accessoryWorldToLocal" src/scene/ShowroomScene.tsx src/scene/AccessoryModel.tsx
+          ! grep -q "onAccessoryTransformCommit" src/features/pedestal/Pedestal.tsx src/scene/ShowroomScene.tsx
+          test -f supabase/migrations/20260902131355_harmonize_placement_defensive_envelope.sql
+          test -f supabase/migrations/20260902132152_remove_legacy_accessory_update_rpc.sql
+      - name: Commit phase 6 product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src scripts/web supabase/migrations/20260902131355_harmonize_placement_defensive_envelope.sql supabase/migrations/20260902132152_remove_legacy_accessory_update_rpc.sql
+          git commit -m "refactor(placement): isoler la persistance des poses monde"
+          git push origin HEAD:refactor/harmonisation-sol-placement
