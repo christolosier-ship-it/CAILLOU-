@@ -75,7 +75,7 @@ const INITIAL_INSTANCES: EquippedAccessoryInstance[] = [
     equippedAt: '2026-09-01T20:00:01.000Z',
     updatedAt: '2026-09-01T20:00:01.000Z',
     stabilizedAt: '2026-09-01T20:00:01.000Z',
-    localPosition: [-0.18, 0.16, 0.76],
+    localPosition: [0, 0.16, 0.76],
     localRotation: [0, 0, 0, 1],
     uniformScale: 1,
   },
