@@ -1,0 +1,621 @@
+name: Refactor phase 3 world transform
+
+on:
+  push:
+    branches:
+      - refactor/harmonisation-sol-placement
+    paths:
+      - .github/workflows/refactor-phase3-world-transform.yml
+
+permissions:
+  contents: write
+
+jobs:
+  phase3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/harmonisation-sol-placement
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Introduce universal world placement transforms
+        shell: python
+        run: |
+          from pathlib import Path
+
+          placement_types = Path('src/features/placement/placementTypes.ts')
+          text = placement_types.read_text()
+          if 'export interface PlacementTransform' not in text:
+              text += """
+
+          export type PlacementQuaternion = [number, number, number, number]
+
+          export interface PlacementTransform {
+            position: PlacementVector3
+            rotation: PlacementQuaternion
+            scale: number
+          }
+          """.replace('          ', '')
+          placement_types.write_text(text)
+
+          Path('src/features/placement/placementTransform.ts').write_text("""import { Quaternion } from 'three'
+
+          import type { PlacementTransform } from './placementTypes'
+
+          export interface PlacementScaleLimits {
+            min: number
+            max: number
+          }
+
+          export const ROCK_PLACEMENT_SCALE_LIMITS: PlacementScaleLimits = { min: 1, max: 1 }
+
+          function finite(value: number, fallback: number) {
+            return Number.isFinite(value) ? value : fallback
+          }
+
+          export function normalizePlacementTransform(
+            transform: PlacementTransform,
+            scaleLimits: PlacementScaleLimits,
+          ): PlacementTransform {
+            const quaternion = new Quaternion(
+              finite(transform.rotation[0], 0),
+              finite(transform.rotation[1], 0),
+              finite(transform.rotation[2], 0),
+              finite(transform.rotation[3], 1),
+            )
+            if (quaternion.lengthSq() < 0.000001) quaternion.identity()
+            else quaternion.normalize()
+
+            const minimumScale = Math.min(scaleLimits.min, scaleLimits.max)
+            const maximumScale = Math.max(scaleLimits.min, scaleLimits.max)
+            const requestedScale = finite(transform.scale, minimumScale)
+
+            return {
+              position: [
+                finite(transform.position[0], 0),
+                finite(transform.position[1], 0),
+                finite(transform.position[2], 0),
+              ],
+              rotation: [quaternion.x, quaternion.y, quaternion.z, quaternion.w],
+              scale: Math.max(minimumScale, Math.min(maximumScale, requestedScale)),
+            }
+          }
+
+          export function copyPlacementTransform(transform: PlacementTransform): PlacementTransform {
+            return {
+              position: [...transform.position],
+              rotation: [...transform.rotation],
+              scale: transform.scale,
+            }
+          }
+          """.replace('          ', ''))
+
+          constraints = Path('src/features/placement/placementConstraints.ts')
+          text = constraints.read_text()
+          text = text.replace(
+              "import type { PlacementVector3 } from './placementTypes'",
+              "import type { PlacementTransform, PlacementVector3 } from './placementTypes'",
+          )
+          if 'export function constrainTransformToPedestal' not in text:
+              text += """
+
+          export function constrainTransformToPedestal(
+            transform: PlacementTransform,
+            geometry: PlacementGeometry,
+            pedestal: PedestalConstraintFrame = PEDESTAL_CONSTRAINT_FRAME,
+          ): PlacementTransform {
+            return {
+              ...transform,
+              position: constrainPlacementPosition(
+                transform.position,
+                transform.rotation,
+                transform.scale,
+                geometry,
+                pedestal,
+              ),
+            }
+          }
+          """.replace('          ', '')
+          constraints.write_text(text)
+
+          Path('src/features/placement/placementTransform.test.ts').write_text("""import { describe, expect, it } from 'vitest'
+
+          import { constrainTransformToPedestal, PEDESTAL_CONSTRAINT_FRAME } from './placementConstraints'
+          import type { PlacementGeometry } from './placementGeometry'
+          import {
+            ROCK_PLACEMENT_SCALE_LIMITS,
+            copyPlacementTransform,
+            normalizePlacementTransform,
+          } from './placementTransform'
+          import type { PlacementTransform } from './placementTypes'
+
+          const cube: PlacementGeometry = {
+            supportPoints: [
+              [-0.5, -0.5, -0.5], [-0.5, -0.5, 0.5], [-0.5, 0.5, -0.5], [-0.5, 0.5, 0.5],
+              [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5],
+            ],
+            colliderBounds: { min: [-0.5, -0.5, -0.5], max: [0.5, 0.5, 0.5] },
+          }
+
+          describe('PlacementTransform', () => {
+            it('keeps rock scale fixed at one and normalizes its quaternion', () => {
+              const transform = normalizePlacementTransform({
+                position: [1, 2, 3],
+                rotation: [0, 0, 0, 4],
+                scale: 3,
+              }, ROCK_PLACEMENT_SCALE_LIMITS)
+              expect(transform).toEqual({ position: [1, 2, 3], rotation: [0, 0, 0, 1], scale: 1 })
+            })
+
+            it('clamps accessory scale without changing the world pose', () => {
+              const transform = normalizePlacementTransform({
+                position: [0.3, 0.7, -0.4],
+                rotation: [0, 0, 0, 1],
+                scale: 9,
+              }, { min: 0.65, max: 1.35 })
+              expect(transform.position).toEqual([0.3, 0.7, -0.4])
+              expect(transform.rotation).toEqual([0, 0, 0, 1])
+              expect(transform.scale).toBe(1.35)
+            })
+
+            it('constrains the complete world transform while preserving rotation and scale', () => {
+              const source: PlacementTransform = {
+                position: [9, -9, 9],
+                rotation: [0, 0, 0, 1],
+                scale: 1,
+              }
+              const constrained = constrainTransformToPedestal(source, cube)
+              expect(constrained.position[0]).toBeLessThan(PEDESTAL_CONSTRAINT_FRAME.maxX)
+              expect(constrained.position[1]).toBeGreaterThan(PEDESTAL_CONSTRAINT_FRAME.topY)
+              expect(constrained.position[2]).toBeLessThan(PEDESTAL_CONSTRAINT_FRAME.maxZ)
+              expect(constrained.rotation).toEqual(source.rotation)
+              expect(constrained.scale).toBe(1)
+            })
+
+            it('copies tuple storage so a draft cannot mutate its canonical source', () => {
+              const source: PlacementTransform = { position: [1, 2, 3], rotation: [0, 0, 0, 1], scale: 1 }
+              const copy = copyPlacementTransform(source)
+              copy.position[0] = 99
+              copy.rotation[3] = 0
+              expect(source.position[0]).toBe(1)
+              expect(source.rotation[3]).toBe(1)
+            })
+          })
+          """.replace('          ', ''))
+
+          showroom = Path('src/scene/ShowroomScene.tsx')
+          text = showroom.read_text()
+          text = text.replace(
+              "import { constrainPlacementPosition } from '../features/placement/placementConstraints'",
+              "import { constrainPlacementPosition, constrainTransformToPedestal } from '../features/placement/placementConstraints'",
+          )
+          text = text.replace(
+              "import type { PlacementTarget, PlacementTool } from '../features/placement/placementTypes'",
+              "import { copyPlacementTransform, normalizePlacementTransform, ROCK_PLACEMENT_SCALE_LIMITS } from '../features/placement/placementTransform'\nimport type { PlacementScaleLimits } from '../features/placement/placementTransform'\nimport type { PlacementTarget, PlacementTool, PlacementTransform } from '../features/placement/placementTypes'",
+          )
+
+          old_snapshot = """interface ManipulationSnapshot {
+            position: Vector3
+            rotation: Quaternion
+            scale: number
+          }
+
+          """.replace('          ', '')
+          text = text.replace(old_snapshot, '')
+
+          start = text.index('function ManipulationController({')
+          end = text.index('function RockPhysicsBody({', start)
+          controller = """function ManipulationController({
+            target,
+            tool,
+            transform,
+            geometry,
+            scaleLimits,
+            onTransformChange,
+            onTransformEnd,
+          }: {
+            target: PlacementTarget
+            tool: PlacementTool
+            transform: PlacementTransform
+            geometry: PlacementGeometry
+            scaleLimits: PlacementScaleLimits
+            onTransformChange: (transform: PlacementTransform) => void
+            onTransformEnd?: ((transform: PlacementTransform) => void) | undefined
+          }) {
+            const camera = useThree((state) => state.camera)
+            const gl = useThree((state) => state.gl)
+            const invalidate = useThree((state) => state.invalidate)
+            const pointersRef = useRef(new Map<number, GesturePoint>())
+            const previousSingleRef = useRef<GesturePoint | null>(null)
+            const baselineRef = useRef<{ distance: number; angle: number; transform: PlacementTransform } | null>(null)
+            const stateRef = useRef({ target, tool, transform, geometry, scaleLimits })
+
+            useEffect(() => {
+              stateRef.current = { target, tool, transform, geometry, scaleLimits }
+            }, [geometry, scaleLimits, target, tool, transform])
+
+            useEffect(() => {
+              const canvas = gl.domElement
+              const points = () => [...pointersRef.current.values()]
+              const distance = (items: GesturePoint[]) => Math.hypot(items[1]!.x - items[0]!.x, items[1]!.y - items[0]!.y)
+              const angle = (items: GesturePoint[]) => Math.atan2(items[1]!.y - items[0]!.y, items[1]!.x - items[0]!.x)
+              const currentTransform = () => copyPlacementTransform(stateRef.current.transform)
+              const worldPerPixel = () => {
+                const current = stateRef.current.transform
+                const cameraDistance = Math.max(0.5, camera.position.distanceTo(new Vector3(...current.position)))
+                if (!(camera instanceof PerspectiveCamera)) return cameraDistance / Math.max(320, canvas.clientHeight)
+                return 2 * cameraDistance * Math.tan(MathUtils.degToRad(camera.fov) / 2) / Math.max(1, canvas.clientHeight)
+              }
+              const publish = (next: PlacementTransform) => {
+                const current = stateRef.current
+                const normalized = normalizePlacementTransform(next, current.scaleLimits)
+                const constrained = constrainTransformToPedestal(normalized, current.geometry)
+                stateRef.current = { ...current, transform: constrained }
+                onTransformChange(constrained)
+                invalidate()
+              }
+              const resetBaseline = () => {
+                const items = points()
+                if (items.length >= 2) {
+                  baselineRef.current = {
+                    distance: Math.max(1, distance(items)),
+                    angle: angle(items),
+                    transform: currentTransform(),
+                  }
+                  previousSingleRef.current = null
+                } else if (items.length === 1) {
+                  previousSingleRef.current = items[0] ?? null
+                  baselineRef.current = null
+                } else {
+                  previousSingleRef.current = null
+                  baselineRef.current = null
+                }
+              }
+              const onPointerDown = (event: PointerEvent) => {
+                event.preventDefault()
+                pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+                try { canvas.setPointerCapture(event.pointerId) } catch { /* capture is optional */ }
+                resetBaseline()
+              }
+              const onPointerMove = (event: PointerEvent) => {
+                if (!pointersRef.current.has(event.pointerId)) return
+                event.preventDefault()
+                pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
+                const currentState = stateRef.current
+                const items = points()
+                const scalePerPixel = worldPerPixel()
+
+                if (items.length >= 2 && baselineRef.current) {
+                  const baseline = baselineRef.current
+                  if (currentState.tool === 'position') {
+                    const delta = distance(items) - baseline.distance
+                    const view = camera.getWorldDirection(new Vector3()).normalize()
+                    const position = new Vector3(...baseline.transform.position).addScaledVector(view, -delta * scalePerPixel * 1.35)
+                    publish({ ...baseline.transform, position: [position.x, position.y, position.z] })
+                  } else if (currentState.tool === 'orientation') {
+                    const twist = angle(items) - baseline.angle
+                    const axis = camera.getWorldDirection(new Vector3()).normalize()
+                    const baseRotation = new Quaternion(...baseline.transform.rotation).normalize()
+                    const rotation = new Quaternion().setFromAxisAngle(axis, twist).multiply(baseRotation).normalize()
+                    publish({ ...baseline.transform, rotation: [rotation.x, rotation.y, rotation.z, rotation.w] })
+                  } else if (currentState.tool === 'size' && currentState.target.kind === 'accessory') {
+                    const ratio = Math.max(0.2, distance(items) / baseline.distance)
+                    publish({ ...baseline.transform, scale: baseline.transform.scale * ratio })
+                  }
+                  return
+                }
+
+                if (items.length !== 1 || currentState.tool === 'size') return
+                const point = items[0]
+                if (!point) return
+                const previous = previousSingleRef.current
+                previousSingleRef.current = point
+                if (!previous) return
+                const dx = point.x - previous.x
+                const dy = point.y - previous.y
+                const current = currentTransform()
+
+                if (currentState.tool === 'position') {
+                  const right = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
+                  const up = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
+                  const position = new Vector3(...current.position)
+                    .addScaledVector(right, dx * scalePerPixel)
+                    .addScaledVector(up, -dy * scalePerPixel)
+                  publish({ ...current, position: [position.x, position.y, position.z] })
+                } else {
+                  const cameraUp = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
+                  const cameraRight = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
+                  const yaw = new Quaternion().setFromAxisAngle(cameraUp, dx * 0.008)
+                  const pitch = new Quaternion().setFromAxisAngle(cameraRight, dy * 0.008)
+                  const rotation = yaw.multiply(pitch).multiply(new Quaternion(...current.rotation).normalize()).normalize()
+                  publish({ ...current, rotation: [rotation.x, rotation.y, rotation.z, rotation.w] })
+                }
+              }
+              const onPointerEnd = (event: PointerEvent) => {
+                pointersRef.current.delete(event.pointerId)
+                try {
+                  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId)
+                } catch { /* nothing to release */ }
+                resetBaseline()
+                if (pointersRef.current.size === 0) onTransformEnd?.(copyPlacementTransform(stateRef.current.transform))
+              }
+
+              canvas.addEventListener('pointerdown', onPointerDown, { passive: false })
+              canvas.addEventListener('pointermove', onPointerMove, { passive: false })
+              canvas.addEventListener('pointerup', onPointerEnd, { passive: false })
+              canvas.addEventListener('pointercancel', onPointerEnd, { passive: false })
+              return () => {
+                pointersRef.current.clear()
+                canvas.removeEventListener('pointerdown', onPointerDown)
+                canvas.removeEventListener('pointermove', onPointerMove)
+                canvas.removeEventListener('pointerup', onPointerEnd)
+                canvas.removeEventListener('pointercancel', onPointerEnd)
+              }
+            }, [camera, gl, invalidate, onTransformChange, onTransformEnd])
+
+            return null
+          }
+
+          """.replace('          ', '')
+          text = text[:start] + controller + text[end:]
+
+          state_anchor = """  const [accessoryGeometries, setAccessoryGeometries] = useState<Map<string, PlacementGeometry>>(() => new Map())
+            const [visualGroup, setVisualGroup] = useState<Group | null>(null)
+          """.replace('          ', '')
+          state_replacement = """  const [accessoryGeometries, setAccessoryGeometries] = useState<Map<string, PlacementGeometry>>(() => new Map())
+            const [placementDraft, setPlacementDraft] = useState<{ key: string; transform: PlacementTransform } | null>(null)
+            const [visualGroup, setVisualGroup] = useState<Group | null>(null)
+          """.replace('          ', '')
+          if state_anchor not in text:
+              raise SystemExit('Showroom placement state anchor missing')
+          text = text.replace(state_anchor, state_replacement, 1)
+
+          insert_anchor = """  const orbitMode = interactionMode === 'orbit'
+
+          """.replace('          ', '')
+          insertion = """  const orbitMode = interactionMode === 'orbit'
+            const placementDraftSource = useMemo(() => {
+              if (!placementMode || !placementTarget) return null
+              if (placementTarget.kind === 'rock') {
+                return {
+                  key: 'rock',
+                  transform: normalizePlacementTransform({
+                    position: [...rockPose.position],
+                    rotation: [...rockPose.rotation],
+                    scale: 1,
+                  }, ROCK_PLACEMENT_SCALE_LIMITS),
+                }
+              }
+              const instance = accessories.find((candidate) => candidate.id === placementTarget.instanceId)
+              if (!instance) return null
+              const world = accessoryLocalToWorld(instance.id, instance, rockPose)
+              return {
+                key: `accessory:${instance.id}`,
+                transform: normalizePlacementTransform({
+                  position: [...world.worldPosition],
+                  rotation: [...world.worldRotation],
+                  scale: world.uniformScale,
+                }, { min: instance.scaleMin, max: instance.scaleMax }),
+              }
+            }, [accessories, placementMode, placementTarget, rockPose])
+            const activePlacementDraft = placementDraftSource
+              ? placementDraft?.key === placementDraftSource.key ? placementDraft : placementDraftSource
+              : null
+            const activePlacementGeometry = placementTarget?.kind === 'rock'
+              ? rockGeometry
+              : placementTarget?.kind === 'accessory'
+                ? accessoryGeometries.get(placementTarget.instanceId) ?? null
+                : null
+            const activePlacementScaleLimits = placementTarget?.kind === 'accessory'
+              ? (() => {
+                  const instance = accessories.find((candidate) => candidate.id === placementTarget.instanceId)
+                  return instance ? { min: instance.scaleMin, max: instance.scaleMax } : ROCK_PLACEMENT_SCALE_LIMITS
+                })()
+              : ROCK_PLACEMENT_SCALE_LIMITS
+
+            useEffect(() => {
+              if (!placementDraftSource) {
+                setPlacementDraft(null)
+                return
+              }
+              setPlacementDraft((current) => current?.key === placementDraftSource.key ? current : placementDraftSource)
+            }, [placementDraftSource])
+
+          """.replace('          ', '')
+          if insert_anchor not in text:
+              raise SystemExit('Showroom mode anchor missing')
+          text = text.replace(insert_anchor, insertion, 1)
+
+          callback_anchor = """  const handleAccessorySettled = useCallback((transform: WorldAccessoryTransform) => {
+            finalAccessoriesRef.current.set(transform.instanceId, transform)
+            tryReportComposition()
+          }, [tryReportComposition])
+
+          """.replace('          ', '')
+          callback_replacement = callback_anchor + """  const handlePlacementTransformDraft = useCallback((transform: PlacementTransform) => {
+            if (!placementTarget) return
+            const key = placementTarget.kind === 'rock' ? 'rock' : `accessory:${placementTarget.instanceId}`
+            setPlacementDraft({ key, transform: copyPlacementTransform(transform) })
+            if (placementTarget.kind === 'rock') {
+              onRockPoseDraft?.({ position: [...transform.position], rotation: [...transform.rotation] })
+            }
+          }, [onRockPoseDraft, placementTarget])
+
+            const handlePlacementTransformEnd = useCallback((transform: PlacementTransform) => {
+              if (placementTarget?.kind !== 'accessory' || !onAccessoryTransformDraft) return
+              const instance = accessories.find((candidate) => candidate.id === placementTarget.instanceId)
+              if (!instance) return
+              const local = accessoryWorldToLocal({
+                instanceId: instance.id,
+                worldPosition: [...transform.position],
+                worldRotation: [...transform.rotation],
+                uniformScale: transform.scale,
+              }, rockPose)
+              onAccessoryTransformDraft(
+                instance.id,
+                clampAccessoryTransform(local, instance.scaleMin, instance.scaleMax),
+              )
+            }, [accessories, onAccessoryTransformDraft, placementTarget, rockPose])
+
+          """.replace('          ', '')
+          if callback_anchor not in text:
+              raise SystemExit('Showroom callback anchor missing')
+          text = text.replace(callback_anchor, callback_replacement, 1)
+
+          accessory_anchor = """                onGlobalSettled={handleAccessorySettled}
+                  onPlacementGeometryReady={handleAccessoryGeometryReady}
+          """.replace('          ', '')
+          accessory_replacement = """                onGlobalSettled={handleAccessorySettled}
+                  placementTransform={placementMode && placementTarget?.kind === 'accessory' && placementTarget.instanceId === instance.id
+                    ? activePlacementDraft?.transform ?? null
+                    : null}
+                  onPlacementGeometryReady={handleAccessoryGeometryReady}
+          """.replace('          ', '')
+          if accessory_anchor not in text:
+              raise SystemExit('AccessoryModel render anchor missing')
+          text = text.replace(accessory_anchor, accessory_replacement, 1)
+
+          controller_call_start = text.index('            {placementMode && placementTarget ? (')
+          controller_call_end = text.index('            ) : null}', controller_call_start) + len('            ) : null}')
+          controller_call = """            {placementMode && placementTarget && activePlacementDraft && activePlacementGeometry ? (
+              <ManipulationController
+                target={placementTarget}
+                tool={placementTool}
+                transform={activePlacementDraft.transform}
+                geometry={activePlacementGeometry}
+                scaleLimits={activePlacementScaleLimits}
+                onTransformChange={handlePlacementTransformDraft}
+                onTransformEnd={handlePlacementTransformEnd}
+              />
+            ) : null}"""
+          text = text[:controller_call_start] + controller_call + text[controller_call_end:]
+          showroom.write_text(text)
+
+          accessory = Path('src/scene/AccessoryModel.tsx')
+          text = accessory.read_text()
+          text = text.replace(
+              "import type { PlacementGeometry } from '../features/placement/placementGeometry'",
+              "import type { PlacementGeometry } from '../features/placement/placementGeometry'\nimport type { PlacementTransform } from '../features/placement/placementTypes'",
+          )
+          text = text.replace(
+              "  onGlobalSettled?: (transform: WorldAccessoryTransform) => void\n",
+              "  onGlobalSettled?: (transform: WorldAccessoryTransform) => void\n  placementTransform?: PlacementTransform | null\n",
+          )
+          text = text.replace(
+              "  onGlobalSettled,\n  onPlacementGeometryReady,",
+              "  onGlobalSettled,\n  placementTransform = null,\n  onPlacementGeometryReady,",
+          )
+          text = text.replace(
+              "function bodyWorldTransform(body: RapierRigidBody, instanceId: string, uniformScale: number): WorldAccessoryTransform {\n  const position = body.translation()\n  const rotation = body.rotation()\n  const quaternion = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w).normalize()\n  return {\n    instanceId,\n    worldPosition: [position.x, position.y, position.z],\n    worldRotation: [quaternion.x, quaternion.y, quaternion.z, quaternion.w],\n    uniformScale,\n  }\n}\n",
+              "function bodyPlacementTransform(body: RapierRigidBody, scale: number): PlacementTransform {\n  const position = body.translation()\n  const rotation = body.rotation()\n  const quaternion = new Quaternion(rotation.x, rotation.y, rotation.z, rotation.w).normalize()\n  return {\n    position: [position.x, position.y, position.z],\n    rotation: [quaternion.x, quaternion.y, quaternion.z, quaternion.w],\n    scale,\n  }\n}\n\nfunction worldAccessoryTransform(instanceId: string, transform: PlacementTransform): WorldAccessoryTransform {\n  return {\n    instanceId,\n    worldPosition: [...transform.position],\n    worldRotation: [...transform.rotation],\n    uniformScale: transform.scale,\n  }\n}\n",
+          )
+          world_anchor = """  const worldFromInstance = useCallback(
+            () => accessoryLocalToWorld(instance.id, instance, rockPose),
+            [instance, rockPose],
+          )
+
+          """.replace('          ', '')
+          world_replacement = world_anchor + """  const currentPlacementTransform = useCallback((): PlacementTransform => {
+            if (placementTransform) return {
+              position: [...placementTransform.position],
+              rotation: [...placementTransform.rotation],
+              scale: placementTransform.scale,
+            }
+            const world = worldFromInstance()
+            return {
+              position: [...world.worldPosition],
+              rotation: [...world.worldRotation],
+              scale: world.uniformScale,
+            }
+          }, [placementTransform, worldFromInstance])
+
+          """.replace('          ', '')
+          if world_anchor not in text:
+              raise SystemExit('Accessory world source anchor missing')
+          text = text.replace(world_anchor, world_replacement, 1)
+
+          text = text.replace(
+              "    const world = bodyWorldTransform(body, instance.id, instance.uniformScale)\n    if (!placementGeometry) return false\n    const grounded = constrainPlacementPosition(\n      world.worldPosition,\n      world.worldRotation,\n      instance.uniformScale,\n      placementGeometry,\n    )\n    const changedX = Math.abs(grounded[0] - world.worldPosition[0]) > 0.000001\n    const changedY = Math.abs(grounded[1] - world.worldPosition[1]) > 0.000001\n    const changedZ = Math.abs(grounded[2] - world.worldPosition[2]) > 0.000001",
+              "    const world = bodyPlacementTransform(body, currentPlacementTransform().scale)\n    if (!placementGeometry) return false\n    const grounded = constrainPlacementPosition(\n      world.position,\n      world.rotation,\n      world.scale,\n      placementGeometry,\n    )\n    const changedX = Math.abs(grounded[0] - world.position[0]) > 0.000001\n    const changedY = Math.abs(grounded[1] - world.position[1]) > 0.000001\n    const changedZ = Math.abs(grounded[2] - world.position[2]) > 0.000001",
+          )
+          text = text.replace(
+              "  }, [instance.id, instance.uniformScale, invalidate, placementGeometry])",
+              "  }, [currentPlacementTransform, invalidate, placementGeometry])",
+              1,
+          )
+
+          old_sync = """    const world = worldFromInstance()
+            const position = { x: world.worldPosition[0], y: world.worldPosition[1], z: world.worldPosition[2] }
+            const rotation = {
+              x: world.worldRotation[0],
+              y: world.worldRotation[1],
+              z: world.worldRotation[2],
+              w: world.worldRotation[3],
+            }
+          """.replace('          ', '')
+          new_sync = """    const world = currentPlacementTransform()
+            const position = { x: world.position[0], y: world.position[1], z: world.position[2] }
+            const rotation = {
+              x: world.rotation[0],
+              y: world.rotation[1],
+              z: world.rotation[2],
+              w: world.rotation[3],
+            }
+          """.replace('          ', '')
+          if old_sync not in text:
+              raise SystemExit('Accessory body sync anchor missing')
+          text = text.replace(old_sync, new_sync, 1)
+          text = text.replace(
+              "  }, [globalSettling, invalidate, rockPose, worldFromInstance])",
+              "  }, [currentPlacementTransform, globalSettling, invalidate])",
+              1,
+          )
+
+          text = text.replace(
+              "    const local = accessoryWorldToLocal(bodyWorldTransform(body, instance.id, instance.uniformScale), rockPose)",
+              "    const local = accessoryWorldToLocal(worldAccessoryTransform(instance.id, bodyPlacementTransform(body, currentPlacementTransform().scale)), rockPose)",
+          )
+          text = text.replace(
+              "  }, [enforceHardFloor, globalSettling, instance, invalidate, onTransformCommit, rockPose, setPhysicsSimulating, worldFromInstance])",
+              "  }, [currentPlacementTransform, enforceHardFloor, globalSettling, instance, invalidate, onTransformCommit, rockPose, setPhysicsSimulating, worldFromInstance])",
+              1,
+          )
+          text = text.replace(
+              "    onGlobalSettled?.(bodyWorldTransform(body, instance.id, instance.uniformScale))",
+              "    onGlobalSettled?.(worldAccessoryTransform(instance.id, bodyPlacementTransform(body, currentPlacementTransform().scale)))",
+          )
+          text = text.replace(
+              "  }, [enforceHardFloor, globalSettling, instance.id, instance.uniformScale, invalidate, onGlobalSettled])",
+              "  }, [currentPlacementTransform, enforceHardFloor, globalSettling, instance.id, invalidate, onGlobalSettled])",
+              1,
+          )
+
+          render_anchor = """  const world = accessoryLocalToWorld(instance.id, instance, rockPose)
+            const collider = physics.enabled ? physics.collider : 'hull'
+          """.replace('          ', '')
+          render_replacement = """  const world = currentPlacementTransform()
+            const collider = physics.enabled ? physics.collider : 'hull'
+          """.replace('          ', '')
+          if render_anchor not in text:
+              raise SystemExit('Accessory render world anchor missing')
+          text = text.replace(render_anchor, render_replacement, 1)
+          text = text.replace("      key={`${instance.id}-${instance.uniformScale.toFixed(4)}`}", "      key={`${instance.id}-${world.scale.toFixed(4)}`}")
+          text = text.replace("      position={world.worldPosition}", "      position={world.position}", 1)
+          text = text.replace("      quaternion={world.worldRotation}", "      quaternion={world.rotation}", 1)
+          text = text.replace("      scale={instance.uniformScale}", "      scale={world.scale}", 1)
+          accessory.write_text(text)
+      - name: Validate phase 3
+        run: |
+          npm run check
+          git diff --check
+      - name: Commit phase 3 product code
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          git commit -m "refactor(placement): maintenir les drafts en monde"
+          git push origin HEAD:refactor/harmonisation-sol-placement
