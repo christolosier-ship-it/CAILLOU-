@@ -170,15 +170,15 @@ function finiteTuple(value: unknown, length: number) {
 
 function parseAccessoryPosition(value: unknown, fallback: [number, number, number]): [number, number, number] {
   const tuple = finiteTuple(value, 3)
-  return tuple ? [tuple[0], tuple[1], tuple[2]] : fallback
+  return tuple ? [tuple[0]!, tuple[1]!, tuple[2]!] : fallback
 }
 
 function parseAccessoryRotation(value: unknown, fallback: [number, number, number, number]): [number, number, number, number] {
   const tuple = finiteTuple(value, 4)
   if (!tuple) return fallback
-  const length = Math.hypot(tuple[0], tuple[1], tuple[2], tuple[3])
+  const length = Math.hypot(tuple[0]!, tuple[1]!, tuple[2]!, tuple[3]!)
   if (!Number.isFinite(length) || length < 0.000001) return fallback
-  return [tuple[0] / length, tuple[1] / length, tuple[2] / length, tuple[3] / length]
+  return [tuple[0]! / length, tuple[1]! / length, tuple[2]! / length, tuple[3]! / length]
 }
 
 function parseCompositionAccessories(value: unknown, draft: RockCompositionDraft) {
