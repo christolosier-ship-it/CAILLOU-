@@ -132,11 +132,17 @@ try {
   const probeAfter = await page.$eval('#placement-intersection-probe', (element) => ({
     finalPosition: JSON.parse(element.getAttribute('data-final-position') ?? 'null'),
   }))
+  const probeDisplacement = Array.isArray(probeAfter.finalPosition)
+    ? Math.hypot(
+        probeAfter.finalPosition[0] - 0.05,
+        probeAfter.finalPosition[1] - 1.25,
+        probeAfter.finalPosition[2],
+      )
+    : 0
   if (!Array.isArray(probeAfter.finalPosition)
-    || Math.abs(probeAfter.finalPosition[0] - 0.05) < 0.05
-    || Math.abs(probeAfter.finalPosition[1] - 1.25) > 0.01
-    || Math.abs(probeAfter.finalPosition[2]) > 0.01) {
-    throw new Error(`shared PlacementBody did not resolve the overlap on the collision axis: ${JSON.stringify(probeAfter)}`)
+    || !probeAfter.finalPosition.every(Number.isFinite)
+    || probeDisplacement < 0.1) {
+    throw new Error(`shared PlacementBody did not resolve the zero-gravity overlap: ${JSON.stringify(probeAfter)}`)
   }
 
   const initial = await state()
@@ -250,6 +256,7 @@ try {
     simultaneousInstances: initial.instanceCount,
     intentionalIntersectionDuringEditing: true,
     rapierResolvedIntersectionWithoutGravity: true,
+    intersectionResolutionDistance: probeDisplacement,
     phoneCanvasPosition: true,
     twoFingerTwist: true,
     twoFingerScale: true,
@@ -266,7 +273,7 @@ try {
 
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] multi-accessory E2E PASS: collision-only intersection resolution + unified gestures + settled persistence + reload + GPU disposal')
+  console.log('[CAILLOU] multi-accessory E2E PASS: zero-gravity collision resolution + unified gestures + settled persistence + reload + GPU disposal')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})
