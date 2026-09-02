@@ -419,8 +419,8 @@ export function AccessoryModel({
       gesture.startRotation.copy(gesture.lastWorldRotation)
       return
     }
-    gesture.startDistance = Math.max(1, distanceBetweenTouches(points[0], points[1]))
-    gesture.startAngle = angleBetweenTouches(points[0], points[1])
+    gesture.startDistance = Math.max(1, distanceBetweenTouches(points[0]!, points[1]!))
+    gesture.startAngle = angleBetweenTouches(points[0]!, points[1]!)
     gesture.startScale = gesture.displayScale
     gesture.startRotation.copy(gesture.lastWorldRotation)
   }
@@ -470,10 +470,10 @@ export function AccessoryModel({
 
     const points = [...gesture.pointers.values()]
     if (points.length >= 2 && gesture.startDistance && gesture.startAngle !== null) {
-      const distance = Math.max(1, distanceBetweenTouches(points[0], points[1]))
+      const distance = Math.max(1, distanceBetweenTouches(points[0]!, points[1]!))
       const ratio = distance / gesture.startDistance
       const nextScale = Math.max(instance.scaleMin, Math.min(instance.scaleMax, gesture.startScale * ratio))
-      const angle = angleBetweenTouches(points[0], points[1])
+      const angle = angleBetweenTouches(points[0]!, points[1]!)
       const twist = angle - gesture.startAngle
       const twistRotation = new Quaternion().setFromAxisAngle(gesture.surfaceNormal, twist)
       const nextRotation = twistRotation.multiply(gesture.startRotation.clone()).normalize()
