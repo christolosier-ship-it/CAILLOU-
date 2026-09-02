@@ -1,5 +1,6 @@
 import { Box3, Mesh, Vector3 } from 'three'
 import type { Object3D } from 'three'
+import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js'
 
 import type { PlacementBounds, PlacementVector3 } from './placementTypes'
 
@@ -43,10 +44,33 @@ function geometryFromPoints(points: PlacementVector3[]): PlacementGeometry {
   }
 }
 
+function convexSupportPoints(points: Vector3[]): PlacementVector3[] {
+  if (points.length < 4) return points.map(tuple)
+  try {
+    const hullGeometry = new ConvexGeometry(points)
+    const position = hullGeometry.getAttribute('position')
+    const supportPoints: PlacementVector3[] = []
+    const seen = new Set<string>()
+    const point = new Vector3()
+
+    for (let index = 0; index < position.count; index += 1) {
+      point.fromBufferAttribute(position, index)
+      const key = pointKey(point)
+      if (seen.has(key)) continue
+      seen.add(key)
+      supportPoints.push(tuple(point))
+    }
+    hullGeometry.dispose()
+    return supportPoints.length > 0 ? supportPoints : points.map(tuple)
+  } catch {
+    return points.map(tuple)
+  }
+}
+
 export function createPlacementGeometry(root: Object3D): PlacementGeometry {
   root.updateWorldMatrix(true, true)
   const inverseRoot = root.matrixWorld.clone().invert()
-  const supportPoints: PlacementVector3[] = []
+  const rawPoints: Vector3[] = []
   const seen = new Set<string>()
   const point = new Vector3()
 
@@ -63,13 +87,13 @@ export function createPlacementGeometry(root: Object3D): PlacementGeometry {
       const key = pointKey(point)
       if (seen.has(key)) continue
       seen.add(key)
-      supportPoints.push(tuple(point))
+      rawPoints.push(point.clone())
     }
   })
 
-  return geometryFromPoints(
-    supportPoints.length > 0
-      ? supportPoints
-      : FALLBACK_SUPPORT_POINTS.map((value) => [...value] as PlacementVector3),
-  )
+  const supportPoints = rawPoints.length > 0
+    ? convexSupportPoints(rawPoints)
+    : FALLBACK_SUPPORT_POINTS.map((value) => [...value] as PlacementVector3)
+
+  return geometryFromPoints(supportPoints)
 }
