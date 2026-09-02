@@ -1,0 +1,954 @@
+name: Execute refactor phase 7 cleanup
+
+on:
+  push:
+    branches:
+      - refactor/harmonisation-sol-placement
+    paths:
+      - .github/workflows/refactor-phase7-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  phase7:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/harmonisation-sol-placement
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Remove legacy placement layers
+        shell: python
+        run: |
+          from pathlib import Path
+          from textwrap import dedent
+          import re
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'{label}: anchor missing')
+              return text.replace(old, new, 1)
+
+          # The AABB hard-floor implementation is fully superseded by PlacementGeometry + PlacementConstraints.
+          for obsolete in [
+              'src/features/placement/placementRules.ts',
+              'src/features/placement/placementRules.test.ts',
+          ]:
+              path = Path(obsolete)
+              if path.exists():
+                  path.unlink()
+
+          Path('src/features/placement/placementTypes.ts').write_text(dedent('''
+          export type PlacementTool = 'position' | 'orientation' | 'size'
+
+          export type PlacementTarget =
+            | { kind: 'rock'; instanceId?: undefined }
+            | { kind: 'accessory'; instanceId: string }
+
+          export type PlacementVector3 = [number, number, number]
+          export type PlacementQuaternion = [number, number, number, number]
+
+          export interface PlacementTransform {
+            position: PlacementVector3
+            rotation: PlacementQuaternion
+            scale: number
+          }
+          ''').lstrip())
+
+          Path('src/features/rockMovement/rockMovementRules.ts').write_text(dedent('''
+          import { Quaternion, Vector3 } from 'three'
+
+          import type { AccessoryTransform } from '../accessories/accessoryTypes'
+          import type {
+            CompositionAccessoryTransform,
+            RockPose,
+            RockPosition,
+            RockRotation,
+            WorldAccessoryTransform,
+          } from './rockMovementTypes'
+
+          export const ROCK_MOVEMENT_FEATURE_ID = 'rock_movement'
+          export const ROCK_MOVEMENT_PRICE_LITHONS = 1000
+          export const ROCK_SETTLE_TIMEOUT_MS = 4500
+
+          export const DEFAULT_ROCK_POSE: RockPose = {
+            position: [0, 0, 0],
+            rotation: [0, 0, 0, 1],
+          }
+
+          function finiteTuple(value: unknown, size: number): number[] | null {
+            if (!Array.isArray(value) || value.length !== size) return null
+            const numbers = value.map(Number)
+            return numbers.every(Number.isFinite) ? numbers : null
+          }
+
+          export function parseRockPosition(value: unknown): RockPosition {
+            const tuple = finiteTuple(value, 3)
+            return tuple ? [tuple[0]!, tuple[1]!, tuple[2]!] : [...DEFAULT_ROCK_POSE.position]
+          }
+
+          export function parseRockRotation(value: unknown): RockRotation {
+            const tuple = finiteTuple(value, 4)
+            if (!tuple) return [...DEFAULT_ROCK_POSE.rotation]
+            const quaternion = new Quaternion(tuple[0]!, tuple[1]!, tuple[2]!, tuple[3]!)
+            if (quaternion.lengthSq() < 0.000001) return [...DEFAULT_ROCK_POSE.rotation]
+            quaternion.normalize()
+            return [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
+          }
+
+          export function normalizeRockPose(pose: RockPose): RockPose {
+            return {
+              position: parseRockPosition(pose.position),
+              rotation: parseRockRotation(pose.rotation),
+            }
+          }
+
+          function poseQuaternion(pose: RockPose) {
+            return new Quaternion(...pose.rotation).normalize()
+          }
+
+          export function accessoryLocalToWorld(
+            instanceId: string,
+            transform: AccessoryTransform,
+            rockPose: RockPose,
+          ): WorldAccessoryTransform {
+            const rockRotation = poseQuaternion(rockPose)
+            const worldPosition = new Vector3(...transform.localPosition)
+              .applyQuaternion(rockRotation)
+              .add(new Vector3(...rockPose.position))
+            const localRotation = new Quaternion(...transform.localRotation).normalize()
+            const worldRotation = rockRotation.clone().multiply(localRotation).normalize()
+
+            return {
+              instanceId,
+              worldPosition: [worldPosition.x, worldPosition.y, worldPosition.z],
+              worldRotation: [worldRotation.x, worldRotation.y, worldRotation.z, worldRotation.w],
+              uniformScale: transform.uniformScale,
+            }
+          }
+
+          export function accessoryWorldToLocal(
+            transform: WorldAccessoryTransform,
+            rockPose: RockPose,
+          ): CompositionAccessoryTransform {
+            const rockRotation = poseQuaternion(rockPose)
+            const inverseRockRotation = rockRotation.clone().invert()
+            const localPosition = new Vector3(...transform.worldPosition)
+              .sub(new Vector3(...rockPose.position))
+              .applyQuaternion(inverseRockRotation)
+            const worldRotation = new Quaternion(...transform.worldRotation).normalize()
+            const localRotation = inverseRockRotation.multiply(worldRotation).normalize()
+
+            return {
+              instanceId: transform.instanceId,
+              localPosition: [localPosition.x, localPosition.y, localPosition.z],
+              localRotation: [localRotation.x, localRotation.y, localRotation.z, localRotation.w],
+              uniformScale: transform.uniformScale,
+            }
+          }
+          ''').lstrip())
+
+          Path('src/features/rockMovement/rockMovementRules.test.ts').write_text(dedent('''
+          import { describe, expect, it } from 'vitest'
+
+          import {
+            ROCK_MOVEMENT_PRICE_LITHONS,
+            accessoryLocalToWorld,
+            accessoryWorldToLocal,
+            parseRockRotation,
+          } from './rockMovementRules'
+
+          const EPSILON = 0.00001
+
+          function expectTupleClose(actual: number[], expected: number[]) {
+            expect(actual).toHaveLength(expected.length)
+            actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index]!, 5))
+          }
+
+          describe('rock movement persistence-frame rules', () => {
+            it('keeps the premium permit price locked at 1000 Lithons', () => {
+              expect(ROCK_MOVEMENT_PRICE_LITHONS).toBe(1000)
+            })
+
+            it('normalizes a quaternion without applying a second spatial envelope', () => {
+              const rotation = parseRockRotation([0, 0, 2, 2])
+              expect(Math.abs(Math.hypot(...rotation) - 1)).toBeLessThan(EPSILON)
+            })
+
+            it('round-trips accessory transforms through a translated and rotated rock frame', () => {
+              const rockPose = {
+                position: [0.7, 0.35, -0.4] as [number, number, number],
+                rotation: [0, Math.sin(Math.PI / 8), 0, Math.cos(Math.PI / 8)] as [number, number, number, number],
+              }
+              const local = {
+                localPosition: [0.2, 0.5, 0.75] as [number, number, number],
+                localRotation: [0.1, 0.2, 0.05, 0.973396] as [number, number, number, number],
+                uniformScale: 1.15,
+              }
+
+              const world = accessoryLocalToWorld('instance', local, rockPose)
+              const roundTrip = accessoryWorldToLocal(world, rockPose)
+
+              expect(roundTrip.instanceId).toBe('instance')
+              expectTupleClose(roundTrip.localPosition, local.localPosition)
+              expectTupleClose(roundTrip.localRotation, parseRockRotation(local.localRotation))
+              expect(roundTrip.uniformScale).toBe(local.uniformScale)
+            })
+          })
+          ''').lstrip())
+
+          Path('src/features/accessories/accessoryPlacementRules.ts').write_text(dedent('''
+          import { Quaternion } from 'three'
+
+          import type { Json } from '../../lib/supabase/database.types'
+          import type {
+            AccessoryCatalogItem,
+            AccessoryLocalPosition,
+            AccessoryLocalRotation,
+            AccessoryTransform,
+          } from './accessoryTypes'
+
+          export const MAX_EQUIPPED_ACCESSORIES = 8
+
+          function clamp(value: number, min: number, max: number) {
+            return Math.min(max, Math.max(min, value))
+          }
+
+          function finiteTuple(value: Json | null, length: number): number[] | null {
+            if (!Array.isArray(value) || value.length !== length) return null
+            const numbers = value.map((entry) => typeof entry === 'number' ? entry : Number.NaN)
+            return numbers.every(Number.isFinite) ? numbers : null
+          }
+
+          export function parseLocalPosition(value: Json | null): AccessoryLocalPosition | null {
+            const numbers = finiteTuple(value, 3)
+            if (!numbers) return null
+            return [numbers[0]!, numbers[1]!, numbers[2]!]
+          }
+
+          export function parseLocalRotation(value: Json | null): AccessoryLocalRotation | null {
+            const numbers = finiteTuple(value, 4)
+            if (!numbers) return null
+            const quaternion = new Quaternion(numbers[0]!, numbers[1]!, numbers[2]!, numbers[3]!)
+            const length = quaternion.length()
+            if (!Number.isFinite(length) || length < 0.98 || length > 1.02) return null
+            quaternion.normalize()
+            return [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
+          }
+
+          export function clampAccessoryScale(value: number, min: number, max: number) {
+            return clamp(Number.isFinite(value) ? value : 1, min, max)
+          }
+
+          export function defaultAccessoryTransform(
+            accessory: Pick<AccessoryCatalogItem, 'category' | 'scaleMin' | 'scaleMax'>,
+            ordinal = 0,
+          ): AccessoryTransform {
+            const lanes = [0, -0.18, 0.18, -0.34, 0.34]
+            const x = lanes[Math.abs(ordinal) % lanes.length] ?? 0
+            const localPosition: AccessoryLocalPosition = accessory.category === 'socle'
+              ? [x, -0.88, 0]
+              : accessory.category === 'tenue'
+                ? [x, -0.32, 0.65]
+                : [x, 0.16, 0.76]
+
+            return {
+              localPosition,
+              localRotation: [0, 0, 0, 1],
+              uniformScale: clampAccessoryScale(1, accessory.scaleMin, accessory.scaleMax),
+            }
+          }
+          ''').lstrip())
+
+          Path('src/features/accessories/accessoryPlacementRules.test.ts').write_text(dedent('''
+          import { describe, expect, it } from 'vitest'
+
+          import {
+            clampAccessoryScale,
+            defaultAccessoryTransform,
+            parseLocalPosition,
+            parseLocalRotation,
+          } from './accessoryPlacementRules'
+
+          describe('accessory placement persistence rules', () => {
+            it('starts visage, tenue and socle accessories in distinct local zones', () => {
+              const face = defaultAccessoryTransform({ category: 'visage', scaleMin: 0.6, scaleMax: 1.5 })
+              const outfit = defaultAccessoryTransform({ category: 'tenue', scaleMin: 0.6, scaleMax: 1.5 })
+              const pedestal = defaultAccessoryTransform({ category: 'socle', scaleMin: 0.7, scaleMax: 1.5 })
+
+              expect(face.localPosition[1]).toBeGreaterThan(0)
+              expect(face.localPosition[2]).toBeGreaterThan(0)
+              expect(outfit.localPosition[1]).toBeLessThan(0)
+              expect(pedestal.localPosition[1]).toBeLessThan(outfit.localPosition[1])
+            })
+
+            it('keeps only the catalogue scale guard at the persistence edge', () => {
+              expect(clampAccessoryScale(4, 0.65, 1.35)).toBe(1.35)
+              expect(clampAccessoryScale(-2, 0.65, 1.35)).toBe(0.65)
+            })
+
+            it('parses canonical JSON tuples and rejects malformed persisted transforms', () => {
+              expect(parseLocalPosition([0.1, -0.2, 0.3])).toEqual([0.1, -0.2, 0.3])
+              expect(parseLocalPosition([0.1, 'x', 0.3])).toBeNull()
+              expect(parseLocalRotation([0, 0, 0, 1])).toEqual([0, 0, 0, 1])
+              expect(parseLocalRotation([0, 0, 0, 0])).toBeNull()
+            })
+          })
+          ''').lstrip())
+
+          Path('src/features/accessories/accessoryTypes.ts').write_text(dedent('''
+          import type { Json } from '../../lib/supabase/database.types'
+
+          export interface AccessoryCatalogItem {
+            id: string
+            name: string
+            description: string
+            priceLithons: number
+            modelPath: string
+            previewPath: string
+            category: string
+            sortOrder: number
+            triangleCount: number | null
+            dimensions: Json | null
+            scaleMin: number
+            scaleMax: number
+            physics: Json | null
+            provenance: Json | null
+            purchasedAt: string | null
+          }
+
+          export interface AccessoryShopSnapshot {
+            items: AccessoryCatalogItem[]
+          }
+
+          export interface PurchaseAccessoryInput {
+            accessoryId: string
+            eventKey: string
+          }
+
+          export interface PurchaseAccessoryResult {
+            accessoryId: string
+            purchasedAt: string
+            balance: number
+          }
+
+          export type PurchaseAccessoryMutation = (
+            input: PurchaseAccessoryInput,
+          ) => Promise<PurchaseAccessoryResult>
+
+          export type AccessoryLocalPosition = [number, number, number]
+          export type AccessoryLocalRotation = [number, number, number, number]
+
+          export interface AccessoryTransform {
+            localPosition: AccessoryLocalPosition
+            localRotation: AccessoryLocalRotation
+            uniformScale: number
+          }
+
+          export interface EquippedAccessoryInstance extends AccessoryTransform {
+            id: string
+            userRockId: string
+            accessoryId: string
+            category: string
+            name: string
+            modelPath: string
+            previewPath: string
+            scaleMin: number
+            scaleMax: number
+            triangleCount: number | null
+            dimensions?: Json | null
+            physics?: Json | null
+            equippedAt: string
+            updatedAt: string
+            stabilizedAt?: string | null
+          }
+
+          export interface CreateAccessoryPlacementInput {
+            userRockId: string
+            accessory: AccessoryCatalogItem
+            eventKey: string
+            transform: AccessoryTransform
+          }
+
+          export interface StabilizeAccessoryPlacementInput {
+            instanceId: string
+            transform: AccessoryTransform
+            eventKey: string
+          }
+
+          export interface StabilizeAccessoryPlacementResult extends AccessoryTransform {
+            instanceId: string
+            updatedAt: string
+            stabilizedAt: string
+          }
+
+          export interface RemoveAccessoryPlacementInput {
+            instanceId: string
+            eventKey: string
+          }
+          ''').lstrip())
+
+          api = Path('src/features/accessories/accessoryPlacementApi.ts')
+          text = api.read_text()
+          text = text.replace('  UpdateAccessoryPlacementInput,\n  UpdateAccessoryPlacementResult,\n', '')
+          text = re.sub(r"\nexport async function updateAccessoryPlacement\(.*?\n}\n\nexport async function stabilizeAccessoryPlacement", "\nexport async function stabilizeAccessoryPlacement", text, count=1, flags=re.S)
+          api.write_text(text)
+
+          Path('src/features/accessories/useAccessoryPlacements.ts').write_text(dedent('''
+          import { useCallback, useEffect, useRef, useState } from 'react'
+
+          import type { StabilizedRockComposition } from '../rockMovement/rockMovementTypes'
+          import {
+            createAccessoryPlacement,
+            loadAccessoryPlacements,
+            removeAccessoryPlacement,
+          } from './accessoryPlacementApi'
+          import {
+            MAX_EQUIPPED_ACCESSORIES,
+            defaultAccessoryTransform,
+          } from './accessoryPlacementRules'
+          import type {
+            AccessoryCatalogItem,
+            EquippedAccessoryInstance,
+            StabilizeAccessoryPlacementResult,
+          } from './accessoryTypes'
+
+          export function useAccessoryPlacements(userRockId: string) {
+            const [instances, setInstances] = useState<EquippedAccessoryInstance[]>([])
+            const [loading, setLoading] = useState(true)
+            const [pendingId, setPendingId] = useState<string | null>(null)
+            const [error, setError] = useState<string | null>(null)
+            const canonicalInstancesRef = useRef<EquippedAccessoryInstance[]>([])
+
+            const replaceCanonical = useCallback((next: EquippedAccessoryInstance[]) => {
+              canonicalInstancesRef.current = next
+              setInstances(next)
+            }, [])
+
+            const refresh = useCallback(async () => {
+              setLoading(true)
+              setError(null)
+              try {
+                const next = await loadAccessoryPlacements(userRockId)
+                replaceCanonical(next)
+                return next
+              } catch (nextError) {
+                setError(nextError instanceof Error ? nextError.message : 'Les placements n’ont pas pu être relus.')
+                throw nextError
+              } finally {
+                setLoading(false)
+              }
+            }, [replaceCanonical, userRockId])
+
+            useEffect(() => {
+              let active = true
+              setLoading(true)
+              setError(null)
+              void loadAccessoryPlacements(userRockId).then((next) => {
+                if (!active) return
+                canonicalInstancesRef.current = next
+                setInstances(next)
+              }).catch((nextError) => {
+                if (active) setError(nextError instanceof Error ? nextError.message : 'Les placements n’ont pas pu être relus.')
+              }).finally(() => {
+                if (active) setLoading(false)
+              })
+              return () => {
+                active = false
+              }
+            }, [userRockId])
+
+            const place = useCallback(async (accessory: AccessoryCatalogItem) => {
+              if (pendingId) throw new Error('Une opération de placement est déjà en cours.')
+              if (instances.length >= MAX_EQUIPPED_ACCESSORIES) {
+                throw new Error('Le Socle accepte au maximum huit accessoires simultanés.')
+              }
+
+              setPendingId(`new:${accessory.id}`)
+              setError(null)
+              try {
+                const created = await createAccessoryPlacement({
+                  userRockId,
+                  accessory,
+                  eventKey: crypto.randomUUID(),
+                  transform: defaultAccessoryTransform(accessory, instances.length),
+                })
+                canonicalInstancesRef.current = [...canonicalInstancesRef.current, created]
+                setInstances((current) => [...current, created])
+                return created
+              } catch (nextError) {
+                setError(nextError instanceof Error ? nextError.message : 'Le placement n’a pas pu être créé.')
+                throw nextError
+              } finally {
+                setPendingId(null)
+              }
+            }, [instances.length, pendingId, userRockId])
+
+            const acceptStabilizedAccessory = useCallback((result: StabilizeAccessoryPlacementResult) => {
+              const apply = (items: EquippedAccessoryInstance[]) => items.map((instance) => instance.id === result.instanceId
+                ? { ...instance, ...result }
+                : instance)
+              canonicalInstancesRef.current = apply(canonicalInstancesRef.current)
+              setInstances((current) => apply(current))
+              setError(null)
+            }, [])
+
+            const acceptComposition = useCallback((composition: StabilizedRockComposition) => {
+              const settled = new Map(composition.accessories.map((item) => [item.instanceId, item]))
+              let nextCanonical: EquippedAccessoryInstance[] = []
+              setInstances((current) => {
+                nextCanonical = current.map((instance) => {
+                  const transform = settled.get(instance.id)
+                  return transform ? {
+                    ...instance,
+                    ...transform,
+                    stabilizedAt: composition.stabilizedAt,
+                    updatedAt: composition.stabilizedAt,
+                  } : instance
+                })
+                return nextCanonical
+              })
+              queueMicrotask(() => {
+                if (nextCanonical.length > 0 || canonicalInstancesRef.current.length === 0) {
+                  canonicalInstancesRef.current = nextCanonical
+                }
+              })
+              setError(null)
+            }, [])
+
+            const remove = useCallback(async (instanceId: string) => {
+              if (pendingId) return false
+              setPendingId(instanceId)
+              setError(null)
+              try {
+                await removeAccessoryPlacement({ instanceId, eventKey: crypto.randomUUID() })
+                canonicalInstancesRef.current = canonicalInstancesRef.current.filter((instance) => instance.id !== instanceId)
+                setInstances((current) => current.filter((instance) => instance.id !== instanceId))
+                return true
+              } catch (nextError) {
+                setError(nextError instanceof Error ? nextError.message : 'Le retrait n’a pas pu être enregistré.')
+                return false
+              } finally {
+                setPendingId(null)
+              }
+            }, [pendingId])
+
+            return {
+              instances,
+              loading,
+              pendingId,
+              error,
+              maxInstances: MAX_EQUIPPED_ACCESSORIES,
+              refresh,
+              place,
+              acceptStabilizedAccessory,
+              acceptComposition,
+              remove,
+              clearError: () => setError(null),
+            }
+          }
+          ''').lstrip())
+
+          physics = Path('src/features/accessories/accessoryPhysics.ts')
+          text = physics.read_text()
+          text = text.replace('export const ACCESSORY_CONTACT_CLEARANCE = 0.018\n', '')
+          text = re.sub(r"\nexport function isAccessoryTransformWithinPhysicsBounds\(position: readonly number\[\]\) \{.*?\n}\n?", '\n', text, count=1, flags=re.S)
+          physics.write_text(text)
+
+          physics_test = Path('src/features/accessories/accessoryPhysics.test.ts')
+          text = physics_test.read_text()
+          text = text.replace('import { isAccessoryTransformWithinPhysicsBounds, parseAccessoryPhysics } from \'./accessoryPhysics\'', "import { parseAccessoryPhysics } from './accessoryPhysics'")
+          text = re.sub(r"\n  it\('rejects transforms that escaped the V1 physics envelope'.*?\n  \}\)\n", '\n', text, count=1, flags=re.S)
+          physics_test.write_text(text)
+
+          Path('src/scene/AccessoryModel.tsx').write_text(dedent('''
+          import { useThree } from '@react-three/fiber'
+          import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+          import { Box3, Sphere } from 'three'
+          import type { Object3D } from 'three'
+          import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+
+          import {
+            ACCESSORY_SETTLE_TIMEOUT_MS,
+            parseAccessoryPhysics,
+          } from '../features/accessories/accessoryPhysics'
+          import type { EquippedAccessoryInstance } from '../features/accessories/accessoryTypes'
+          import { PlacementBody } from '../features/placement/PlacementBody'
+          import type { PlacementBodyPhysicsConfig } from '../features/placement/PlacementBody'
+          import type { PlacementBodyState } from '../features/placement/placementBodyState'
+          import { constrainTransformToPedestal } from '../features/placement/placementConstraints'
+          import { createPlacementGeometry } from '../features/placement/placementGeometry'
+          import type { PlacementGeometry } from '../features/placement/placementGeometry'
+          import type { PlacementTransform } from '../features/placement/placementTypes'
+          import {
+            ROCK_SETTLE_TIMEOUT_MS,
+            accessoryLocalToWorld,
+          } from '../features/rockMovement/rockMovementRules'
+          import type { RockPose, WorldAccessoryTransform } from '../features/rockMovement/rockMovementTypes'
+          import { disposeRockObject } from './rockResources'
+          import type { DisposalReport } from './rockResources'
+
+          interface AccessoryModelProps {
+            instance: EquippedAccessoryInstance
+            selected: boolean
+            rockPose: RockPose
+            compositionFrozen?: boolean
+            globalSettling?: boolean
+            settlingRequested?: boolean
+            onSettledWorld?: ((instanceId: string, transform: PlacementTransform) => void) | undefined
+            onGlobalSettled?: (transform: WorldAccessoryTransform) => void
+            placementTransform?: PlacementTransform | null
+            onPlacementGeometryReady?: (instanceId: string, geometry: PlacementGeometry | null) => void
+            onLoadStateChange?: ((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => void) | undefined
+            onDisposed?: ((instanceId: string, report: DisposalReport) => void) | undefined
+          }
+
+          function transformKey(instance: EquippedAccessoryInstance) {
+            return [
+              ...instance.localPosition,
+              ...instance.localRotation,
+              instance.uniformScale,
+            ].map((value) => Number(value).toFixed(5)).join('|')
+          }
+
+          export function AccessoryModel({
+            instance,
+            selected,
+            rockPose,
+            compositionFrozen = false,
+            globalSettling = false,
+            settlingRequested = false,
+            onSettledWorld,
+            onGlobalSettled,
+            placementTransform = null,
+            onPlacementGeometryReady,
+            onLoadStateChange,
+            onDisposed,
+          }: AccessoryModelProps) {
+            const [object, setObject] = useState<Object3D | null>(null)
+            const [selectionRadius, setSelectionRadius] = useState(0.5)
+            const [placementGeometry, setPlacementGeometry] = useState<PlacementGeometry | null>(null)
+            const reportedRecoveryRef = useRef<string | null>(null)
+            const disposedCallbackRef = useRef(onDisposed)
+            const loadCallbackRef = useRef(onLoadStateChange)
+            const invalidate = useThree((state) => state.invalidate)
+            const physics = useMemo(() => parseAccessoryPhysics(instance.physics, instance.category), [instance.category, instance.physics])
+
+            useEffect(() => {
+              disposedCallbackRef.current = onDisposed
+            }, [onDisposed])
+
+            useEffect(() => {
+              loadCallbackRef.current = onLoadStateChange
+            }, [onLoadStateChange])
+
+            useEffect(() => {
+              const controller = new AbortController()
+              const loader = new GLTFLoader()
+              let active = true
+              let loadedObject: Object3D | null = null
+
+              loadCallbackRef.current?.(instance.id, 'loading')
+              setPlacementGeometry(null)
+              onPlacementGeometryReady?.(instance.id, null)
+
+              async function load() {
+                try {
+                  const response = await fetch(instance.modelPath, { signal: controller.signal })
+                  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+                  const buffer = await response.arrayBuffer()
+                  if (!active || controller.signal.aborted) return
+
+                  const assetUrl = new URL(instance.modelPath, window.location.href)
+                  const resourcePath = assetUrl.href.slice(0, assetUrl.href.lastIndexOf('/') + 1)
+                  const gltf = await loader.parseAsync(buffer, resourcePath)
+                  loadedObject = gltf.scene
+                  const nextPlacementGeometry = createPlacementGeometry(loadedObject)
+                  const box = new Box3().setFromObject(loadedObject)
+                  if (!box.isEmpty()) {
+                    const sphere = box.getBoundingSphere(new Sphere())
+                    setSelectionRadius(Math.max(0.08, sphere.radius))
+                  }
+
+                  if (!active || controller.signal.aborted) {
+                    const report = disposeRockObject(loadedObject)
+                    disposedCallbackRef.current?.(instance.id, report)
+                    loadedObject = null
+                    return
+                  }
+
+                  setObject(loadedObject)
+                  setPlacementGeometry(nextPlacementGeometry)
+                  onPlacementGeometryReady?.(instance.id, nextPlacementGeometry)
+                  loadCallbackRef.current?.(instance.id, 'ready')
+                  invalidate()
+                } catch (error) {
+                  if (!active || controller.signal.aborted) return
+                  const message = error instanceof Error ? error.message : 'Erreur de chargement inconnue.'
+                  loadCallbackRef.current?.(instance.id, 'error', message)
+                }
+              }
+
+              void load()
+
+              return () => {
+                active = false
+                controller.abort()
+                onPlacementGeometryReady?.(instance.id, null)
+                if (loadedObject) {
+                  const report = disposeRockObject(loadedObject)
+                  disposedCallbackRef.current?.(instance.id, report)
+                }
+              }
+            }, [instance.id, instance.modelPath, invalidate, onPlacementGeometryReady])
+
+            const worldFromInstance = useCallback((): WorldAccessoryTransform => {
+              if (placementTransform) {
+                return {
+                  instanceId: instance.id,
+                  worldPosition: [...placementTransform.position],
+                  worldRotation: [...placementTransform.rotation],
+                  uniformScale: placementTransform.scale,
+                }
+              }
+              return accessoryLocalToWorld(instance.id, instance, rockPose)
+            }, [instance, placementTransform, rockPose])
+
+            const recoveryRequested = instance.stabilizedAt === null
+              && !compositionFrozen
+              && !globalSettling
+              && !settlingRequested
+            const dynamicRecovery = recoveryRequested && physics.enabled && physics.dynamic
+            const renderScale = placementTransform?.scale ?? instance.uniformScale
+            const world = worldFromInstance()
+            const bodyTransform: PlacementTransform = {
+              position: [...world.worldPosition],
+              rotation: [...world.worldRotation],
+              scale: renderScale,
+            }
+            const bodyState: PlacementBodyState = globalSettling || settlingRequested || dynamicRecovery
+              ? 'settling'
+              : compositionFrozen
+                ? 'editing'
+                : 'fixed'
+            const bodyPhysics = useMemo<PlacementBodyPhysicsConfig>(() => ({
+              collider: physics.enabled ? physics.collider : 'hull',
+              mass: physics.mass,
+              friction: physics.friction,
+              restitution: physics.restitution,
+              linearDamping: physics.linearDamping,
+              angularDamping: physics.angularDamping,
+              gravityScale: globalSettling ? 1 : physics.gravityScale,
+              ccd: physics.ccd,
+              settlingCcd: globalSettling || physics.ccd,
+              baseSolverIterations: physics.dynamic ? 2 : 0,
+              settlingSolverIterations: 2,
+              settleTimeoutMs: globalSettling ? ROCK_SETTLE_TIMEOUT_MS : ACCESSORY_SETTLE_TIMEOUT_MS,
+              settleLinearVelocityY: -0.02,
+            }), [globalSettling, physics])
+
+            useEffect(() => {
+              if (!recoveryRequested) {
+                reportedRecoveryRef.current = null
+                return
+              }
+              if (!object || !placementGeometry || dynamicRecovery) return
+              const key = transformKey(instance)
+              if (reportedRecoveryRef.current === key) return
+              reportedRecoveryRef.current = key
+              const canonicalWorld = worldFromInstance()
+              const safe = constrainTransformToPedestal({
+                position: [...canonicalWorld.worldPosition],
+                rotation: [...canonicalWorld.worldRotation],
+                scale: instance.uniformScale,
+              }, placementGeometry)
+              onSettledWorld?.(instance.id, safe)
+            }, [
+              dynamicRecovery,
+              instance,
+              object,
+              onSettledWorld,
+              placementGeometry,
+              recoveryRequested,
+              worldFromInstance,
+            ])
+
+            const handleBodySettled = useCallback((transform: PlacementTransform) => {
+              const settledWorld: WorldAccessoryTransform = {
+                instanceId: instance.id,
+                worldPosition: [...transform.position],
+                worldRotation: [...transform.rotation],
+                uniformScale: transform.scale,
+              }
+              if (globalSettling) {
+                onGlobalSettled?.(settledWorld)
+                return
+              }
+              if (!settlingRequested && !dynamicRecovery) return
+              onSettledWorld?.(instance.id, transform)
+            }, [dynamicRecovery, globalSettling, instance.id, onGlobalSettled, onSettledWorld, settlingRequested])
+
+            if (!object || !placementGeometry) return null
+
+            return (
+              <PlacementBody
+                bodyKey={`accessory:${instance.id}`}
+                state={bodyState}
+                transform={bodyTransform}
+                geometry={placementGeometry}
+                physics={bodyPhysics}
+                onSettled={handleBodySettled}
+              >
+                <primitive object={object} />
+                {selected ? (
+                  <mesh scale={selectionRadius * 1.08} raycast={() => undefined} renderOrder={20}>
+                    <sphereGeometry args={[1, 20, 14]} />
+                    <meshBasicMaterial wireframe transparent opacity={0.2} depthTest={false} />
+                  </mesh>
+                ) : null}
+              </PlacementBody>
+            )
+          }
+          ''').lstrip())
+
+          scene = Path('src/scene/ShowroomScene.tsx')
+          text = scene.read_text()
+          old_floor_import = dedent('''
+          import {
+            PEDESTAL_GROUND_CENTER_Y,
+            PEDESTAL_GROUND_COLOR,
+            PEDESTAL_GROUND_FRICTION,
+            PEDESTAL_GROUND_HALF_EXTENTS,
+            PEDESTAL_GROUND_RESTITUTION,
+            PEDESTAL_GROUND_SIZE,
+            PEDESTAL_GROUND_THICKNESS,
+            PEDESTAL_GROUND_Y,
+            ROCK_SETTLE_TIMEOUT_MS,
+            accessoryLocalToWorld,
+            normalizeRockPose,
+          } from '../features/rockMovement/rockMovementRules'
+          ''').lstrip()
+          new_floor_import = dedent('''
+          import {
+            PEDESTAL_FLOOR_CENTER_Y,
+            PEDESTAL_FLOOR_COLOR,
+            PEDESTAL_FLOOR_FRICTION,
+            PEDESTAL_FLOOR_HALF_EXTENTS,
+            PEDESTAL_FLOOR_RESTITUTION,
+            PEDESTAL_FLOOR_SIZE,
+            PEDESTAL_FLOOR_THICKNESS,
+            PEDESTAL_FLOOR_TOP_Y,
+          } from '../features/placement/pedestalFloor'
+          import {
+            ROCK_SETTLE_TIMEOUT_MS,
+            accessoryLocalToWorld,
+            normalizeRockPose,
+          } from '../features/rockMovement/rockMovementRules'
+          ''').lstrip()
+          text = replace_once(text, old_floor_import, new_floor_import, 'scene pedestal ownership')
+          text = text.replace("  | 'composition-settle'\n  | 'accessory-settle'\n", "  | 'settling'\n")
+          text = text.replace('function PedestalGround()', 'function PedestalFloor()')
+          text = text.replace('<PedestalGround />', '<PedestalFloor />')
+          replacements = {
+              'PEDESTAL_GROUND_CENTER_Y': 'PEDESTAL_FLOOR_CENTER_Y',
+              'PEDESTAL_GROUND_COLOR': 'PEDESTAL_FLOOR_COLOR',
+              'PEDESTAL_GROUND_FRICTION': 'PEDESTAL_FLOOR_FRICTION',
+              'PEDESTAL_GROUND_HALF_EXTENTS': 'PEDESTAL_FLOOR_HALF_EXTENTS',
+              'PEDESTAL_GROUND_RESTITUTION': 'PEDESTAL_FLOOR_RESTITUTION',
+              'PEDESTAL_GROUND_SIZE': 'PEDESTAL_FLOOR_SIZE',
+              'PEDESTAL_GROUND_THICKNESS': 'PEDESTAL_FLOOR_THICKNESS',
+              'PEDESTAL_GROUND_Y': 'PEDESTAL_FLOOR_TOP_Y',
+          }
+          for old, new in replacements.items():
+              text = text.replace(old, new)
+          text = replace_once(
+              text,
+              "  const placementMode = interactionMode === 'placement'\n  const accessorySettling = interactionMode === 'accessory-settle' && placementTarget?.kind === 'accessory'\n  const placementRockTarget = placementMode && placementTarget?.kind === 'rock'\n  const globalSettling = interactionMode === 'composition-settle'\n",
+              "  const placementMode = interactionMode === 'placement'\n  const settlingMode = interactionMode === 'settling'\n  const accessorySettling = settlingMode && placementTarget?.kind === 'accessory'\n  const placementRockTarget = placementMode && placementTarget?.kind === 'rock'\n  const globalSettling = settlingMode && placementTarget?.kind === 'rock'\n",
+              'scene single settling mode',
+          )
+          scene.write_text(text)
+
+          pedestal = Path('src/features/pedestal/Pedestal.tsx')
+          text = pedestal.read_text()
+          text = replace_once(
+              text,
+              "type PedestalMode = 'orbit' | 'caress' | 'cleaning' | 'placement' | 'accessory-settle' | 'composition-settle'",
+              "type PedestalMode = 'orbit' | 'caress' | 'cleaning' | 'placement' | 'settling'",
+              'pedestal single settling type',
+          )
+          text = replace_once(
+              text,
+              "  const placementMode = mode === 'placement'\n  const accessorySettling = mode === 'accessory-settle'\n  const globalSettling = mode === 'composition-settle'\n",
+              "  const placementMode = mode === 'placement'\n  const settlingMode = mode === 'settling'\n  const accessorySettling = settlingMode && placementTarget?.kind === 'accessory'\n  const globalSettling = settlingMode && placementTarget?.kind === 'rock'\n",
+              'pedestal single settling state',
+          )
+          text = re.sub(
+              r"const handlePlacementDone = useCallback\(\(\) => \{.*?\n\}, \[mode, mutationBlocked, placementTarget\]\)",
+              dedent('''
+              const handlePlacementDone = useCallback(() => {
+                if (mutationBlocked || mode !== 'placement') return
+                setMode(placementTarget ? 'settling' : 'orbit')
+              }, [mode, mutationBlocked, placementTarget])''').rstrip(),
+              text,
+              count=1,
+              flags=re.S,
+          )
+          text = text.replace("  const targetedSettlement = mode === 'accessory-settle'\n", "  const targetedSettlement = accessorySettling\n")
+          text = text.replace('  mode,\n  placementTarget,\n  refreshAccessoryPlacements,\n  rockPose,\n])', '  accessorySettling,\n  placementTarget,\n  refreshAccessoryPlacements,\n  rockPose,\n])', 1)
+          text = text.replace("  if (compositionPending || mode !== 'composition-settle') return", "  if (compositionPending || !globalSettling) return")
+          text = text.replace('  mode,\n  onServerStateChanged,\n  refreshAccessoryPlacements,\n])', '  globalSettling,\n  onServerStateChanged,\n  refreshAccessoryPlacements,\n])', 1)
+          text = text.replace("        : globalSettling ? ' is-composition-settling' : ''", "        : settlingMode ? ' is-composition-settling' : ''")
+          pedestal.write_text(text)
+
+          unified = Path('scripts/web/placement-unified-e2e-validation.tsx')
+          text = unified.read_text()
+          text = text.replace("useState<'placement' | 'accessory-settle' | 'composition-settle' | 'orbit'>('placement')", "useState<'placement' | 'settling' | 'orbit'>('placement')")
+          text = re.sub(
+              r"const handleDone = useCallback\(\(\) => \{.*?\n\}, \[target\]\)",
+              dedent('''
+              const handleDone = useCallback(() => {
+                setMode(target ? 'settling' : 'orbit')
+              }, [target])''').rstrip(),
+              text,
+              count=1,
+              flags=re.S,
+          )
+          text = text.replace("mode === 'composition-settle' ? ' is-composition-settling' : ''", "mode === 'settling' ? ' is-composition-settling' : ''")
+          unified.write_text(text)
+
+          rock_fixture = Path('scripts/web/rock-movement-e2e-validation.tsx')
+          text = rock_fixture.read_text()
+          text = text.replace("type Mode = 'placement' | 'composition-settle' | 'orbit'", "type Mode = 'placement' | 'settling' | 'orbit'")
+          text = text.replace("mode === 'composition-settle' ? ' is-composition-settling' : ''", "mode === 'settling' ? ' is-composition-settling' : ''")
+          text = text.replace("placementTarget={mode === 'placement' ? ROCK_TARGET : null}", "placementTarget={mode === 'orbit' ? null : ROCK_TARGET}")
+          text = text.replace("setMode('composition-settle')", "setMode('settling')")
+          rock_fixture.write_text(text)
+
+          validator = Path('scripts/web/validate-placement-unified-e2e.mjs')
+          text = validator.read_text()
+          text = text.replace("throw new Error('10.75 has a visible tactile target below 44px')", "throw new Error('Placement has a visible tactile target below 44px')")
+          text = text.replace("console.log('[CAILLOU] 10.75 correction E2E PASS: unified gestures + real-geometry hard floor before/after Rapier')", "console.log('[CAILLOU] Placement harmonisation E2E PASS: one controller + real-geometry pedestal + shared settlement')")
+          validator.write_text(text)
+      - name: Validate phase 7 cleanup
+        run: |
+          npm run check
+          git diff --check
+          test ! -e src/features/placement/placementRules.ts
+          test ! -e src/features/placement/placementRules.test.ts
+          ! grep -R "RockGestureController\|legacyRockManipulationMode\|legacyAccessoryMode\|rock-position\|rock-orientation\|clampRockPosition\|clampAccessoryPosition\|clampWorldPositionAboveGround\|commitAccessoryDrafts\|physicsSettled\|updateAccessoryPlacement\|update_equipped_accessory\|ACCESSORY_POSITION_LIMIT\|isAccessoryTransformWithinPhysicsBounds" src scripts/web --include='*.ts' --include='*.tsx' --include='*.mjs'
+          ! grep -R "accessory-settle\|composition-settle" src scripts/web --include='*.ts' --include='*.tsx' --include='*.mjs'
+          grep -q "interactionMode === 'settling'" src/scene/ShowroomScene.tsx
+          grep -q "const settlingMode = mode === 'settling'" src/features/pedestal/Pedestal.tsx
+          grep -q "from '../features/placement/pedestalFloor'" src/scene/ShowroomScene.tsx
+      - name: Commit phase 7 product cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src scripts/web
+          git commit -m "refactor(placement): supprimer les couches legacy finales"
+          git push origin HEAD:refactor/harmonisation-sol-placement
