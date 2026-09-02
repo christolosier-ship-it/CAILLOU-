@@ -1,0 +1,286 @@
+name: Integrate refactor phase 2
+
+on:
+  push:
+    branches:
+      - refactor/harmonisation-sol-placement
+    paths:
+      - .github/workflows/refactor-phase2-integrate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-phase2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/harmonisation-sol-placement
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Wire common placement geometry into rock and accessories
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if text.count(old) != 1:
+                  raise SystemExit(f'{label}: expected one anchor, found {text.count(old)}')
+              return text.replace(old, new, 1)
+
+          # RockModel
+          path = Path('src/scene/RockModel.tsx')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              "import { disposeRockObject } from './rockResources'",
+              "import { createPlacementGeometry } from '../features/placement/placementGeometry'\nimport type { PlacementGeometry } from '../features/placement/placementGeometry'\nimport { disposeRockObject } from './rockResources'",
+              'RockModel imports',
+          )
+          text = replace_once(
+              text,
+              "  onObjectReady?: ((object: Object3D | null) => void) | undefined\n",
+              "  onObjectReady?: ((object: Object3D | null) => void) | undefined\n  onPlacementGeometryReady?: ((geometry: PlacementGeometry | null) => void) | undefined\n",
+              'RockModel props',
+          )
+          text = replace_once(text, "  onObjectReady,\n  onSurfacePointerDown,", "  onObjectReady,\n  onPlacementGeometryReady,\n  onSurfacePointerDown,", 'RockModel destructure')
+          text = replace_once(text, "    onLoadStateChange?.('loading')\n    onObjectReady?.(null)\n", "    onLoadStateChange?.('loading')\n    onObjectReady?.(null)\n    onPlacementGeometryReady?.(null)\n", 'RockModel load reset')
+          text = replace_once(text, "        loadedObject = gltf.scene\n\n        loadedObject.traverse", "        loadedObject = gltf.scene\n        const placementGeometry = createPlacementGeometry(loadedObject)\n\n        loadedObject.traverse", 'RockModel geometry load')
+          text = replace_once(text, "        setObject(loadedObject)\n        onObjectReady?.(loadedObject)\n        onLoadStateChange?.('ready')", "        setObject(loadedObject)\n        onObjectReady?.(loadedObject)\n        onPlacementGeometryReady?.(placementGeometry)\n        onLoadStateChange?.('ready')", 'RockModel ready callback')
+          text = replace_once(text, "      onObjectReady?.(null)\n      if (loadedObject) disposeRockObject(loadedObject)", "      onObjectReady?.(null)\n      onPlacementGeometryReady?.(null)\n      if (loadedObject) disposeRockObject(loadedObject)", 'RockModel cleanup')
+          text = replace_once(text, "  }, [onLoadStateChange, onObjectReady, path])", "  }, [onLoadStateChange, onObjectReady, onPlacementGeometryReady, path])", 'RockModel dependencies')
+          path.write_text(text)
+
+          # AccessoryModel
+          path = Path('src/scene/AccessoryModel.tsx')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              "import { accessoryBoundsFromDimensions, clampWorldPositionAboveGround } from '../features/placement/placementRules'",
+              "import { constrainPlacementPosition } from '../features/placement/placementConstraints'\nimport { createPlacementGeometry } from '../features/placement/placementGeometry'\nimport type { PlacementGeometry } from '../features/placement/placementGeometry'",
+              'AccessoryModel imports',
+          )
+          text = replace_once(text, "  PEDESTAL_GROUND_Y,\n  ROCK_SETTLE_TIMEOUT_MS,", "  ROCK_SETTLE_TIMEOUT_MS,", 'AccessoryModel pedestal import')
+          text = replace_once(text, "  onGlobalSettled?: (transform: WorldAccessoryTransform) => void\n", "  onGlobalSettled?: (transform: WorldAccessoryTransform) => void\n  onPlacementGeometryReady?: (instanceId: string, geometry: PlacementGeometry | null) => void\n", 'AccessoryModel prop')
+          text = replace_once(text, "  onGlobalSettled,\n  onLoadStateChange,", "  onGlobalSettled,\n  onPlacementGeometryReady,\n  onLoadStateChange,", 'AccessoryModel destructure')
+          text = replace_once(text, "  const [selectionRadius, setSelectionRadius] = useState(0.5)\n  const [simulating, setSimulating] = useState(false)", "  const [selectionRadius, setSelectionRadius] = useState(0.5)\n  const [placementGeometry, setPlacementGeometry] = useState<PlacementGeometry | null>(null)\n  const [simulating, setSimulating] = useState(false)", 'AccessoryModel state')
+          text = replace_once(
+              text,
+              "  const groundBounds = useMemo(\n    () => accessoryBoundsFromDimensions(instance.dimensions, instance.uniformScale),\n    [instance.dimensions, instance.uniformScale],\n  )\n\n",
+              "",
+              'AccessoryModel old bounds',
+          )
+          text = replace_once(text, "    loadCallbackRef.current?.(instance.id, 'loading')\n", "    loadCallbackRef.current?.(instance.id, 'loading')\n    setPlacementGeometry(null)\n    onPlacementGeometryReady?.(instance.id, null)\n", 'AccessoryModel load reset')
+          text = replace_once(text, "        loadedObject = gltf.scene\n        const box", "        loadedObject = gltf.scene\n        const nextPlacementGeometry = createPlacementGeometry(loadedObject)\n        const box", 'AccessoryModel geometry load')
+          text = replace_once(text, "        setObject(loadedObject)\n        loadCallbackRef.current?.(instance.id, 'ready')", "        setObject(loadedObject)\n        setPlacementGeometry(nextPlacementGeometry)\n        onPlacementGeometryReady?.(instance.id, nextPlacementGeometry)\n        loadCallbackRef.current?.(instance.id, 'ready')", 'AccessoryModel ready callback')
+          text = replace_once(text, "      controller.abort()\n      if (loadedObject) {", "      controller.abort()\n      onPlacementGeometryReady?.(instance.id, null)\n      if (loadedObject) {", 'AccessoryModel cleanup')
+          text = replace_once(text, "  }, [instance.id, instance.modelPath, invalidate])", "  }, [instance.id, instance.modelPath, invalidate, onPlacementGeometryReady])", 'AccessoryModel load deps')
+          old = """    const world = bodyWorldTransform(body, instance.id, instance.uniformScale)
+              const grounded = clampWorldPositionAboveGround(
+                world.worldPosition,
+                world.worldRotation,
+                groundBounds,
+                PEDESTAL_GROUND_Y,
+              )
+              if (grounded[1] <= world.worldPosition[1] + 0.000001) return false
+
+              body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
+              const velocity = body.linvel()
+              if (velocity.y < 0) body.setLinvel({ x: velocity.x, y: 0, z: velocity.z }, true)
+          """
+          new = """    const world = bodyWorldTransform(body, instance.id, instance.uniformScale)
+              if (!placementGeometry) return false
+              const grounded = constrainPlacementPosition(
+                world.worldPosition,
+                world.worldRotation,
+                instance.uniformScale,
+                placementGeometry,
+              )
+              const changedX = Math.abs(grounded[0] - world.worldPosition[0]) > 0.000001
+              const changedY = Math.abs(grounded[1] - world.worldPosition[1]) > 0.000001
+              const changedZ = Math.abs(grounded[2] - world.worldPosition[2]) > 0.000001
+              if (!changedX && !changedY && !changedZ) return false
+
+              body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
+              const velocity = body.linvel()
+              body.setLinvel({
+                x: changedX ? 0 : velocity.x,
+                y: changedY && velocity.y < 0 ? 0 : velocity.y,
+                z: changedZ ? 0 : velocity.z,
+              }, true)
+          """
+          text = replace_once(text, old, new, 'AccessoryModel hard constraint')
+          text = replace_once(text, "  }, [groundBounds, instance.id, instance.uniformScale, invalidate])", "  }, [instance.id, instance.uniformScale, invalidate, placementGeometry])", 'AccessoryModel hard deps')
+          old = """      const grounded = clampWorldPositionAboveGround(
+                world.worldPosition,
+                world.worldRotation,
+                groundBounds,
+                PEDESTAL_GROUND_Y,
+              )
+              const local = accessoryWorldToLocal({ ...world, worldPosition: grounded }, rockPose)
+          """
+          new = """      if (!placementGeometry) return
+              const grounded = constrainPlacementPosition(
+                world.worldPosition,
+                world.worldRotation,
+                instance.uniformScale,
+                placementGeometry,
+              )
+              const local = accessoryWorldToLocal({ ...world, worldPosition: grounded }, rockPose)
+          """
+          text = replace_once(text, old, new, 'AccessoryModel static constraint')
+          text = replace_once(text, "    groundBounds,\n    instance,", "    placementGeometry,\n    instance,", 'AccessoryModel static deps')
+          path.write_text(text)
+
+          # ShowroomScene
+          path = Path('src/scene/ShowroomScene.tsx')
+          text = path.read_text()
+          text = replace_once(text, "import { Box3, MathUtils, Mesh, PerspectiveCamera, Quaternion, Sphere, Vector3 } from 'three'", "import { Box3, MathUtils, PerspectiveCamera, Quaternion, Sphere, Vector3 } from 'three'", 'Showroom three import')
+          text = replace_once(
+              text,
+              "import { accessoryBoundsFromDimensions, clampWorldPositionAboveGround } from '../features/placement/placementRules'\nimport type { PlacementBounds, PlacementTarget, PlacementTool } from '../features/placement/placementTypes'",
+              "import { constrainPlacementPosition } from '../features/placement/placementConstraints'\nimport type { PlacementGeometry } from '../features/placement/placementGeometry'\nimport type { PlacementTarget, PlacementTool } from '../features/placement/placementTypes'",
+              'Showroom placement imports',
+          )
+          start = text.index('function computeObjectLocalBounds(')
+          end = text.index('\nfunction samePosition(', start)
+          text = text[:start] + text[end + 1:]
+
+          text = replace_once(text, "  rockBounds,\n  accessories,", "  rockGeometry,\n  accessories,\n  accessoryGeometries,", 'Manipulation props destructure')
+          text = replace_once(text, "  rockBounds: PlacementBounds | null\n  accessories: EquippedAccessoryInstance[]", "  rockGeometry: PlacementGeometry | null\n  accessories: EquippedAccessoryInstance[]\n  accessoryGeometries: Map<string, PlacementGeometry>", 'Manipulation props type')
+          text = replace_once(text, "  const stateRef = useRef({ target, tool, rockPose, rockBounds, accessories })", "  const stateRef = useRef({ target, tool, rockPose, rockGeometry, accessories, accessoryGeometries })", 'Manipulation state ref')
+          text = replace_once(text, "    stateRef.current = { target, tool, rockPose, rockBounds, accessories }\n  }, [accessories, rockBounds, rockPose, target, tool])", "    stateRef.current = { target, tool, rockPose, rockGeometry, accessories, accessoryGeometries }\n  }, [accessories, accessoryGeometries, rockGeometry, rockPose, target, tool])", 'Manipulation state sync')
+          old = """        const grounded = current.rockBounds
+                    ? clampWorldPositionAboveGround(normalized.position, normalized.rotation, current.rockBounds, PEDESTAL_GROUND_Y)
+                    : normalized.position
+                onRockPoseChange(normalizeRockPose({ position: grounded, rotation: normalized.rotation }))
+          """
+          new = """        if (!current.rockGeometry) return
+                const grounded = constrainPlacementPosition(
+                  normalized.position,
+                  normalized.rotation,
+                  1,
+                  current.rockGeometry,
+                )
+                onRockPoseChange(normalizeRockPose({ position: grounded, rotation: normalized.rotation }))
+          """
+          text = replace_once(text, old, new, 'Manipulation rock constraint')
+          old = """      const safeScale = Math.max(instance.scaleMin, Math.min(instance.scaleMax, next.scale))
+              const bounds = accessoryBoundsFromDimensions(instance.dimensions, safeScale)
+              const grounded = clampWorldPositionAboveGround(
+                [next.position.x, next.position.y, next.position.z],
+                rotation,
+                bounds,
+                PEDESTAL_GROUND_Y,
+              )
+          """
+          new = """      const safeScale = Math.max(instance.scaleMin, Math.min(instance.scaleMax, next.scale))
+              const geometry = current.accessoryGeometries.get(instance.id)
+              if (!geometry) return
+              const grounded = constrainPlacementPosition(
+                [next.position.x, next.position.y, next.position.z],
+                rotation,
+                safeScale,
+                geometry,
+              )
+          """
+          text = replace_once(text, old, new, 'Manipulation accessory constraint')
+          text = replace_once(text, "  bounds: PlacementBounds\n", "  bounds: PlacementGeometry\n", 'RockPhysics geometry type')
+
+          old = """    const position = body.translation()
+              const rotation = body.rotation()
+              const grounded = clampWorldPositionAboveGround(
+                [position.x, position.y, position.z],
+                [rotation.x, rotation.y, rotation.z, rotation.w],
+                bounds,
+                PEDESTAL_GROUND_Y,
+              )
+              if (grounded[1] <= position.y + 0.000001) return false
+
+              body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
+              const velocity = body.linvel()
+              if (velocity.y < 0) body.setLinvel({ x: velocity.x, y: 0, z: velocity.z }, true)
+          """
+          new = """    const position = body.translation()
+              const rotation = body.rotation()
+              const currentPosition: [number, number, number] = [position.x, position.y, position.z]
+              const grounded = constrainPlacementPosition(
+                currentPosition,
+                [rotation.x, rotation.y, rotation.z, rotation.w],
+                1,
+                bounds,
+              )
+              if (samePosition(grounded, currentPosition)) return false
+
+              const changedX = Math.abs(grounded[0] - position.x) > 0.000001
+              const changedY = Math.abs(grounded[1] - position.y) > 0.000001
+              const changedZ = Math.abs(grounded[2] - position.z) > 0.000001
+              body.setTranslation({ x: grounded[0], y: grounded[1], z: grounded[2] }, true)
+              const velocity = body.linvel()
+              body.setLinvel({
+                x: changedX ? 0 : velocity.x,
+                y: changedY && velocity.y < 0 ? 0 : velocity.y,
+                z: changedZ ? 0 : velocity.z,
+              }, true)
+          """
+          text = replace_once(text, old, new, 'RockPhysics hard constraint')
+          text = replace_once(text, "    const grounded = clampWorldPositionAboveGround(pose.position, pose.rotation, bounds, PEDESTAL_GROUND_Y)", "    const grounded = constrainPlacementPosition(pose.position, pose.rotation, 1, bounds)", 'RockPhysics pose constraint')
+          old = """    const grounded = clampWorldPositionAboveGround(
+              [position.x, position.y, position.z],
+              [rotation.x, rotation.y, rotation.z, rotation.w],
+              bounds,
+              PEDESTAL_GROUND_Y,
+            )
+          """
+          new = """    const grounded = constrainPlacementPosition(
+              [position.x, position.y, position.z],
+              [rotation.x, rotation.y, rotation.z, rotation.w],
+              1,
+              bounds,
+            )
+          """
+          text = replace_once(text, old, new, 'RockPhysics settle constraint')
+
+          text = replace_once(text, "  const [object, setObject] = useState<Object3D | null>(null)\n  const [rockBounds, setRockBounds] = useState<PlacementBounds | null>(null)\n  const [visualGroup, setVisualGroup] = useState<Group | null>(null)", "  const [object, setObject] = useState<Object3D | null>(null)\n  const [rockGeometry, setRockGeometry] = useState<PlacementGeometry | null>(null)\n  const [accessoryGeometries, setAccessoryGeometries] = useState<Map<string, PlacementGeometry>>(() => new Map())\n  const [visualGroup, setVisualGroup] = useState<Group | null>(null)", 'Showroom geometry state')
+          text = replace_once(text, "  const handleObjectReady = useCallback((nextObject: Object3D | null) => {\n    setObject(nextObject)\n    setRockBounds(nextObject ? computeObjectLocalBounds(nextObject) : null)\n  }, [])", "  const handleObjectReady = useCallback((nextObject: Object3D | null) => {\n    setObject(nextObject)\n  }, [])\n  const handleRockGeometryReady = useCallback((geometry: PlacementGeometry | null) => {\n    setRockGeometry(geometry)\n  }, [])\n  const handleAccessoryGeometryReady = useCallback((instanceId: string, geometry: PlacementGeometry | null) => {\n    setAccessoryGeometries((current) => {\n      const next = new Map(current)\n      if (geometry) next.set(instanceId, geometry)\n      else next.delete(instanceId)\n      return next\n    })\n  }, [])", 'Showroom geometry handlers')
+          old = """  useEffect(() => {
+              if (!rockBounds || globalSettling || placementRockTarget || !onRockPoseDraft) return
+              const grounded = clampWorldPositionAboveGround(rockPose.position, rockPose.rotation, rockBounds, PEDESTAL_GROUND_Y)
+              if (!samePosition(grounded, rockPose.position)) {
+                onRockPoseDraft(normalizeRockPose({ position: grounded, rotation: rockPose.rotation }))
+              }
+            }, [globalSettling, onRockPoseDraft, placementRockTarget, rockBounds, rockPose])
+          """
+          new = """  useEffect(() => {
+              if (!rockGeometry || globalSettling || placementRockTarget || !onRockPoseDraft) return
+              const constrained = constrainPlacementPosition(rockPose.position, rockPose.rotation, 1, rockGeometry)
+              if (!samePosition(constrained, rockPose.position)) {
+                onRockPoseDraft(normalizeRockPose({ position: constrained, rotation: rockPose.rotation }))
+              }
+            }, [globalSettling, onRockPoseDraft, placementRockTarget, rockGeometry, rockPose])
+          """
+          text = replace_once(text, old, new, 'Showroom pose safeguard')
+          text = replace_once(text, "                onObjectReady={handleObjectReady}\n", "                onObjectReady={handleObjectReady}\n                onPlacementGeometryReady={handleRockGeometryReady}\n", 'RockModel geometry callback')
+          text = replace_once(text, "            {object && visualGroup && rockBounds ? (", "            {object && visualGroup && rockGeometry ? (", 'RockPhysics condition')
+          text = replace_once(text, "                bounds={rockBounds}\n", "                bounds={rockGeometry}\n", 'RockPhysics prop')
+          text = replace_once(text, "                onGlobalSettled={handleAccessorySettled}\n", "                onGlobalSettled={handleAccessorySettled}\n                onPlacementGeometryReady={handleAccessoryGeometryReady}\n", 'Accessory geometry callback')
+          text = replace_once(text, "                rockBounds={rockBounds}\n                accessories={accessories}\n", "                rockGeometry={rockGeometry}\n                accessories={accessories}\n                accessoryGeometries={accessoryGeometries}\n", 'Manipulation geometry props')
+          path.write_text(text)
+      - name: Validate complete phase 2
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run test:unit -- --run
+          npm run build
+          git diff --check
+      - name: Commit product integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/scene/RockModel.tsx src/scene/AccessoryModel.tsx src/scene/ShowroomScene.tsx
+          git commit -m "refactor(placement): brancher la géométrie commune aux objets"
+          git push origin HEAD:refactor/harmonisation-sol-placement
