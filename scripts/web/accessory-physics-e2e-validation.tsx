@@ -1,13 +1,14 @@
 import { Canvas } from '@react-three/fiber'
 import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 import type { RapierRigidBody } from '@react-three/rapier'
-import { Suspense, useCallback, useRef, useState } from 'react'
+import { Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
-import { AccessoryEditor } from '../../src/features/accessories/AccessoryEditor'
 import { ACCESSORY_WORLD_GRAVITY } from '../../src/features/accessories/accessoryPhysics'
-import type { AccessoryTransform, EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import type { PlacementTool, PlacementTransform } from '../../src/features/placement/placementTypes'
+import { DEFAULT_ROCK_POSE, accessoryLocalToWorld } from '../../src/features/rockMovement/rockMovementRules'
 import { ShowroomScene } from '../../src/scene/ShowroomScene'
 import '../../src/styles/global.css'
 import '../../src/styles/showroom.css'
@@ -139,17 +140,45 @@ function PhysicsProbe({ onState }: { onState: (next: { collision: number; settle
 }
 
 function PhysicsFixture() {
-  const [instances, setInstances] = useState(INITIAL_INSTANCES)
-  const [selectedId, setSelectedId] = useState(INITIAL_INSTANCES[0].id)
+  const [selectedId, setSelectedId] = useState(INITIAL_INSTANCES[0]!.id)
+  const [tool, setTool] = useState<PlacementTool>('position')
+  const [mode, setMode] = useState<'placement' | 'settling' | 'orbit'>('placement')
   const [loadedIds, setLoadedIds] = useState<string[]>([])
-  const [saveCount, setSaveCount] = useState(0)
+  const [draftCount, setDraftCount] = useState(0)
+  const [lastDraft, setLastDraft] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
+  const [settledCount, setSettledCount] = useState(0)
+  const [lastSettled, setLastSettled] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
   const [probe, setProbe] = useState({ collision: 0, settled: false, finalY: 1 })
 
-  const commitTransform = useCallback((instanceId: string, transform: AccessoryTransform) => {
-    setInstances((current) => current.map((instance) => instance.id === instanceId
-      ? { ...instance, ...transform, stabilizedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-      : instance))
-    setSaveCount((current) => current + 1)
+  const selectedWorld = useMemo(() => {
+    if (lastDraft?.instanceId === selectedId) return lastDraft.transform
+    const instance = INITIAL_INSTANCES.find((candidate) => candidate.id === selectedId)
+    if (!instance) return null
+    const world = accessoryLocalToWorld(instance.id, instance, DEFAULT_ROCK_POSE)
+    return {
+      position: world.worldPosition,
+      rotation: world.worldRotation,
+      scale: world.uniformScale,
+    }
+  }, [lastDraft, selectedId])
+
+  const select = useCallback((instanceId: string) => {
+    setSelectedId(instanceId)
+    setTool('position')
+    setMode('placement')
+    setLastDraft(null)
+  }, [])
+
+  const handleDraft = useCallback((instanceId: string, transform: PlacementTransform) => {
+    setLastDraft({ instanceId, transform })
+    setDraftCount((current) => current + 1)
+  }, [])
+
+  const handleSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
+    setLastSettled({ instanceId, transform })
+    setSettledCount((current) => current + 1)
+    setLastDraft({ instanceId, transform })
+    setMode('orbit')
   }, [])
 
   const handleLoadState = useCallback((instanceId: string, state: 'loading' | 'ready' | 'error') => {
@@ -161,55 +190,54 @@ function PhysicsFixture() {
   }, [])
 
   return (
-    <div className="pedestal-shell is-accessory-mode">
+    <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : ''}`}>
       <PhysicsProbe onState={setProbe} />
       <main className="pedestal-main">
-        <section className="pedestal-stage" data-accessory-count={instances.length}>
+        <section className="pedestal-stage" data-accessory-count={INITIAL_INSTANCES.length}>
           <ShowroomScene
             rock={rock}
             retryKey={0}
             reducedMotion={false}
             onLoadStateChange={() => undefined}
             onInteractionChange={() => undefined}
-            interactionMode="accessory"
-            accessories={instances}
+            interactionMode={mode}
+            rockPose={DEFAULT_ROCK_POSE}
+            placementTarget={mode === 'orbit' ? null : { kind: 'accessory', instanceId: selectedId }}
+            placementTool={tool}
+            accessories={INITIAL_INSTANCES}
             selectedAccessoryId={selectedId}
-            onAccessorySelect={setSelectedId}
-            onAccessoryTransformCommit={commitTransform}
+            onAccessorySelect={select}
+            onAccessoryPlacementDraft={handleDraft}
+            onAccessorySettled={handleSettled}
             onAccessoryLoadStateChange={handleLoadState}
           />
-          <AccessoryEditor
-            instances={instances}
-            selectedId={selectedId}
-            busy={false}
-            message={probe.settled ? 'Physique stabilisée.' : 'Simulation Rapier en cours…'}
-            maxInstances={8}
-            onSelect={setSelectedId}
-            onTransform={commitTransform}
-            onRemove={() => undefined}
-            onOpenShop={() => undefined}
-            onDone={() => undefined}
-          />
+          <div className="physics-fixture-controls" style={{ position: 'absolute', zIndex: 30, right: 8, bottom: 8, display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: 280 }}>
+            <button id="physics-select-monocle" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => select(INITIAL_INSTANCES[0]!.id)}>Monocle</button>
+            <button id="physics-select-glasses" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => select(INITIAL_INSTANCES[1]!.id)}>Lunettes</button>
+            <button id="physics-position" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('position') }}>Position</button>
+            <button id="physics-orientation" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => { setMode('placement'); setTool('orientation') }}>Orientation</button>
+            <button id="physics-settle" type="button" style={{ minWidth: 44, minHeight: 44 }} onClick={() => setMode('settling')}>Lâcher</button>
+          </div>
         </section>
       </main>
 
       <output
         id="accessory-physics-e2e-state"
         hidden
-        data-instance-count={instances.length}
+        data-mode={mode}
+        data-instance-count={INITIAL_INSTANCES.length}
         data-loaded-count={loadedIds.length}
         data-selected-id={selectedId}
-        data-save-count={saveCount}
+        data-draft-count={draftCount}
+        data-settled-count={settledCount}
         data-probe-collisions={probe.collision}
         data-probe-settled={String(probe.settled)}
         data-probe-final-y={probe.finalY.toFixed(5)}
-        data-transforms={JSON.stringify(instances.map((instance) => ({
-          id: instance.id,
-          position: instance.localPosition,
-          rotation: instance.localRotation,
-          scale: instance.uniformScale,
-          stabilizedAt: instance.stabilizedAt,
-        })))}
+        data-selected-world-position={JSON.stringify(selectedWorld?.position ?? null)}
+        data-selected-world-rotation={JSON.stringify(selectedWorld?.rotation ?? null)}
+        data-selected-scale={String(selectedWorld?.scale ?? 0)}
+        data-last-settled-position={JSON.stringify(lastSettled?.transform.position ?? null)}
+        data-last-settled-rotation={JSON.stringify(lastSettled?.transform.rotation ?? null)}
       />
     </div>
   )
