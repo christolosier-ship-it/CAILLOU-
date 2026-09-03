@@ -97,13 +97,14 @@ export function derivePedestalCapabilities(
   const online = state.network === 'online'
   const overlayClear = state.overlay === 'none'
   const mutationUnlocked = !context.mutationPending
-  const interactiveMode = state.interactionMode !== 'placement' && state.interactionMode !== 'settling'
+  const directInteractionMode = state.interactionMode !== 'placement' && state.interactionMode !== 'settling'
+  const canLeaveCurrentModeForOverlay = state.interactionMode !== 'settling'
   const idleMode = state.interactionMode === 'orbit'
 
   return {
-    canCaress: online && overlayClear && mutationUnlocked && interactiveMode,
-    canClean: online && overlayClear && mutationUnlocked && interactiveMode && context.cleaningAvailable,
-    canOpenShop: online && overlayClear && mutationUnlocked && interactiveMode,
+    canCaress: online && overlayClear && mutationUnlocked && directInteractionMode,
+    canClean: online && overlayClear && mutationUnlocked && directInteractionMode && context.cleaningAvailable,
+    canOpenShop: online && overlayClear && mutationUnlocked && canLeaveCurrentModeForOverlay,
     canOpenBio: overlayClear && mutationUnlocked && idleMode,
     canDiscard: online && overlayClear && mutationUnlocked && idleMode,
     canEnterPlacement: online && overlayClear && mutationUnlocked && state.interactionMode !== 'placement' && state.interactionMode !== 'settling',
