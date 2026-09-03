@@ -1,5 +1,5 @@
 import { BrushCleaning, ClipboardList, Gem, HandHeart, Move, Shirt, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { getRockCatalogEntryById } from '../../content/rockCatalog'
 import { PRODUCT_NAME } from '../../domain/foundation'
@@ -32,6 +32,12 @@ import type { PlacementSessionState, PlacementSettlementPlan } from '../placemen
 import type { PlacementTarget, PlacementTool, PlacementTransform } from '../placement/placementTypes'
 import type { RockPose } from '../rockMovement/rockMovementTypes'
 import { useRockMovementPermit } from '../rockMovement/useRockMovementPermit'
+import {
+  derivePedestalCapabilities,
+  INITIAL_PEDESTAL_STATE,
+  pedestalReducer,
+} from './pedestalState'
+import type { PedestalShopFocus } from './pedestalState'
 
 interface PedestalProps {
   activeRock: ActiveRock
@@ -42,9 +48,6 @@ interface PedestalProps {
   registerCaressMutation?: RegisterCaressMutation | undefined
   registerCleaningMutation?: RegisterCleaningMutation | undefined
 }
-
-type PedestalMode = 'orbit' | 'caress' | 'cleaning' | 'placement' | 'settling'
-type ShopFocus = 'default' | 'permit'
 
 interface ActiveSurfaceGesture {
   pointerId: number
@@ -114,11 +117,9 @@ export function Pedestal({
   registerCleaningMutation,
 }: PedestalProps) {
   const rock = getRockCatalogEntryById(activeRock.specimenId)
+  const [pedestalState, dispatchPedestal] = useReducer(pedestalReducer, INITIAL_PEDESTAL_STATE)
   const [loadState, setLoadState] = useState<RockLoadState>('loading')
   const [retryKey, setRetryKey] = useState(0)
-  const [bioOpen, setBioOpen] = useState(false)
-  const [accessoryShopOpen, setAccessoryShopOpen] = useState(false)
-  const [shopFocus, setShopFocus] = useState<ShopFocus>('default')
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null)
   const [placementTarget, setPlacementTarget] = useState<PlacementTarget | null>(null)
   const [placementTool, setPlacementTool] = useState<PlacementTool>('position')
@@ -129,7 +130,6 @@ export function Pedestal({
   const [compositionPending, setCompositionPending] = useState(false)
   const [accessoryPersistenceCount, setAccessoryPersistenceCount] = useState(0)
   const accessoryPersistenceRef = useRef(new Set<string>())
-  const [mode, setMode] = useState<PedestalMode>('orbit')
   const [rockPose, setRockPose] = useState<RockPose>({
     position: [...activeRock.posePosition],
     rotation: [...activeRock.poseRotation],
@@ -154,18 +154,18 @@ export function Pedestal({
   const cleaningMutation = registerCleaningMutation ?? registerCleaning
   const rockPermit = useRockMovementPermit()
 
-const {
-  instances: accessoryInstances,
-  loading: accessoryPlacementsLoading,
-  pendingId: accessoryPendingId,
-  error: accessoryPlacementError,
-  maxInstances,
-  refresh: refreshAccessoryPlacements,
-  place: placeAccessory,
-  acceptStabilizedAccessory,
-  acceptComposition,
-  remove: removeAccessory,
-} = useAccessoryPlacements(activeRock.id)
+  const {
+    instances: accessoryInstances,
+    loading: accessoryPlacementsLoading,
+    pendingId: accessoryPendingId,
+    error: accessoryPlacementError,
+    maxInstances,
+    refresh: refreshAccessoryPlacements,
+    place: placeAccessory,
+    acceptStabilizedAccessory,
+    acceptComposition,
+    remove: removeAccessory,
+  } = useAccessoryPlacements(activeRock.id)
   const adoptionDate = useMemo(() => formatDate(activeRock.adoptedAt), [activeRock.adoptedAt])
   const lastCleaningDate = useMemo(
     () => lastCleanedAtState ? formatDate(lastCleanedAtState) : 'Non requis à ce jour',
@@ -176,6 +176,10 @@ const {
     [activeRock.adoptedAt, lastCleanedAtState],
   )
   const cleaningAvailable = hasVisibleDust(dustAmount)
+  const mode = pedestalState.interactionMode
+  const bioOpen = pedestalState.overlay === 'bio'
+  const accessoryShopOpen = pedestalState.overlay === 'shop'
+  const shopFocus = pedestalState.shopFocus
   const caressMode = mode === 'caress'
   const cleaningMode = mode === 'cleaning'
   const placementMode = mode === 'placement'
@@ -192,6 +196,10 @@ const {
     || accessorySettling
     || globalSettling
     || rockPermit.pending
+  const capabilities = derivePedestalCapabilities(pedestalState, {
+    mutationPending: mutationBlocked,
+    cleaningAvailable,
+  })
   const handleLoadState = useCallback((state: RockLoadState) => setLoadState(state), [])
 
   useEffect(() => setEconomyState(economy), [economy])
@@ -266,7 +274,7 @@ const {
       setEconomyState((current) => ({ ...current, cleaningCount: result.cleaningCount }))
       setCleaningRetryInput(null)
       setDustRevision((current) => current + 1)
-      setMode('orbit')
+      dispatchPedestal({ type: 'return-to-orbit' })
       showCleaningSuccess()
       navigator.vibrate?.(16)
     } catch (error) {
@@ -342,7 +350,7 @@ const {
     if (cleaningMode && !cleaningPending && !cleaningRetryInput && cleaningAvailable) {
       const minX = Math.min(gesture.minX, sample.clientX)
       const maxX = Math.max(gesture.maxX, sample.clientX)
-      const minY = Math.min(gesture.minY, sample.clientY)
+      const minY = Math.min(gesture.minY, sample.clientX)
       const maxY = Math.max(gesture.maxY, sample.clientY)
       const metrics: CleaningMetrics = {
         durationMs,
@@ -376,7 +384,8 @@ const {
   }, [cleaningMode])
 
   const toggleMode = useCallback((target: 'caress' | 'cleaning') => {
-    if (mutationBlocked) return
+    const allowed = target === 'caress' ? capabilities.canCaress : capabilities.canClean
+    if (!allowed) return
     gestureRef.current = null
     setPlacementTarget(null)
     setSelectedAccessoryId(null)
@@ -384,27 +393,21 @@ const {
     setSettlementPlan(null)
     setRockPose(canonicalRockPoseRef.current)
     setRockMovementError(null)
-    setAccessoryShopOpen(false)
-    setMode((current) => {
-      if (current === 'cleaning') setDustRevision((revision) => revision + 1)
-      return current === target ? 'orbit' : target
-    })
-  }, [mutationBlocked])
+    if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
+    dispatchPedestal({ type: 'toggle-interaction', mode: target })
+  }, [capabilities.canCaress, capabilities.canClean, mode])
 
-
-const openShop = useCallback((focus: ShopFocus = 'default') => {
-  if (mutationBlocked) return
-  gestureRef.current = null
-  if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
-  setSelectedAccessoryId(null)
-  setPlacementTarget(null)
-  setPlacementSession(null)
-  setSettlementPlan(null)
-  setRockPose(canonicalRockPoseRef.current)
-  setMode('orbit')
-  setShopFocus(focus)
-  setAccessoryShopOpen(true)
-}, [mode, mutationBlocked])
+  const openShop = useCallback((focus: PedestalShopFocus = 'default') => {
+    if (!capabilities.canOpenShop) return
+    gestureRef.current = null
+    if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
+    setSelectedAccessoryId(null)
+    setPlacementTarget(null)
+    setPlacementSession(null)
+    setSettlementPlan(null)
+    setRockPose(canonicalRockPoseRef.current)
+    dispatchPedestal({ type: 'open-overlay', overlay: 'shop', shopFocus: focus })
+  }, [capabilities.canOpenShop, mode])
 
   const handleAccessoryPurchased = useCallback((result: PurchaseAccessoryResult) => {
     setEconomyState((current) => ({ ...current, balance: result.balance }))
@@ -439,25 +442,30 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
   }, [mode, mutationBlocked, removeAccessory])
 
   const openPlacement = useCallback(() => {
-    if (mutationBlocked) return
+    if (mode === 'placement') {
+      if (!capabilities.canExitPlacement) return
+      gestureRef.current = null
+      setSelectedAccessoryId(null)
+      setPlacementTarget(null)
+      setPlacementTool('position')
+      setRockMovementError(null)
+      setSettlementPlan(null)
+      setPlacementSession(null)
+      setRockPose(canonicalRockPoseRef.current)
+      dispatchPedestal({ type: 'return-to-orbit' })
+      return
+    }
+    if (!capabilities.canEnterPlacement) return
     gestureRef.current = null
     if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
-    setAccessoryShopOpen(false)
-    setShopFocus('default')
     setSelectedAccessoryId(null)
     setPlacementTarget(null)
     setPlacementTool('position')
     setRockMovementError(null)
     setSettlementPlan(null)
-    if (mode === 'placement') {
-      setPlacementSession(null)
-      setRockPose(canonicalRockPoseRef.current)
-      setMode('orbit')
-      return
-    }
     setPlacementSession(createPlacementSession(rockPose, accessoryInstances))
-    setMode('placement')
-  }, [accessoryInstances, mode, mutationBlocked, rockPose])
+    dispatchPedestal({ type: 'enter-placement' })
+  }, [accessoryInstances, capabilities.canEnterPlacement, capabilities.canExitPlacement, mode, rockPose])
 
   const selectRockForPlacement = useCallback(() => {
     if (mutationBlocked) return
@@ -477,7 +485,6 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
     setPlacementTool(tool)
   }, [mutationBlocked, placementTarget])
 
-
   const handleRockPlacementDraft = useCallback((pose: RockPose) => {
     setRockPose(pose)
     setPlacementSession((current) => current ? updatePlacementSession(current, { kind: 'rock' }, {
@@ -493,56 +500,54 @@ const openShop = useCallback((focus: ShopFocus = 'default') => {
       : current)
   }, [])
 
-
-const handlePlacementDone = useCallback(() => {
-  if (mutationBlocked || mode !== 'placement') return
-  const plan = buildPlacementSettlementPlan(placementSession)
-  if (!plan) {
-    setPlacementSession(null)
-    setPlacementTarget(null)
-    setSelectedAccessoryId(null)
-    setMode('orbit')
-    return
-  }
-  setSettlementPlan(plan)
-  setMode('settling')
-}, [mode, mutationBlocked, placementSession])
-
-
-const handleAccessorySettled = useCallback((instanceId: string, transform: PlacementTransform) => {
-  if (settlingMode || accessoryPersistenceRef.current.has(instanceId)) return
-  if (!accessoryInstances.some((instance) => instance.id === instanceId)) return
-  accessoryPersistenceRef.current.add(instanceId)
-  setAccessoryPersistenceCount(accessoryPersistenceRef.current.size)
-  setAccessoryRenderError(null)
-
-  void persistAccessoryWorldTransform({
-    instanceId,
-    transform,
-    rockPose,
-    eventKey: crypto.randomUUID(),
-  }).then((result) => {
-    acceptStabilizedAccessory(result)
-  }).catch(async (error) => {
-    setAccessoryRenderError(error instanceof Error
-      ? `${error.message} Le dernier état serveur connu a été restauré.`
-      : 'La pose finale n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
-    try {
-      await refreshAccessoryPlacements()
-    } catch {
-      // Keep the last visible canonical state if the reread is offline.
+  const handlePlacementDone = useCallback(() => {
+    if (mutationBlocked || mode !== 'placement') return
+    const plan = buildPlacementSettlementPlan(placementSession)
+    if (!plan) {
+      setPlacementSession(null)
+      setPlacementTarget(null)
+      setSelectedAccessoryId(null)
+      dispatchPedestal({ type: 'return-to-orbit' })
+      return
     }
-  }).finally(() => {
-    accessoryPersistenceRef.current.delete(instanceId)
+    setSettlementPlan(plan)
+    dispatchPedestal({ type: 'begin-settling' })
+  }, [mode, mutationBlocked, placementSession])
+
+  const handleAccessorySettled = useCallback((instanceId: string, transform: PlacementTransform) => {
+    if (settlingMode || accessoryPersistenceRef.current.has(instanceId)) return
+    if (!accessoryInstances.some((instance) => instance.id === instanceId)) return
+    accessoryPersistenceRef.current.add(instanceId)
     setAccessoryPersistenceCount(accessoryPersistenceRef.current.size)
-  })
-}, [
-  acceptStabilizedAccessory,
-  accessoryInstances,
-  refreshAccessoryPlacements,
-  rockPose,
-  settlingMode,
-])
+    setAccessoryRenderError(null)
+
+    void persistAccessoryWorldTransform({
+      instanceId,
+      transform,
+      rockPose,
+      eventKey: crypto.randomUUID(),
+    }).then((result) => {
+      acceptStabilizedAccessory(result)
+    }).catch(async (error) => {
+      setAccessoryRenderError(error instanceof Error
+        ? `${error.message} Le dernier état serveur connu a été restauré.`
+        : 'La pose finale n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
+      try {
+        await refreshAccessoryPlacements()
+      } catch {
+        // Keep the last visible canonical state if the reread is offline.
+      }
+    }).finally(() => {
+      accessoryPersistenceRef.current.delete(instanceId)
+      setAccessoryPersistenceCount(accessoryPersistenceRef.current.size)
+    })
+  }, [
+    acceptStabilizedAccessory,
+    accessoryInstances,
+    refreshAccessoryPlacements,
+    rockPose,
+    settlingMode,
+  ])
 
   const handlePermitPurchase = useCallback(async () => {
     const result = await rockPermit.purchase()
@@ -553,86 +558,85 @@ const handleAccessorySettled = useCallback((instanceId: string, transform: Place
     return true
   }, [onServerStateChanged, rockPermit])
 
+  const handleCompositionSettled = useCallback((composition: SettledWorldComposition) => {
+    if (compositionPending || !settlingMode || !settlementPlan) return
+    setCompositionPending(true)
+    setRockMovementError(null)
 
-const handleCompositionSettled = useCallback((composition: SettledWorldComposition) => {
-  if (compositionPending || !settlingMode || !settlementPlan) return
-  setCompositionPending(true)
-  setRockMovementError(null)
-
-  const closeSuccessfulSession = async (rock: RockPose) => {
-    setRockPose(rock)
-    canonicalRockPoseRef.current = rock
-    setPlacementSession(null)
-    setSettlementPlan(null)
-    setPlacementTarget(null)
-    setSelectedAccessoryId(null)
-    setPlacementTool('position')
-    setMode('orbit')
-    navigator.vibrate?.(20)
-    await onServerStateChanged()
-  }
-
-  const restoreCanonicalSession = async (error: unknown) => {
-    setRockMovementError(error instanceof Error
-      ? `${error.message} Le dernier état serveur connu a été restauré.`
-      : 'La manutention n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
-    setRockPose(canonicalRockPoseRef.current)
-    setPlacementSession(null)
-    setSettlementPlan(null)
-    setPlacementTarget(null)
-    setSelectedAccessoryId(null)
-    setPlacementTool('position')
-    try {
-      await refreshAccessoryPlacements()
-    } catch {
-      // The visible canonical pose is still restored even if the accessory reread is offline.
+    const closeSuccessfulSession = async (rock: RockPose) => {
+      setRockPose(rock)
+      canonicalRockPoseRef.current = rock
+      setPlacementSession(null)
+      setSettlementPlan(null)
+      setPlacementTarget(null)
+      setSelectedAccessoryId(null)
+      setPlacementTool('position')
+      dispatchPedestal({ type: 'return-to-orbit' })
+      navigator.vibrate?.(20)
+      await onServerStateChanged()
     }
-    setMode('orbit')
-    await onServerStateChanged()
-  }
 
-  const settledRockPose: RockPose = {
-    position: [...composition.rockTransform.position],
-    rotation: [...composition.rockTransform.rotation],
-  }
+    const restoreCanonicalSession = async (error: unknown) => {
+      setRockMovementError(error instanceof Error
+        ? `${error.message} Le dernier état serveur connu a été restauré.`
+        : 'La manutention n’a pas pu être confirmée ; le dernier état serveur connu a été restauré.')
+      setRockPose(canonicalRockPoseRef.current)
+      setPlacementSession(null)
+      setSettlementPlan(null)
+      setPlacementTarget(null)
+      setSelectedAccessoryId(null)
+      setPlacementTool('position')
+      try {
+        await refreshAccessoryPlacements()
+      } catch {
+        // The visible canonical pose is still restored even if the accessory reread is offline.
+      }
+      dispatchPedestal({ type: 'return-to-orbit' })
+      await onServerStateChanged()
+    }
 
-  if (!settlementPlan.rock) {
-    const dirtyIds = new Set(settlementPlan.accessoryIds)
-    const dirtyAccessories = composition.accessories.filter(({ instanceId }) => dirtyIds.has(instanceId))
-    void Promise.all(dirtyAccessories.map(({ instanceId, transform }) => persistAccessoryWorldTransform({
-      instanceId,
-      transform,
-      rockPose: settledRockPose,
+    const settledRockPose: RockPose = {
+      position: [...composition.rockTransform.position],
+      rotation: [...composition.rockTransform.rotation],
+    }
+
+    if (!settlementPlan.rock) {
+      const dirtyIds = new Set(settlementPlan.accessoryIds)
+      const dirtyAccessories = composition.accessories.filter(({ instanceId }) => dirtyIds.has(instanceId))
+      void Promise.all(dirtyAccessories.map(({ instanceId, transform }) => persistAccessoryWorldTransform({
+        instanceId,
+        transform,
+        rockPose: settledRockPose,
+        eventKey: crypto.randomUUID(),
+      }))).then(async (results) => {
+        results.forEach(acceptStabilizedAccessory)
+        await closeSuccessfulSession(settledRockPose)
+      }).catch(restoreCanonicalSession).finally(() => {
+        setCompositionPending(false)
+      })
+      return
+    }
+
+    void persistRockCompositionWorld({
+      userRockId: activeRock.id,
       eventKey: crypto.randomUUID(),
-    }))).then(async (results) => {
-      results.forEach(acceptStabilizedAccessory)
-      await closeSuccessfulSession(settledRockPose)
+      composition,
+    }).then(async (result) => {
+      acceptComposition(result)
+      await closeSuccessfulSession(result.rockPose)
     }).catch(restoreCanonicalSession).finally(() => {
       setCompositionPending(false)
     })
-    return
-  }
-
-  void persistRockCompositionWorld({
-    userRockId: activeRock.id,
-    eventKey: crypto.randomUUID(),
-    composition,
-  }).then(async (result) => {
-    acceptComposition(result)
-    await closeSuccessfulSession(result.rockPose)
-  }).catch(restoreCanonicalSession).finally(() => {
-    setCompositionPending(false)
-  })
-}, [
-  acceptComposition,
-  acceptStabilizedAccessory,
-  activeRock.id,
-  compositionPending,
-  onServerStateChanged,
-  refreshAccessoryPlacements,
-  settlementPlan,
-  settlingMode,
-])
+  }, [
+    acceptComposition,
+    acceptStabilizedAccessory,
+    activeRock.id,
+    compositionPending,
+    onServerStateChanged,
+    refreshAccessoryPlacements,
+    settlementPlan,
+    settlingMode,
+  ])
 
   const handleAccessoryLoadState = useCallback((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => {
     if (state === 'error') {
@@ -649,36 +653,36 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
       : accessorySettling
         ? 'Rapier stabilise l’accessoire avant enregistrement…'
         : globalSettling
-      ? 'Rapier arbitre la composition : gravité et collisions sont de nouveau actives…'
-      : placementMode
-        ? placementTarget?.kind === 'rock'
-          ? placementTool === 'position'
-            ? 'Placement du caillou : le canvas entier contrôle sa position. Le sol gris reste infranchissable.'
-            : 'Placement du caillou : le canvas entier contrôle son orientation.'
-          : placementTarget?.kind === 'accessory'
-            ? placementTool === 'position'
-              ? 'Placement accessoire : position libre, intersections autorisées, sol gris infranchissable.'
-              : placementTool === 'orientation'
-                ? 'Placement accessoire : orientation libre depuis tout le canvas.'
-                : 'Placement accessoire : pincez pour ajuster la taille.'
-            : 'Placement : choisissez d’abord une cible.'
-        : accessoryPendingId
-          ? 'Enregistrement du placement…'
-          : accessoryPlacementsLoading
-            ? 'Vérification des accessoires placés…'
-            : cleaningPending
-              ? 'Enregistrement du nettoyage…'
-              : cleaningRetryInput
-                ? 'Confirmation du nettoyage à reprendre.'
-                : cleaningMode
-                  ? 'Mode nettoyage actif. Passez le doigt sur la poussière visible.'
-                  : caressPending
-                    ? 'Enregistrement de la caresse…'
-                    : retryInput
-                      ? 'Confirmation serveur à reprendre.'
-                      : caressMode
-                        ? 'Mode caresse actif. Faites glisser le doigt sur la surface du caillou.'
-                        : rockMovementError ?? 'Votre caillou est prêt à ne rien faire à vos côtés.'
+          ? 'Rapier arbitre la composition : gravité et collisions sont de nouveau actives…'
+          : placementMode
+            ? placementTarget?.kind === 'rock'
+              ? placementTool === 'position'
+                ? 'Placement du caillou : le canvas entier contrôle sa position. Le sol gris reste infranchissable.'
+                : 'Placement du caillou : le canvas entier contrôle son orientation.'
+              : placementTarget?.kind === 'accessory'
+                ? placementTool === 'position'
+                  ? 'Placement accessoire : position libre, intersections autorisées, sol gris infranchissable.'
+                  : placementTool === 'orientation'
+                    ? 'Placement accessoire : orientation libre depuis tout le canvas.'
+                    : 'Placement accessoire : pincez pour ajuster la taille.'
+                : 'Placement : choisissez d’abord une cible.'
+            : accessoryPendingId
+              ? 'Enregistrement du placement…'
+              : accessoryPlacementsLoading
+                ? 'Vérification des accessoires placés…'
+                : cleaningPending
+                  ? 'Enregistrement du nettoyage…'
+                  : cleaningRetryInput
+                    ? 'Confirmation du nettoyage à reprendre.'
+                    : cleaningMode
+                      ? 'Mode nettoyage actif. Passez le doigt sur la poussière visible.'
+                      : caressPending
+                        ? 'Enregistrement de la caresse…'
+                        : retryInput
+                          ? 'Confirmation serveur à reprendre.'
+                          : caressMode
+                            ? 'Mode caresse actif. Faites glisser le doigt sur la surface du caillou.'
+                            : rockMovementError ?? 'Votre caillou est prêt à ne rien faire à vos côtés.'
 
   const shellModeClass = caressMode
     ? ' is-caress-mode'
@@ -695,7 +699,10 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
           <button
             type="button"
             className="pedestal-utility"
-            onClick={() => setBioOpen(true)}
+            onClick={() => {
+              if (capabilities.canOpenBio) dispatchPedestal({ type: 'open-overlay', overlay: 'bio' })
+            }}
+            disabled={!capabilities.canOpenBio}
             aria-label="Bio et statistiques"
             title="Bio et statistiques"
           >
@@ -705,7 +712,7 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
             type="button"
             className={`pedestal-utility pedestal-utility-icon${placementMode ? ' is-active' : ''}`}
             onClick={openPlacement}
-            disabled={mutationBlocked && !placementMode}
+            disabled={placementMode ? !capabilities.canExitPlacement : !capabilities.canEnterPlacement}
             aria-label={placementMode ? 'Quitter Placement' : 'Ouvrir Placement'}
             aria-pressed={placementMode}
             title="Placement"
@@ -844,10 +851,10 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
               || (isCleaning && cleaningMode)
               || (isShop && accessoryShopOpen)
             const disabled = isCaress
-              ? mutationBlocked
+              ? !capabilities.canCaress
               : isCleaning
-                ? mutationBlocked || !cleaningAvailable
-                : isShop ? mutationBlocked : true
+                ? !capabilities.canClean
+                : isShop ? !capabilities.canOpenShop : true
             const ariaLabel = isCaress
               ? (caressMode ? 'Quitter le mode Caresser' : 'Activer le mode Caresser')
               : isCleaning
@@ -887,7 +894,7 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
 
       {bioOpen ? (
         <div className="pedestal-dialog-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setBioOpen(false)
+          if (event.target === event.currentTarget) dispatchPedestal({ type: 'close-overlay' })
         }}>
           <section className="pedestal-dialog" role="dialog" aria-modal="true" aria-labelledby="pedestal-bio-title">
             <div className="pedestal-dialog-heading">
@@ -895,7 +902,13 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
                 <p className="eyebrow">Dossier institutionnel</p>
                 <h2 id="pedestal-bio-title">{activeRock.name}</h2>
               </div>
-              <button type="button" onClick={() => setBioOpen(false)} aria-label="Fermer Bio / Stats">Fermer</button>
+              <button
+                type="button"
+                onClick={() => dispatchPedestal({ type: 'close-overlay' })}
+                aria-label="Fermer Bio / Stats"
+              >
+                Fermer
+              </button>
             </div>
             <dl>
               <div><dt>Spécimen</dt><dd>{String(rock.catalogIndex).padStart(2, '0')}</dd></div>
@@ -929,8 +942,7 @@ const handleCompositionSettled = useCallback((composition: SettledWorldCompositi
           onClose={() => {
             if (!rockPermit.pending) {
               rockPermit.clearError()
-              setAccessoryShopOpen(false)
-              setShopFocus('default')
+              dispatchPedestal({ type: 'close-overlay' })
             }
           }}
         />
