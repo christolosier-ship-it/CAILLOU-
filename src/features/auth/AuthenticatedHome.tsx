@@ -3,7 +3,6 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import type { RockCatalogEntry } from '../../content/rockCatalog'
 import { adoptRock } from '../adoption/adoptionApi'
 import { EmptyRockState } from '../adoption/EmptyRockState'
-import { NamingScreen } from '../adoption/NamingScreen'
 import type { ActiveRock, AdoptRockMutation } from '../adoption/adoptionTypes'
 import type { LoadRockBioSnapshot } from '../bio/bioTypes'
 import type { RegisterCaressMutation, RockEconomySnapshot } from '../caress/caressTypes'
@@ -16,6 +15,9 @@ const LazyStep11Pedestal = lazy(() => import('../pedestal/Step11Pedestal').then(
 })))
 const LazyShowroom = lazy(() => import('../showroom/Showroom').then((module) => ({
   default: module.Showroom,
+})))
+const LazyNamingScreen = lazy(() => import('../adoption/NamingScreen').then((module) => ({
+  default: module.NamingScreen,
 })))
 
 interface AuthenticatedHomeProps {
@@ -107,17 +109,19 @@ export function AuthenticatedHome({
 
   if (namingRock) {
     return (
-      <NamingScreen
-        rock={namingRock}
-        username={username}
-        mutation={mutation}
-        onCancel={() => setNamingRock(null)}
-        onSignOut={onSignOut}
-        onAdopted={async () => {
-          await onServerStateChanged()
-          setNamingRock(null)
-        }}
-      />
+      <Suspense fallback={<SceneFallback />}>
+        <LazyNamingScreen
+          rock={namingRock}
+          username={username}
+          mutation={mutation}
+          onCancel={() => setNamingRock(null)}
+          onSignOut={onSignOut}
+          onAdopted={async () => {
+            await onServerStateChanged()
+            setNamingRock(null)
+          }}
+        />
+      </Suspense>
     )
   }
 

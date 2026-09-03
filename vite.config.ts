@@ -30,7 +30,7 @@ export default defineConfig({
       manifest: pwaManifest,
       workbox: {
         // Precache only the navigation shell. Heavy scene/physics chunks are learned at first use.
-        globPatterns: ['index.html', 'assets/index-*.{js,css}', '**/*.woff2'],
+        globPatterns: ['index.html', 'assets/index-*.{js,css}'],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
