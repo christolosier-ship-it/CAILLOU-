@@ -26,9 +26,6 @@ async function runViewport(width, height, label) {
     await page.click('.pedestal-utility[aria-label="Bio et statistiques"]')
     await page.waitForSelector('.bio-dialog')
 
-    const nativeBioFired = await page.$eval('#native-bio-state', (node) => node.getAttribute('data-fired'))
-    if (nativeBioFired !== 'false') throw new Error(`${label}: legacy Bio handler was not intercepted`)
-
     const bioText = await page.$eval('.bio-dialog', (node) => node.textContent ?? '')
     for (const expected of [
       'Types d’accessoires possédés',
@@ -47,21 +44,38 @@ async function runViewport(width, height, label) {
     await page.click('.bio-dialog button[aria-label="Fermer Bio / Stats"]')
     await page.waitForSelector('.bio-dialog', { hidden: true })
 
-    await page.click('#fixture-mode')
-    await page.waitForFunction(() => document.querySelector('.step11-pedestal-host')?.getAttribute('data-step11-blocked') === 'true')
+    await page.click('#fixture-network')
+    await page.waitForFunction(() => document.querySelector('.pedestal-screen-host')?.getAttribute('data-network-state') === 'offline')
+    const offlineState = await page.evaluate(() => ({
+      discard: (document.querySelector('.pedestal-actions button[title="Jeter"]'))?.disabled,
+      caress: (document.querySelector('.pedestal-actions button[title="Caresser"]'))?.disabled,
+      notice: document.querySelector('.network-resilience-notice')?.textContent ?? '',
+    }))
+    if (!offlineState.discard || !offlineState.caress) throw new Error(`${label}: sensitive controls remain active offline`)
+    if (!offlineState.notice.includes('Synchronisation indisponible')) throw new Error(`${label}: offline notice is missing`)
+
+    await page.click('#fixture-network')
+    await page.waitForFunction(() => {
+      const host = document.querySelector('.pedestal-screen-host')
+      const discard = document.querySelector('.pedestal-actions button[title="Jeter"]')
+      return host?.getAttribute('data-network-state') === 'online'
+        && discard instanceof HTMLButtonElement
+        && !discard.disabled
+    })
+
+    await page.click('.pedestal-utility[title="Placement"]')
+    await page.waitForFunction(() => document.querySelector('.pedestal-stage')?.getAttribute('data-rock-mode') === 'placement')
     const blocked = await page.evaluate(() => ({
       bio: (document.querySelector('.pedestal-utility[aria-label="Bio et statistiques"]'))?.disabled,
       discard: (document.querySelector('.pedestal-actions button[title="Jeter"]'))?.disabled,
     }))
-    if (!blocked.bio || !blocked.discard) throw new Error(`${label}: Step 11 controls remain active during Placement`)
+    if (!blocked.bio || !blocked.discard) throw new Error(`${label}: Bio/Jeter remain active during Placement`)
 
-    await page.click('#fixture-mode')
+    await page.click('.pedestal-utility[title="Placement"]')
     await page.waitForFunction(() => {
-      const host = document.querySelector('.step11-pedestal-host')
+      const mode = document.querySelector('.pedestal-stage')?.getAttribute('data-rock-mode')
       const discard = document.querySelector('.pedestal-actions button[title="Jeter"]')
-      return host?.getAttribute('data-step11-blocked') === 'false'
-        && discard instanceof HTMLButtonElement
-        && !discard.disabled
+      return mode === 'orbit' && discard instanceof HTMLButtonElement && !discard.disabled
     })
 
     await page.click('.pedestal-actions button[title="Jeter"]')
@@ -80,7 +94,7 @@ async function runViewport(width, height, label) {
     await page.click('.empty-rock-error button')
     await page.waitForFunction(() => (document.querySelector('.empty-rock-shell')?.textContent ?? '').includes('Adopter un nouveau caillou'))
 
-    const state = await page.$eval('#step11-e2e-state', (node) => ({
+    const state = await page.$eval('#pedestal-e2e-state', (node) => ({
       active: node.getAttribute('data-active'),
       serverActive: node.getAttribute('data-server-active'),
       eventKeys: (node.getAttribute('data-event-keys') ?? '').split(',').filter(Boolean),
@@ -93,14 +107,15 @@ async function runViewport(width, height, label) {
     }
 
     await page.click('.empty-rock-primary')
-    await page.waitForFunction(() => document.querySelector('#step11-e2e-state')?.getAttribute('data-adopt-requested') === 'true')
+    await page.waitForFunction(() => document.querySelector('#pedestal-e2e-state')?.getAttribute('data-adopt-requested') === 'true')
     await page.screenshot({ path: path.join(outDir, `${label}.png`), fullPage: true })
 
     return {
       label,
       ok: true,
-      legacyBioIntercepted: true,
+      singleBioFlow: true,
       modeExclusivity: true,
+      offlineGuard: true,
       eventKeyReused: true,
       adoptionCta: true,
     }
@@ -120,6 +135,7 @@ try {
     discardImmediate: true,
     discardRetryIdempotent: true,
     emptyStateAfterDiscard: true,
+    explicitNetworkGuard: true,
     phone,
     tablet,
   }
