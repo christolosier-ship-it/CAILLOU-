@@ -906,6 +906,7 @@ export function Pedestal({
           permitError={rockPermit.error}
           permitRetrying={rockPermit.retrying}
           highlightPermit={shopFocus === 'permit'}
+          interactionDisabled={!capabilities.canPurchase}
           onPermitPurchase={handlePermitPurchase}
           onBalanceChanged={(balance) => setEconomyState((current) => ({ ...current, balance }))}
           onPurchased={handleAccessoryPurchased}
