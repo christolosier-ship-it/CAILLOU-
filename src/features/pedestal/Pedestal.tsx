@@ -350,7 +350,7 @@ export function Pedestal({
     if (cleaningMode && !cleaningPending && !cleaningRetryInput && cleaningAvailable) {
       const minX = Math.min(gesture.minX, sample.clientX)
       const maxX = Math.max(gesture.maxX, sample.clientX)
-      const minY = Math.min(gesture.minY, sample.clientX)
+      const minY = Math.min(gesture.minY, sample.clientY)
       const maxY = Math.max(gesture.maxY, sample.clientY)
       const metrics: CleaningMetrics = {
         durationMs,
