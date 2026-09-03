@@ -6,10 +6,15 @@ import type { ActiveRock } from '../../src/features/adoption/adoptionTypes'
 import type { LoadRockBioSnapshot } from '../../src/features/bio/bioTypes'
 import { DiscardRockError } from '../../src/features/discard/discardApi'
 import type { DiscardRockMutation } from '../../src/features/discard/discardTypes'
-import { Step11Pedestal } from '../../src/features/pedestal/Step11Pedestal'
-import type { Step11PedestalBaseProps } from '../../src/features/pedestal/Step11Pedestal'
+import { PedestalScreen } from '../../src/features/pedestal/PedestalScreen'
 import '../../src/styles/global.css'
+import '../../src/styles/showroom.css'
 import '../../src/styles/adoption.css'
+import '../../src/styles/caress.css'
+import '../../src/styles/cleaning.css'
+import '../../src/styles/accessories.css'
+import '../../src/styles/accessory-placement.css'
+import '../../src/styles/rock-movement.css'
 import '../../src/styles/step11.css'
 
 const INITIAL_ROCK: ActiveRock = {
@@ -23,55 +28,9 @@ const INITIAL_ROCK: ActiveRock = {
   poseStabilizedAt: '2026-09-02T22:05:43.000Z',
 }
 
-function MockPedestal({ activeRock }: Step11PedestalBaseProps) {
-  const [mode, setMode] = useState<'orbit' | 'placement'>('orbit')
-  const [nativeBioFired, setNativeBioFired] = useState(false)
-  const modeClass = mode === 'placement' ? ' is-placement-mode' : ''
-
-  return (
-    <div className={`pedestal-shell${modeClass}`}>
-      <header className="pedestal-topbar">
-        <div>
-          <button
-            type="button"
-            className="pedestal-utility"
-            aria-label="Bio et statistiques"
-            onClick={() => setNativeBioFired(true)}
-          >
-            Bio
-          </button>
-          <button
-            type="button"
-            className="pedestal-utility"
-            title="Placement"
-            disabled={mode !== 'orbit'}
-            onClick={() => setMode('placement')}
-          >
-            Placement
-          </button>
-        </div>
-        <strong>{activeRock.name}</strong>
-      </header>
-      <main className="pedestal-main">
-        <section className="pedestal-stage" data-rock-mode={mode}>
-          <button id="fixture-mode" type="button" onClick={() => setMode((current) => current === 'orbit' ? 'placement' : 'orbit')}>
-            Basculer le mode test
-          </button>
-          <output id="native-bio-state" data-fired={nativeBioFired ? 'true' : 'false'} />
-        </section>
-        <nav className="pedestal-actions" aria-label="Actions du caillou">
-          <button type="button" title="Caresser">Caresser</button>
-          <button type="button" title="Nettoyer">Nettoyer</button>
-          <button type="button" title="Boutique">Boutique</button>
-          <button type="button" title="Jeter" disabled aria-label="Jeter — fonctionnalité en préparation">Jeter</button>
-        </nav>
-      </main>
-    </div>
-  )
-}
-
-function Step11Fixture() {
+function PedestalFixture() {
   const [active, setActive] = useState(true)
+  const [degraded, setDegraded] = useState(false)
   const [adoptRequested, setAdoptRequested] = useState(false)
   const [eventKeys, setEventKeys] = useState<string[]>([])
   const serverActive = useRef(true)
@@ -118,26 +77,29 @@ function Step11Fixture() {
 
   return (
     <>
+      <button id="fixture-network" type="button" onClick={() => setDegraded((current) => !current)}>
+        Basculer réseau test
+      </button>
       {active ? (
-        <Step11Pedestal
+        <PedestalScreen
           activeRock={INITIAL_ROCK}
           economy={{ balance: 321, caressCount: 1450, cleaningCount: 7, lithonsGenerated: 1450 }}
-          username="Step11"
+          username="V2-00"
+          degraded={degraded}
           onServerStateChanged={refresh}
           onSignOut={async () => undefined}
           loadBioSnapshot={loadBio}
           discardRockMutation={discardRock}
-          PedestalComponent={MockPedestal}
         />
       ) : (
         <EmptyRockState
-          username="Step11"
+          username="V2-00"
           onAdopt={() => setAdoptRequested(true)}
           onSignOut={async () => undefined}
         />
       )}
       <output
-        id="step11-e2e-state"
+        id="pedestal-e2e-state"
         hidden
         data-active={active ? 'true' : 'false'}
         data-server-active={serverActive.current ? 'true' : 'false'}
@@ -149,10 +111,10 @@ function Step11Fixture() {
 }
 
 const root = document.getElementById('root')
-if (!root) throw new Error('Missing Step 11 E2E fixture root')
+if (!root) throw new Error('Missing Pedestal E2E fixture root')
 
 createRoot(root).render(
   <StrictMode>
-    <Step11Fixture />
+    <PedestalFixture />
   </StrictMode>,
 )

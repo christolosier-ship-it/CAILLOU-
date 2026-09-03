@@ -1,180 +1,24 @@
 # V2-00 — Architecture, cadrage et migrations
 
-> **Statut : spécifiée — prête à exécuter.**
+> **Statut : implémentation terminée — validation finale avant merge.**
 >
-> Ce document est le prompt autonome d'exécution de l'étape V2-00 de CAILLOU™.
-> Il complète `docs/roadmap/00-INDEX-ROADMAP.md` et doit être utilisé comme cahier des charges lorsque le chantier V2-00 sera lancé.
->
-> Baseline documentaire au moment de sa rédaction : `main` au commit `a5e15bd4825923dbcc4714a9fcbdfde313f5ce6c`, après publication V1.0 et nettoyage post-V1. L'exécution future doit toutefois partir du `main` réel du moment, pas forcer ce SHA si le dépôt a évolué entre-temps.
+> Ce document constitue à la fois le cahier des charges historique et le compte rendu d'exécution de V2-00.
+> La branche de chantier est `refactor/v2-00`, portée par la PR #38.
+> La V1 de référence reste le tag `v1.0.0` sur `e9d926be0f2f09f9f1464cf5b4360f82dbeae2ad`.
 
-## Prompt d'exécution
+## 1. Finalité
 
-Tu travailles sur le projet CAILLOU™.
+V2-00 ne livre pas une nouvelle fonctionnalité produit majeure. Elle prépare CAILLOU™ à accueillir Placement 2.0, compositions, nouveaux accessoires, sols, peinture, personnalité, journal et Studio Photo sans réintroduire la dette structurelle accumulée en V1.
 
-### Plateformes
-
-GitHub :
-- dépôt : `christolosier-ship-it/CAILLOU-`
-- branche de référence : `main`
-- release historique V1 : tag `v1.0.0`
-
-Supabase :
-- projet : `CAILLOU-`
-- project ref : `zibhzhpvtiplbkhioqco`
-
-Vercel :
-- projet : `caillou`
-- project id : `prj_s7mALANJeRy7DM7qq4umXnYobuz1`
-- team id : `team_UBsxpombLG8nzlOvgUNXMmJL`
-
-### Plugins obligatoires
-
-- GitHub obligatoire.
-- Supabase obligatoire pour auditer les contrats réellement en production et vérifier qu'aucune hypothèse frontend ne contredit le backend.
-- Vercel obligatoire pour contrôler la stratégie de déploiement et l'état production, mais ne pas déclencher de Preview inutile.
-
-Avant toute modification :
-
-1. lire `docs/roadmap/00-INDEX-ROADMAP.md` ;
-2. lire intégralement ce document ;
-3. inspecter l'état réel du code sur `main` ;
-4. inspecter les contrats Supabase réellement déployés ;
-5. vérifier la production Vercel actuelle ;
-6. ne jamais réécrire les documents de `docs/roadmap/archive/v1/`.
-
----
-
-## 1. Finalité de V2-00
-
-V2-00 n'ajoute pas encore une nouvelle fonctionnalité utilisateur majeure.
-
-Son objectif est de rendre l'architecture suffisamment explicite, modulaire et stable pour accueillir sans spaghettification :
-
-- Placement 2.0 ;
-- compositions multiples ;
-- nouveaux accessoires ;
-- sols ;
-- peinture ;
-- Bio/personnalité 2.0 ;
-- journal de vie ;
-- Studio Photo ;
-- puis les extensions V2.1 à V2.4.
-
-Le chantier doit corriger la dette structurelle du Socle révélée à la fin de la V1, tout en figeant les contrats architecturaux nécessaires aux étapes V2 suivantes.
-
-La règle directrice est :
+Règle d'architecture désormais normative :
 
 > **DOM = rendu. React = source de vérité UI. Supabase = source de vérité serveur et économique.**
 
----
+Les invariants V1 restent obligatoires : authentification, adoption, Socle, caresses/Lithons, nettoyage, Boutique, accessoires multi-instance, Permis, Placement, Rapier, persistance, Bio/Stats, Jeter, offline/réconciliation, PWA, RLS et économie autoritaire.
 
-## 2. Invariants V1 à préserver absolument
+## 2. Architecture Socle retenue
 
-V2-00 est un refactor de fondation. Le comportement utilisateur V1 doit rester fonctionnel.
-
-Préserver notamment :
-
-- authentification et session ;
-- showroom des 20 cailloux ;
-- adoption et nommage ;
-- Socle ;
-- caresse et génération de Lithons ;
-- nettoyage et poussière ;
-- Boutique unifiée ;
-- achat et propriété des accessoires ;
-- plusieurs instances simultanées, plafond actuel de huit ;
-- Permis de manutention minérale ;
-- Placement actuel du caillou et des accessoires ;
-- translation/orientation/échelle selon les règles V1 ;
-- sol infranchissable ;
-- intersections volontaires hors sol pendant Placement ;
-- reprise Rapier et stabilisation ;
-- persistance des transforms ;
-- Bio/Stats ;
-- Jeter et nouvelle adoption ;
-- mode offline/dégradé ;
-- réconciliation réseau et idempotence ;
-- PWA ;
-- autorité Supabase sur prix, soldes, achats, possessions et états persistants.
-
-Aucune nouvelle architecture ne doit affaiblir les règles RLS, RPC, idempotence ou sécurité acquises en V1.
-
----
-
-## 3. Dette architecturale actuelle à supprimer
-
-### 3.1 `Pedestal.tsx` concentre trop de responsabilités
-
-Au démarrage de V2-00, `src/features/pedestal/Pedestal.tsx` concentre encore notamment :
-
-- rendu principal du Socle ;
-- modes `orbit`, `caress`, `cleaning`, `placement`, `settling` ;
-- gestuelle caresse ;
-- gestuelle nettoyage ;
-- économie locale affichée ;
-- Boutique ;
-- Permis ;
-- chargement/ajout/retrait d'accessoires ;
-- session Placement ;
-- cible et outil de Placement ;
-- pose du caillou ;
-- stabilisation physique ;
-- persistance accessoire ;
-- persistance composition ;
-- restauration après erreur ;
-- feedbacks et haptique ;
-- anciennes responsabilités Bio.
-
-La taille du fichier n'est pas en elle-même le critère de réussite. Le problème est l'absence de frontières explicites entre orchestration, règles d'état, mutations et rendu.
-
-### 3.2 `Step11Pedestal` est un raccord historique à supprimer
-
-`src/features/pedestal/Step11Pedestal.tsx` est une surcouche historique de l'étape V1-11.
-
-Elle communique actuellement avec `Pedestal` en observant et modifiant son DOM :
-
-- `querySelector` sur les boutons/classes du Socle ;
-- `addEventListener` en capture ;
-- `preventDefault` ;
-- `stopPropagation` / `stopImmediatePropagation` ;
-- modification directe de `disabled` et d'attributs ;
-- `MutationObserver` ;
-- lecture de classes CSS pour déduire l'état métier ;
-- interception du Bio et de Jeter.
-
-Cette couche doit disparaître.
-
-Une classe CSS ne doit plus servir d'API métier entre composants React.
-
-### 3.3 Bio existe sous deux générations
-
-Le Bio historique de `Pedestal` et le `BioDialog` moderne ne doivent plus coexister avec une interception DOM permettant de choisir lequel gagne.
-
-À la fin de V2-00 il doit exister un seul flux Bio explicite.
-
-### 3.4 Jeter ne doit plus être réactivé depuis l'extérieur du composant
-
-Le bouton Jeter ne doit plus être créé comme « en préparation » dans un composant puis rendu fonctionnel par mutation DOM depuis son parent.
-
-Son état disponible/indisponible et son action doivent provenir de l'état React canonique.
-
----
-
-## 4. Architecture cible du Socle
-
-Ne pas imposer artificiellement un grand framework de state machine ni ajouter une dépendance globale si les primitives React suffisent.
-
-Préférer :
-
-- types explicites ;
-- fonctions pures ;
-- `useReducer` ou contrôleur React équivalent ;
-- hooks métier ciblés déjà existants lorsque leur responsabilité est saine ;
-- composition de composants.
-
-Éviter de remplacer un gros fichier par des dizaines de micro-fichiers sans cohérence.
-
-### Cible conceptuelle
+Architecture finale :
 
 ```text
 AuthenticatedHome
@@ -182,465 +26,416 @@ AuthenticatedHome
        ▼
  PedestalScreen
        │
-       ├── contrôleur / reducer Socle
-       │      ├── état d'interaction
-       │      ├── capacités
-       │      ├── réseau
-       │      └── orchestration des features
+       ├── pedestalState / pedestalReducer
+       │      ├── interactionMode
+       │      ├── overlay
+       │      ├── network
+       │      └── shopFocus
        │
-       ├── vue du Socle
-       │      ├── header
-       │      ├── actions
-       │      ├── overlays/dialogs
-       │      └── scène 3D
+       ├── Bio / Jeter / réseau / réconciliation
        │
-       └── hooks métier existants
-              ├── accessoires
-              ├── permis
-              ├── caresse
-              ├── nettoyage
-              ├── Bio
-              └── Jeter
+       ▼
+    Pedestal
+       │
+       ├── usePedestalCare
+       │      ├── caresse
+       │      ├── nettoyage
+       │      ├── poussière
+       │      ├── économie locale affichée
+       │      ├── retries
+       │      └── feedback / haptique
+       │
+       ├── usePedestalPlacement
+       │      ├── accessoires placés
+       │      ├── Permis
+       │      ├── session/cible/outils
+       │      ├── pose du caillou
+       │      ├── settlement Rapier
+       │      ├── persistance
+       │      └── rollback canonique
+       │
+       └── ShowroomScene
+              └── dette scène/Placement reportée à V2-01
 ```
 
-Les noms exacts de fichiers peuvent évoluer après inspection. La séparation de responsabilités est obligatoire, pas cette nomenclature précise.
+L'état canonique distingue :
 
----
+- `interactionMode`: `orbit`, `caress`, `cleaning`, `placement`, `settling` ;
+- `overlay`: `none`, `shop`, `bio`, `discard` ;
+- `network`: `online`, `reconnecting`, `offline` ;
+- `shopFocus`: focus Boutique explicite.
 
-## 5. État canonique du Socle
+Les capacités sont dérivées par des fonctions pures testables, notamment `canCaress`, `canClean`, `canOpenShop`, `canOpenBio`, `canDiscard`, `canEnterPlacement`, `canExitPlacement`, `canPurchase` et `canPersist`.
 
-Le Socle possède déjà implicitement une machine à états. V2-00 doit la rendre explicite.
+## 3. Exécution des lots
 
-Modèle minimal attendu, adaptable après audit :
+### Lot A — état canonique du Socle
+
+**Terminé.**
+
+- création de `pedestalState.ts` et tests ciblés ;
+- `useReducer` React sans dépendance de state management externe ;
+- transitions explicites entre modes/overlays/réseau ;
+- capacités pures ;
+- branchement réel dans `Pedestal` ;
+- hooks métier accessoires/permis conservés.
+
+SHA de validation du Lot A : `08d7c7b6cdc78438581be009d30bc84240596888`.
+
+### Lot B — suppression du pont DOM Step11
+
+**Terminé.**
+
+- création de `PedestalScreen` comme orchestrateur explicite ;
+- `AuthenticatedHome` pointe sur le Socle unifié ;
+- réseau `online / reconnecting / offline` relié au reducer ;
+- Bio unique via `BioDialog` ;
+- Jeter unique via `DiscardRockDialog` ;
+- retry Jeter conservant le même `eventKey` ;
+- suppression de `Step11Pedestal.tsx` ;
+- suppression de `step11ControlRules.ts` et du test de raccord historique ;
+- suppression du rôle métier de `querySelector`, `MutationObserver`, mutation directe de `disabled`, `stopImmediatePropagation` et classes CSS ;
+- Boutique ouverte rendue explicitement non mutante offline tout en restant fermable ;
+- tests E2E adaptés aux invariants produit au lieu de protéger le hack historique.
+
+SHA de validation du Lot B : `844f8d402bcf1306ed844762d531cc6b2583ba59`.
+
+### Lot C — réduction du god-component Pedestal
+
+**Terminé.**
+
+- extraction de `usePedestalCare` ;
+- extraction de `usePedestalPlacement` ;
+- `Pedestal` devient principalement une composition de vue et un coordinateur de transitions ;
+- `Pedestal.tsx` passe d'environ 37,9 kB à 15,9 kB ;
+- diff Lot B → Lot C dans `Pedestal.tsx` : 163 ajouts / 679 suppressions ;
+- aucune nouvelle dépendance ;
+- aucun changement volontaire de grammaire tactile ;
+- `ShowroomScene` non refactoré en profondeur.
+
+SHA de validation du Lot C : `9bdf3fdde39994ef7c507d18becd51674da28f47`.
+
+## 4. Contrat V2 — composition canonique
+
+V2-02 matérialisera le stockage serveur. V2-00 fige uniquement le contrat de haut niveau.
+
+Une composition représente une **photographie persistante du petit monde**, jamais un conteneur d'assets binaires.
+
+Elle doit pouvoir référencer :
 
 ```text
-interactionMode:
-  idle/orbit
-  caress
-  cleaning
-  placement
-  settling
-
-overlay:
-  none
-  shop
-  bio
-  discard
-
-network:
-  online
-  reconnecting
-  offline
+Composition
+- id stable
+- userRockId
+- name
+- schemaVersion
+- active
+- rockPose
+  - position
+  - rotation
+- accessories[]
+  - instanceId
+  - accessoryId
+  - position
+  - rotation
+  - scale
+- paint
+  - mode natural | solid
+  - color éventuelle
+  - finish éventuelle
+- floorId éventuel
+- environment futur
+  - lightingId éventuel
+  - backgroundId éventuel
+- createdAt / updatedAt
 ```
 
-Les opérations asynchrones/pending doivent rester représentées explicitement lorsque nécessaire.
+Décisions :
 
-À partir de cet état, produire des règles/capacités pures, par exemple :
+1. `schemaVersion` est obligatoire dès la première version persistée afin de permettre V2.1+ sans migration destructrice de snapshots.
+2. Les assets restent dans leurs catalogues. Une composition ne stocke que des identifiants et paramètres/transforms.
+3. L'état manipulé côté client est un **draft de session**. Il ne devient canonique qu'après confirmation serveur.
+4. La V1 actuelle constitue implicitement une composition unique : pose de `user_rocks` + instances `equipped_accessories`.
+5. V2-02 devra transformer cette composition implicite en première composition explicite **sans déplacer ni perdre le Socle actuel**.
+6. Pendant une migration transitoire, l'ancien modèle reste lisible tant que la nouvelle composition n'est pas confirmée.
+7. Création, duplication, activation et suppression devront être atomiques/idempotentes lorsque leur répétition réseau peut produire un doublon.
+8. La décision SQL exacte, y compris la manière de représenter la composition active, appartient à V2-02 après audit de son besoin réel.
 
-- `canCaress` ;
-- `canClean` ;
-- `canOpenShop` ;
-- `canOpenBio` ;
-- `canDiscard` ;
-- `canEnterPlacement` ;
-- `canExitPlacement` ;
-- `canPurchase` ;
-- `canPersist`.
+Aucune table `compositions` n'est créée pendant V2-00.
 
-Ces noms sont indicatifs.
+## 5. Contrat V2 — peinture
 
-Les règles doivent couvrir les subtilités V1, notamment :
+V2-05 doit rester non destructif.
 
-- Bio et Jeter bloqués pendant Placement/settling ;
-- mutations bloquées offline ;
-- possibilité de quitter un mode même lorsque l'entrée dans une nouvelle mutation est bloquée ;
-- exclusivité des modes caresse/nettoyage/placement ;
-- Boutique et dialogues incompatibles avec les modes qui doivent rester exclusifs ;
-- opérations pending empêchant les doubles soumissions ;
-- réconciliation réseau explicite.
+Décisions :
 
-Le rendu dérive de cet état. Le DOM ne doit jamais être relu pour reconstruire cet état.
+- le matériau naturel issu du GLB reste toujours récupérable ;
+- `natural` est un état de peinture valide, pas une absence ambiguë de données ;
+- V2.0 privilégie des paramètres persistants simples plutôt qu'une texture bitmap générée côté client ;
+- couleur principale stockée comme valeur normalisée indépendante du renderer ;
+- finition stockée comme choix sémantique (`natural`, `matte`, `satin`, `glossy` ou ensemble final équivalent), puis traduite en paramètres Three.js ;
+- la prévisualisation peut être locale, mais la validation persistante suit le même principe draft → confirmation serveur ;
+- aucun écrasement du matériau source du GLB ;
+- V2.4 pourra ajouter zones, masques, motifs ou couches en faisant évoluer `schemaVersion`, sans casser `solid` V2.0.
 
----
+Aucune colonne/table de peinture n'est créée pendant V2-00.
 
-## 6. Lot A — Introduire le contrôleur Socle
+## 6. Contrat V2 — sols et décors
 
-Créer une source de vérité React explicite pour l'état du Socle.
+V2-04 utilisera un catalogue serveur analogue dans son principe au catalogue accessoires.
 
-Attendus :
+Contrat minimal attendu d'un sol :
 
-- reducer/contrôleur ou équivalent testable ;
-- transitions explicites ;
-- fonctions de capacités pures ;
-- suppression progressive des combinaisons dispersées de `setState` lorsqu'elles représentent une transition de mode ;
-- aucune modification UX volontaire ;
-- conservation des hooks métier déjà sains comme `useAccessoryPlacements` et `useRockMovementPermit` sauf preuve contraire.
+```text
+FloorCatalogItem
+- id stable
+- label
+- description éventuelle
+- previewPath
+- material/asset descriptor
+- priceLithons éventuel
+- active
+- sortOrder
+- provenance/licence
+- budget metadata
+```
 
-Ajouter uniquement les tests unitaires utiles pour les transitions et capacités critiques.
+Décisions :
 
-Ne pas introduire Redux, XState, Zustand ou autre dépendance d'état globale sans nécessité démontrée.
+- propriété d'un sol et sélection active sont deux concepts distincts ;
+- le prix et l'acquisition restent autoritaires côté Supabase ;
+- un sol gratuit reste un item de catalogue explicite ;
+- textures/GLB ne sont jamais stockés dans une composition ;
+- provenance/licence reste obligatoire pour toute ressource tierce ;
+- l'éclairage et les arrière-plans V2.1 pourront suivre la même famille de contrats sans être ajoutés maintenant.
 
----
+Aucun catalogue de sols n'est créé pendant V2-00.
 
-## 7. Lot B — Supprimer le pont DOM `Step11Pedestal ↔ Pedestal`
+## 7. Contrat V2 — personnalité et journal
 
-Transformer Bio, Jeter et réseau en contrats React normaux.
+Les responsabilités sont séparées :
 
-À la fin de ce lot :
+### Identité stable
 
-- aucun `querySelector` de production utilisé pour piloter les fonctionnalités du Socle ;
-- aucun `MutationObserver` de production utilisé pour synchroniser l'état métier du Socle ;
-- aucune mutation directe de `button.disabled` ou d'attributs métier ;
-- aucune interception `stopImmediatePropagation()` permettant de remplacer l'action d'un enfant ;
-- aucune logique métier dépendant de classes CSS telles que `is-placement-mode` ;
-- un seul Bio ;
-- un seul flux Jeter ;
-- état offline/réseau propagé explicitement ;
-- `Step11Pedestal.tsx` supprimé lorsqu'il n'a plus de responsabilité propre ;
-- `step11ControlRules.ts` et ses tests supprimés ou remplacés par les nouvelles règles canoniques ;
-- `AuthenticatedHome` charge directement le nouveau Socle unifié.
+Données factuelles : spécimen, nom, date d'adoption, ancienneté et autres attributs intrinsèques. Elles ne changent pas aléatoirement à l'affichage.
 
-Le nom final peut rester `Pedestal` ou devenir `PedestalScreen`, mais il ne doit plus exister deux générations superposées de l'écran.
+### Statistiques calculées
 
----
+Elles continuent à dériver des données canoniques existantes : caresses, nettoyages, Lithons, acquisitions, etc.
 
-## 8. Lot C — Réduire le rôle du god-component `Pedestal`
+### Traits de personnalité
 
-Une fois le pont Step11 supprimé, réduire les responsabilités du composant principal.
+V2-06 pourra persister un petit ensemble de traits stables et éditoriaux. Ils doivent être déterministes ou explicitement assignés, jamais rerollés à chaque rendu.
 
-Extraire seulement les ensembles cohérents qui ont une vraie responsabilité autonome.
+### Événements historiques
 
-Candidats naturels :
+V2-07 introduira si nécessaire un journal d'événements métier append-only : adoption, renommage, nettoyage marquant, première peinture, achat, première pose, changement de sol, création de composition, anniversaire, record pertinent.
 
-- contrôleur des modes/capacités ;
-- réseau/réconciliation ;
-- orchestration caresse/nettoyage si cela clarifie réellement le composant ;
-- dialogues/overlays ;
-- éventuellement sous-vues de header/actions lorsque cela réduit la complexité sans créer de plomberie inutile.
+Chaque événement doit disposer au minimum d'un type stable, d'une date canonique et d'une référence au caillou/utilisateur concerné. Un `eventKey` idempotent est requis pour tout événement pouvant être rejoué par le réseau.
 
-Ne pas chercher une taille de fichier arbitraire.
+### Journal éditorial
 
-Critère réel : lire le composant principal doit permettre de comprendre la composition du Socle sans parcourir au milieu des détails de chaque mutation, geste et rollback.
+Le journal visible est une projection des événements et statistiques canoniques. Le texte présenté peut évoluer, mais l'événement source reste traçable.
 
----
+### V2.2
 
-## 9. Limite du chantier : ne pas réécrire `ShowroomScene` maintenant
+Traits évolutifs, réactions contextuelles, événements rares et accomplissements devront consommer cette histoire canonique plutôt que créer une seconde mémoire parallèle.
 
-`src/scene/ShowroomScene.tsx` porte encore trop de responsabilités : viewer showroom, interactions du Socle, Placement, accessoires et physique.
+Aucune table personnalité/journal n'est créée pendant V2-00.
 
-Cette dette est reconnue mais son refactor profond appartient à **V2-01 — Placement 2.0**.
+## 8. Supabase et migration V1 → V2
 
-Pendant V2-00 :
+Audit final du 3 septembre 2026 :
 
-- adapter proprement ses props si le nouveau contrôleur l'exige ;
-- ne pas lancer une réécriture de la caméra, Rapier, gestures ou Placement ;
-- ne pas modifier volontairement la grammaire tactile ;
-- ne pas créer `PedestalScene`/`RockViewport` uniquement pour déplacer du code sans bénéfice immédiat.
+- projet `zibhzhpvtiplbkhioqco` : `ACTIVE_HEALTHY` ;
+- 11 tables publiques ;
+- RLS activée sur les 11 tables ;
+- 20 entrées `rock_catalog` ;
+- 4 accessoires V1 ;
+- données actuelles de pose dans `user_rocks` ;
+- instances/transforms dans `equipped_accessories` ;
+- wallet/ledger et déblocages permanents distincts ;
+- Edge Functions Auth actives ;
+- aucune migration V2-00 nécessaire.
 
-V2-00 doit préparer l'interface qui rendra ce découpage plus facile en V2-01, pas absorber V2-01.
+### Stratégie additive
 
----
+Chaque étape fonctionnelle possède sa propre migration lorsqu'elle utilise réellement le nouveau contrat :
 
-## 10. Cadrage architectural des fonctions V2.0 futures
+- V2-02 : compositions ;
+- V2-04 : sols/propriétés/sélection ;
+- V2-05 : peinture ;
+- V2-06/V2-07 : personnalité et événements/journal.
 
-V2-00 doit également figer les contrats de haut niveau nécessaires à la suite de la roadmap, sans implémenter prématurément les features.
+Règles de migration :
 
-### 10.1 Composition canonique
+1. ne jamais supprimer les données V1 avant validation du nouveau modèle ;
+2. backfill déterministe depuis les tables V1 existantes ;
+3. conserver `user_rocks.id` comme identité du caillou utilisateur ;
+4. conserver wallet, ledger, accessoires possédés, instances, transforms et déblocages ;
+5. RLS propriétaire obligatoire sur tout nouveau stockage utilisateur ;
+6. catalogues publics seulement en lecture cliente ;
+7. mutations économiques et sensibles via RPC/serveur autoritaire ;
+8. idempotence obligatoire pour toute création/activation répétable ;
+9. types TypeScript régénérés après chaque DDL réel ;
+10. advisors sécurité/performance exécutés après chaque migration réelle.
 
-Définir ce qu'une future composition pourra contenir :
+### Advisors actuels
 
-- pose du caillou ;
-- instances d'accessoires et transforms ;
-- peinture ;
-- sol ;
-- plus tard éclairage et arrière-plan.
+Sécurité : un warning connu `auth_leaked_password_protection` reste ouvert. Il préexistait à V2-00 et n'est pas causé par ce refactor.
 
-Définir :
+Performance : uniquement des informations `unused_index` sur plusieurs index V1. Elles sont conservées, car un faible volume actuel ne justifie pas une suppression prématurée d'index utiles aux futurs volumes/jointures.
 
-- identité d'une composition ;
-- composition active ;
-- version du format si nécessaire ;
-- stratégie de compatibilité avec l'unique composition V1 actuelle ;
-- frontière entre état de travail/draft et état serveur canonique.
+## 9. Budgets et garde-fous V2
 
-Ne pas créer une table Supabase inutilisée uniquement pour anticiper V2-02.
+Les budgets suivants deviennent la baseline jusqu'à mesure plus précise dans V2-10 :
 
-### 10.2 Peinture
+### Assets 3D
 
-Figer l'approche technique envisagée pour V2-05 :
+- plafond dur conservé : **5 MiB par GLB** ;
+- cible recommandée pour les nouveaux accessoires : rester nettement sous ce plafond et éviter toute hausse sans bénéfice visuel mesuré ;
+- ne jamais précharger le catalogue complet ;
+- résidence normale : caillou actif + accessoires réellement présents, plafond V1 actuel de 8 instances.
 
-- matériau original conservé ;
-- couleur/finition persistantes sous forme de paramètres lorsque possible ;
-- retour garanti à la roche naturelle ;
-- pas de texture bitmap générée côté client pour la V2.0 simple si des paramètres suffisent ;
-- prévoir l'extension V2.4 par zones/motifs sans bloquer le modèle V2.0.
+### Textures futures
 
-Ne pas implémenter l'éditeur peinture pendant V2-00.
+- préférer des textures compressées et des dimensions adaptées au rendu mobile ;
+- **2048 × 2048 maximum par défaut** ; 4096 uniquement après justification visuelle/performance ;
+- viser **≤ 1 MiB par texture distribuée** lorsque le format et la qualité le permettent ;
+- sols/peinture ne doivent pas embarquer de bitmap dans les snapshots de composition.
 
-### 10.3 Sols / décors
+### Runtime JS/3D
 
-Définir un futur catalogue cohérent avec les catalogues accessoires :
+Baseline V1/V2-00 : gros chunk 3D/physique d'environ **1,02 MiB gzip**, chargé à la demande.
 
-- identifiant stable ;
-- label ;
-- asset/material ;
-- preview ;
-- prix éventuel ;
-- provenance/licence lorsque nécessaire ;
-- budget asset ;
-- propriété et sélection active.
+Règle : pas d'augmentation durable supérieure à environ 10 % sans mesure et justification. Le runtime 3D reste hors précache initial.
 
-Ne pas ajouter de contenu sol pendant V2-00.
+### PWA/cache
 
-### 10.4 Personnalité et journal
+Politique actuelle conservée :
 
-Définir les frontières entre :
+- code runtime : 24 entrées / 30 jours ;
+- modèles : 12 entrées / 30 jours ;
+- previews : 48 entrées / 14 jours ;
+- companion assets bornés à 9 ;
+- shell de navigation seulement en précache ;
+- purge sur quota.
 
-- identité stable du caillou ;
-- traits de personnalité ;
-- statistiques calculées ;
-- événements historiques ;
-- journal éditorial ;
-- futures évolutions V2.2.
+Les futurs sols/textures devront intégrer une politique bornée dédiée ou une extension mesurée de ces caches, jamais un cache illimité.
 
-Le journal futur doit pouvoir reposer sur des événements déterministes et traçables, pas sur une génération aléatoire différente à chaque affichage.
+### GPU
 
-Ne pas implémenter la personnalité V2 pendant V2-00.
+L'acceptation n'est pas fondée sur un chiffre mémoire navigateur peu fiable mais sur l'absence de croissance linéaire : le validateur Showroom doit continuer à libérer les géométries/textures après cycles. Baseline actuelle : après trois cycles complets, résidu observé `geometries=0`, `textures=1`.
 
----
+### Physique
 
-## 11. Supabase et stratégie de migration
+Rapier ne doit pas devenir une simulation coûteuse permanente au repos. La physique active doit rester liée aux interactions/settling qui la nécessitent.
 
-V2-00 doit inspecter le schéma réel et documenter une stratégie V1 → V2 sans perte.
+### Compositions
 
-Invariants de migration :
+Une composition ne contient que métadonnées, identifiants et transforms. Aucun GLB, image, texture ou base64 n'est sérialisé dans son payload.
 
-- aucun utilisateur perdu ;
-- aucun caillou actif perdu ;
-- nom/adoption/pose conservés ;
-- wallet et ledger conservés ;
-- accessoires possédés conservés ;
-- instances placées et transforms conservés ;
-- Permis/déblocages permanents conservés ;
-- aucun prix ou solde rendu autoritaire côté client ;
-- RLS par utilisateur conservée ;
-- RPC sensibles toujours idempotents lorsque la répétition réseau est possible.
+## 10. Tests et non-régression
 
-### Règle anti-spéculation
-
-Ne pas créer des tables, colonnes, fonctions ou migrations uniquement parce qu'elles seront probablement utiles plus tard.
-
-Une migration V2-00 n'est acceptable que si :
-
-1. elle est nécessaire à la nouvelle fondation immédiatement utilisée ; ou
-2. elle constitue un prérequis structurel rétrocompatible clairement démontré et qu'il serait risqué de reporter.
-
-Sinon, documenter le futur contrat et laisser la migration à l'étape fonctionnelle correspondante.
-
-Si une migration est réellement appliquée :
-
-- utiliser `apply_migration` ;
-- vérifier RLS/grants ;
-- générer/mettre à jour les types si nécessaire ;
-- lancer les advisors sécurité/performance ;
-- vérifier la compatibilité des données V1.
-
----
-
-## 12. Performance et budgets V2
-
-Mesurer l'état réel avant de figer de nouveaux budgets.
-
-Baseline connue V1 :
-
-- 20 GLB cailloux sous le budget 5 MiB ;
-- accessoires V1 sous le budget 5 MiB ;
-- gros runtime 3D/physique chargé à la demande, environ 1 MiB gzip lors de la release V1 ;
-- PWA à caches bornés.
-
-V2-00 doit définir ou confirmer des garde-fous pour :
-
-- GLB ;
-- textures futures ;
-- nombre de ressources simultanément résidentes ;
-- mémoire GPU ;
-- lazy loading ;
-- cache PWA ;
-- compositions futures ;
-- absence de simulation physique permanente inutile au repos.
-
-Ne pas optimiser à l'aveugle. Documenter une dette mesurée plutôt que lancer un refactor de performance sans preuve.
-
----
-
-## 13. Tests et non-régression
-
-Réutiliser les deux workflows actifs :
+Seulement deux workflows restent normatifs :
 
 - `CI` ;
 - `Browser regression`.
 
-Ne pas recréer une forêt de workflows par étape.
+Le refactor V2-00 protège désormais les règles métier et non les raccords historiques.
 
-### Tests unitaires à ajouter ou adapter
+Validations déjà obtenues sur le SHA Lot C `9bdf3fdde39994ef7c507d18becd51674da28f47` :
 
-Protéger au minimum :
+- CI `33807059086` : succès ;
+- Browser regression `33807059119` : succès ;
+- matrice navigateur V1 complète : showroom, adoption, caresse, nettoyage, accessoires, physique, mouvement du caillou, Placement, Bio/Jeter ;
+- build production : succès.
 
-- transitions du Socle ;
-- capacités selon mode/réseau/pending ;
-- exclusivité des modes ;
-- Bio/Jeter indisponibles lorsque requis ;
-- sortie de Placement possible dans les cas prévus ;
-- comportement offline explicite.
+Une dernière exécution sera exigée sur le SHA documentaire final de la PR avant merge.
 
-### E2E à adapter
+## 11. Limite explicitement reportée à V2-01
 
-L'ancien test Step11 protège en partie l'interception DOM. Après refactor, il doit protéger le **comportement produit**, pas le bricolage historique.
+`ShowroomScene.tsx` reste le principal nœud architectural connu après V2-00 : viewer Showroom, interactions Socle, Placement, accessoires et physique y cohabitent encore.
 
-Vérifier notamment :
+V2-01 devra traiter cette dette dans le contexte fonctionnel Placement 2.0, notamment la séparation éventuelle entre viewer générique, scène Socle, caméra/gestes et moteur de Placement.
 
-- Bio disponible en état normal ;
-- Bio bloqué pendant Placement/settling si c'est la règle retenue ;
-- Jeter disponible lorsqu'il doit l'être ;
-- Jeter bloqué offline ;
-- retry Jeter réutilisant le même event key ;
-- caresse/nettoyage/Boutique/Placement sans régression ;
-- état vide après Jeter ;
-- reprise réseau.
+V2-00 n'a volontairement pas :
 
-Supprimer les assertions du type « le legacy Bio handler a bien été intercepté » lorsque le legacy n'existe plus.
+- réécrit `ShowroomScene` ;
+- modifié la caméra ;
+- changé les contraintes du sol ;
+- changé la grammaire tactile ;
+- changé Rapier ;
+- ajouté Peinture/Sols/Compositions/Personnalité/Journal/Studio ;
+- créé de table Supabase spéculative.
 
-Les tests tactiles automatisés ne remplacent pas une validation visuelle finale si l'implémentation a réellement touché le comportement du Socle.
-
----
-
-## 14. Interdits explicites
-
-V2-00 ne doit pas :
-
-- ajouter Peinture, Sols, Compositions multiples, Personnalité, Journal ou Studio Photo ;
-- réécrire profondément `ShowroomScene` ;
-- changer volontairement l'UX Placement ;
-- modifier les règles économiques ;
-- affaiblir RLS/grants ;
-- créer des données Supabase spéculatives ;
-- ajouter une nouvelle librairie de state management sans justification forte ;
-- conserver `Step11Pedestal` comme simple couche de compatibilité permanente ;
-- utiliser le DOM ou les classes CSS comme bus d'état métier ;
-- multiplier les fichiers uniquement pour faire baisser artificiellement la taille de `Pedestal.tsx` ;
-- ajouter des workflows GitHub redondants ;
-- déclencher des Preview Vercel à chaque commit.
-
----
-
-## 15. Discipline GitHub / Supabase / Vercel
-
-### GitHub
-
-- travailler sur une branche dédiée ;
-- conserver `main` déployable ;
-- commits lisibles et ciblés ;
-- une PR V2-00 principale est préférable à une succession de merges intermédiaires qui provoqueraient des déploiements production inutiles ;
-- fusion uniquement avec les contrôles essentiels verts ;
-- ne pas déclarer l'étape terminée si le pont DOM historique subsiste.
-
-### Supabase
-
-- audit obligatoire ;
-- modification non obligatoire ;
-- ne rien changer si le refactor frontend n'exige aucune évolution serveur ;
-- toute migration doit être justifiée, rétrocompatible et testée.
-
-### Vercel
-
-- ne pas déployer une Preview par réflexe ;
-- la branche de développement peut rester sans Preview ;
-- si une validation visuelle/tactile distante apporte une vraie valeur, créer **une seule Preview finale intentionnelle** après CI verte ;
-- après merge, vérifier le déploiement production, HTTP 200 et les erreurs runtime pertinentes.
-
----
-
-## 16. Critères d'acceptation V2-00
-
-L'étape est terminée uniquement si tous les points suivants sont vrais :
+## 12. Critères d'acceptation
 
 ### Architecture Socle
 
-- [ ] un état React canonique représente explicitement les modes/overlays/réseau utiles ;
-- [ ] les capacités des actions sont dérivées de règles testables ;
-- [ ] aucune règle métier du Socle ne dépend de classes CSS ;
-- [ ] aucune orchestration métier du Socle ne dépend de `querySelector` ;
-- [ ] aucun `MutationObserver` ne sert à synchroniser deux composants du Socle ;
-- [ ] Bio possède un seul flux ;
-- [ ] Jeter possède un seul flux ;
-- [ ] réseau/offline est transmis explicitement ;
-- [ ] `Step11Pedestal` et ses règles historiques ont disparu lorsqu'ils ne sont plus nécessaires ;
-- [ ] le composant principal du Socle n'est plus l'unique propriétaire de toutes les responsabilités métier ;
-- [ ] `AuthenticatedHome` pointe vers le Socle unifié.
+- [x] état React canonique modes/overlays/réseau ;
+- [x] capacités dérivées de règles testables ;
+- [x] aucune règle métier du Socle dépendante de classes CSS ;
+- [x] aucune orchestration métier dépendante de `querySelector` ;
+- [x] aucun `MutationObserver` entre composants du Socle ;
+- [x] Bio unique ;
+- [x] Jeter unique ;
+- [x] réseau/offline explicite ;
+- [x] `Step11Pedestal` supprimé ;
+- [x] composant principal non propriétaire de toutes les responsabilités métier ;
+- [x] `AuthenticatedHome` pointe vers le Socle unifié.
 
 ### Non-régression
 
-- [ ] caresse fonctionne ;
-- [ ] nettoyage fonctionne ;
-- [ ] Boutique fonctionne ;
-- [ ] accessoires fonctionnent ;
-- [ ] Permis fonctionne ;
-- [ ] Placement V1 fonctionne ;
-- [ ] stabilisation/persistance fonctionnent ;
-- [ ] Bio fonctionne ;
-- [ ] Jeter/retry/nouvelle adoption fonctionnent ;
-- [ ] offline/reconnexion restent cohérents ;
-- [ ] aucune régression RLS/économie connue ;
-- [ ] `CI` verte ;
-- [ ] `Browser regression` verte.
+- [x] caresse ;
+- [x] nettoyage ;
+- [x] Boutique ;
+- [x] accessoires ;
+- [x] Permis ;
+- [x] Placement V1 ;
+- [x] stabilisation/persistance ;
+- [x] Bio ;
+- [x] Jeter/retry/nouvelle adoption ;
+- [x] offline/reconnexion ;
+- [x] aucune régression RLS/économie connue ;
+- [x] CI verte sur le dernier SHA runtime ;
+- [x] Browser regression verte sur le dernier SHA runtime.
 
 ### Cadrage V2
 
-- [ ] modèle canonique de composition documenté ;
-- [ ] architecture Peinture documentée ;
-- [ ] contrat catalogue Sols/Décors documenté ;
-- [ ] frontières Personnalité/Journal documentées ;
-- [ ] stratégie de migration V1 → V2 documentée ;
-- [ ] budgets V2 définis ou explicitement mesurés/reportés ;
-- [ ] aucune table ou feature spéculative ajoutée sans usage immédiat.
+- [x] modèle canonique de composition documenté ;
+- [x] architecture Peinture documentée ;
+- [x] contrat catalogue Sols/Décors documenté ;
+- [x] frontières Personnalité/Journal documentées ;
+- [x] stratégie V1 → V2 documentée ;
+- [x] budgets V2 définis ;
+- [x] aucune table/feature spéculative ajoutée.
 
 ### Plateformes
 
-- [ ] Supabase contrôlé et sain ;
-- [ ] Vercel final contrôlé si un déploiement est réalisé ;
-- [ ] aucun déploiement Vercel inutile consommé.
+- [x] Supabase audité et sain ;
+- [x] aucune Preview intermédiaire Vercel consommée ;
+- [ ] Preview finale intentionnelle et/ou production finale contrôlée après validation du SHA de clôture ;
+- [ ] déploiement production post-merge contrôlé.
 
----
+## 13. Compte rendu de chantier
 
-## 17. Sortie attendue
+Date : **3 septembre 2026**.
 
-À la fin de l'exécution :
+PR : **#38 — V2-00 — refactor architectural du Socle**.
 
-1. le Socle V1 se comporte comme avant, mais son architecture React est saine ;
-2. le raccord `Step11Pedestal ↔ Pedestal` n'existe plus ;
-3. les responsabilités du Socle sont suffisamment séparées pour que V2-01 puisse refactorer la scène/Placement sans reprendre ce chantier ;
-4. les futurs modèles V2 sont documentés sans code mort ni schéma spéculatif ;
-5. les tests protègent les règles métier et non les hacks historiques ;
-6. GitHub, Supabase et Vercel sont vérifiés dans leur état réel ;
-7. `docs/roadmap/00-INDEX-ROADMAP.md` est mis à jour avec le statut de V2-00 ;
-8. ce document reçoit un compte rendu final : date, PR, commits, décisions d'architecture, éventuelles migrations, dette reportée et état des contrôles.
+Commits structurants de fin de lots :
 
-Ne passer à **V2-01 — Placement 2.0** qu'une fois V2-00 réellement terminé.
+- Lot A : `08d7c7b6cdc78438581be009d30bc84240596888` ;
+- Lot B : `844f8d402bcf1306ed844762d531cc6b2583ba59` ;
+- Lot C : `9bdf3fdde39994ef7c507d18becd51674da28f47`.
 
----
+Migrations Supabase V2-00 : **aucune**.
 
-## État / compte rendu
+Dépendances ajoutées : **aucune**.
 
-**Statut : à exécuter.**
+Preview Vercel intermédiaire : **aucune**.
 
-À compléter pendant le chantier V2-00 avec :
+Dette reportée : **refactor profond de `ShowroomScene` et amélioration Placement dans V2-01**.
 
-- date ;
-- PR / commits ;
-- architecture finale retenue ;
-- fichiers supprimés/remplacés ;
-- migrations Supabase éventuelles ;
-- résultat CI / Browser regression ;
-- Preview Vercel éventuelle et justification ;
-- état production après merge ;
-- dette explicitement reportée vers V2-01 ou une étape ultérieure.
+État avant merge : Socle refactoré, lots A/B/C verts, contrats V2 et migration documentés. La clôture finale doit encore enregistrer le SHA final de PR, le résultat des deux workflows sur ce SHA, l'éventuelle Preview finale utile, le SHA de merge et l'état production post-merge.

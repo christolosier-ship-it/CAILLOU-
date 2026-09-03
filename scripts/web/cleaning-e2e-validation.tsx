@@ -93,6 +93,8 @@ function CleaningFixture() {
         data-event-keys={eventKeys.join(',')}
         data-server-cleaning-count={serverCleaning.current.cleaningCount}
         data-server-balance={serverBalance.current}
+        data-hydrated-cleaning-count={hydrated.cleaningCount}
+        data-hydrated-last-cleaned-at={hydrated.lastCleanedAt}
       />
       <button
         id="simulate-cleaning-reload"
