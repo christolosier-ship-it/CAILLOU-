@@ -7,8 +7,8 @@ export const corsHeaders = {
   'Cache-Control': 'no-store',
 }
 
-export function json(payload: unknown, status = 200) {
-  return Response.json(payload, { status, headers: corsHeaders })
+export function json(payload: unknown, status = 200, extraHeaders: HeadersInit = {}) {
+  return Response.json(payload, { status, headers: { ...corsHeaders, ...Object.fromEntries(new Headers(extraHeaders)) } })
 }
 
 function namedKey(envName: string, fallbackName: string) {
@@ -34,6 +34,23 @@ function publishableKeys() {
 export function requirePublishableKey(req: Request) {
   const provided = req.headers.get('apikey')
   return Boolean(provided && publishableKeys().includes(provided))
+}
+
+export function trustedClientAddress(req: Request) {
+  const cloudflare = req.headers.get('cf-connecting-ip')?.trim()
+  if (cloudflare) return cloudflare
+
+  const realIp = req.headers.get('x-real-ip')?.trim()
+  if (realIp) return realIp
+
+  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  return forwarded || null
+}
+
+export async function rateLimitKey(scope: string, value: string) {
+  const input = new TextEncoder().encode(`caillou:${scope}:${value}`)
+  const digest = await crypto.subtle.digest('SHA-256', input)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export function normalizeUsername(raw: string) {
