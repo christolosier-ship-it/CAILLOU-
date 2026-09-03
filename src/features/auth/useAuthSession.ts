@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 
 import type { RockId } from '../../content/rockCatalog'
 import { supabase } from '../../lib/supabase/client'
+import { clearResilienceState, readCachedSession, writeCachedSession } from '../../pwa/resilienceCache'
 import type { ActiveRock } from '../adoption/adoptionTypes'
 import type { RockEconomySnapshot } from '../caress/caressTypes'
 import { parseRockPosition, parseRockRotation } from '../rockMovement/rockMovementRules'
@@ -43,6 +44,8 @@ export type AuthSessionState =
     destination: AuthenticatedDestination
     activeRock: ActiveRock | null
     economy: RockEconomySnapshot | null
+    degraded: boolean
+    lastServerSyncAt: string | null
   }
 
 export function useAuthSession() {
@@ -106,16 +109,40 @@ export function useAuthSession() {
         }
       }
 
+      const destination = resolveAuthenticatedDestination(activeRock !== null, (rockHistory?.length ?? 0) > 0)
+      const lastServerSyncAt = new Date().toISOString()
       localStorage.setItem(USERNAME_CACHE, profile.username)
       localStorage.setItem(SESSION_SEEN, '1')
-      setState({
-        status: 'authenticated',
+      void writeCachedSession({
+        userId: session.user.id,
         username: profile.username,
-        destination: resolveAuthenticatedDestination(activeRock !== null, (rockHistory?.length ?? 0) > 0),
+        destination,
         activeRock,
         economy,
       })
+      setState({
+        status: 'authenticated',
+        username: profile.username,
+        destination,
+        activeRock,
+        economy,
+        degraded: false,
+        lastServerSyncAt,
+      })
     } catch {
+      const cached = await readCachedSession(session.user.id)
+      if (cached) {
+        setState({
+          status: 'authenticated',
+          username: cached.username,
+          destination: cached.destination,
+          activeRock: cached.activeRock,
+          economy: cached.economy,
+          degraded: true,
+          lastServerSyncAt: cached.savedAt,
+        })
+        return
+      }
       setState(cachedUsername ? { status: 'offline', username: cachedUsername } : { status: 'offline' })
     }
   }, [])
@@ -153,6 +180,7 @@ export function useAuthSession() {
     await supabase.auth.signOut({ scope: 'local' })
     localStorage.removeItem(USERNAME_CACHE)
     localStorage.removeItem(SESSION_SEEN)
+    await clearResilienceState()
     setState({ status: 'signed-out' })
     explicitSignOut.current = false
   }, [])

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { supabase } from '../../lib/supabase/client'
+import { SERVER_RECONCILED_EVENT } from '../../pwa/pendingMutations'
+import { readCachedPermit, writeCachedPermit } from '../../pwa/resilienceCache'
 import {
   RockMovementError,
   loadRockMovementPermit,
@@ -17,12 +20,21 @@ export function useRockMovementPermit() {
   const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
+    const { data: sessionData } = await supabase.auth.getSession()
+    const userId = sessionData.session?.user.id ?? null
     try {
       const next = await loadRockMovementPermit()
       setSnapshot(next)
+      if (userId) void writeCachedPermit(userId, next)
       if (next.unlockedAt) setRetryEventKey(null)
       return next
     } catch (nextError) {
+      const cached = userId ? await readCachedPermit(userId) : null
+      if (cached) {
+        setSnapshot(cached)
+        setError('Synchronisation indisponible. Le permis affiché correspond au dernier état serveur connu.')
+        return cached
+      }
       setError(nextError instanceof Error ? nextError.message : 'Le permis n’a pas pu être vérifié.')
       return null
     } finally {
@@ -32,6 +44,12 @@ export function useRockMovementPermit() {
 
   useEffect(() => {
     void refresh()
+  }, [refresh])
+
+  useEffect(() => {
+    const handleReconciled = () => void refresh()
+    window.addEventListener(SERVER_RECONCILED_EVENT, handleReconciled)
+    return () => window.removeEventListener(SERVER_RECONCILED_EVENT, handleReconciled)
   }, [refresh])
 
   const purchase = useCallback(async () => {
@@ -53,6 +71,14 @@ export function useRockMovementPermit() {
         unlockedAt: result.unlockedAt,
         pricePaid: result.pricePaid,
       } : current)
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (sessionData.session && snapshot) {
+        void writeCachedPermit(sessionData.session.user.id, {
+          ...snapshot,
+          unlockedAt: result.unlockedAt,
+          pricePaid: result.pricePaid,
+        })
+      }
       return result
     } catch (nextError) {
       if (nextError instanceof RockMovementError && nextError.kind === 'already-unlocked') {
@@ -67,7 +93,7 @@ export function useRockMovementPermit() {
     } finally {
       setPending(false)
     }
-  }, [pending, refresh, retryEventKey])
+  }, [pending, refresh, retryEventKey, snapshot])
 
   return {
     snapshot,

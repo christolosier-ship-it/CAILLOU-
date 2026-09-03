@@ -39,13 +39,13 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Validate lint TypeScript tests and build
         run: npm run check
 
       - name: Install Chrome validation driver
-        run: npm install --no-save --package-lock=false --no-audit --no-fund puppeteer-core@24.16.0
+        run: npm install --legacy-peer-deps --no-save --package-lock=false --no-audit --no-fund puppeteer-core@24.16.0
 
       - name: Validate Bio and discard on phone and tablet
         shell: bash

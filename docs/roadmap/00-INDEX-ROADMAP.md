@@ -47,7 +47,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | **10.5** | **UX tactile, sol physique et manutention du caillou** | **Terminée - PR #25 fusionnée, production Vercel validée** | **08, 10C, 10D** |
 | **10.75** | **Boutique unifiée et manipulation universelle** | **Terminée - PR #27, 9/9 CI + Preview Vercel validés** | **10B, 10C, 10D, 10.5** |
 | 11 | Bio, statistiques et action Jeter | Terminée - PR #32, 8/8 GitHub + Supabase + Preview Vercel validés | 03, 07, 08, 09, 10B, **10.75** |
-| 12 | PWA, cache, reprise réseau et résilience | À faire | 06 à 11, y compris 10A-10D, **10.5** et **10.75** |
+| 12 | PWA, cache, reprise réseau et résilience | Terminée - PR #33, 9/9 GitHub + Supabase + Preview Vercel validés | 06 à 11, y compris 10A-10D, **10.5** et **10.75** |
 | 13 | QA, sécurité, performance et release V1 | À faire | 01 à 12, y compris 10A-10D, **10.5** et **10.75** |
 
 ## Découpage de l'étape 10
@@ -170,6 +170,30 @@ Décisions livrées :
 
 **L'étape suivante est 12 — PWA, cache, reprise réseau et résilience.**
 
+## Étape 12 - PWA, cache, reprise réseau et résilience terminée
+
+Document autonome :
+
+`docs/roadmap/12-PWA-CACHE-RESILIENCE.md`
+
+Décisions livrées :
+
+- Supabase reste la seule source de vérité pour Lithons, achats, déblocages, possessions et états persistés ; aucun succès métier n'est fabriqué localement ;
+- le précache PWA est ramené au shell léger et aux ressources essentielles ; le build Vercel final ne précache que 6 entrées pour environ `443,69 KiB` ;
+- les scènes 3D, Rapier, GLB et previews passent en chargement lazy/runtime avec caches versionnés, bornés et nettoyables ;
+- le dernier état serveur connu du Socle est conservé localement pour une consultation dégradée explicitement non autoritaire ;
+- le caillou actif, sa pose stabilisée et les accessoires équipés avec leurs transforms peuvent être restaurés depuis ce dernier snapshot connu ;
+- les achats, déblocages et mutations sensibles restent bloqués tant que Supabase n'a pas réconcilié le registre ;
+- les mutations Placement ambiguës conservent exactement leur `event_key` et leur payload dans une file persistante ; la reconnexion rejoue la même intention et ne crée pas de doublon d'instance ;
+- `stabilize_rock_composition` reste atomique et aucune composition globale n'est présentée comme partiellement confirmée ;
+- une version PWA disponible est signalée explicitement avant activation/rechargement ;
+- le candidat fonctionnel `7d39483bb6a9d6cbd1b96de521d5f842ff5615c0` a obtenu 9/9 workflows GitHub verts, avec 24 fichiers / 83 tests unitaires verts ;
+- aucune migration Supabase n'a été nécessaire ; le projet CAILLOU- reste `ACTIVE_HEALTHY` et les reçus de mutation sont indexés par `(user_id, event_key)` ;
+- une seule Preview volontaire a été utilisée : `dpl_5G7DezKX9pFFckGr7h2Peg1oif5f`, état `READY`, manifeste HTTP 200 et service worker généré ;
+- l'installation physique sur appareils réels reste un smoke test de la QA finale plutôt qu'une validation simulée.
+
+**L'étape suivante est 13 — QA, sécurité, performance et release V1.**
+
 ## Frontières importantes
 
 - **Supabase est la source de vérité** pour compte, caillou adopté, progression, Lithons, achats, déblocages, possession d'accessoires, instances équipées, poses persistantes, état stabilisé et statistiques.
@@ -186,6 +210,8 @@ Décisions livrées :
 - À partir de #31, toute la composition est capturée en monde à l'ouverture de Placement et chaque cible garde son draft monde indépendant jusqu'à `Terminer`.
 - Le grand carré gris du Socle est la seule frontière spatiale infranchissable pendant Placement.
 - Les achats sont centralisés dans la Boutique ; le placement et la création d'instances possédées sont centralisés dans Placement.
+- À partir de l'étape 12, le cache local n'est qu'une mémoire de présentation et de reprise : il peut restaurer le dernier état connu, mais ne devient jamais une source d'autorité métier.
+- Les mutations réseau ambiguës doivent conserver leur clé d'idempotence d'origine jusqu'à réconciliation avec Supabase ; créer une nouvelle clé pour le même geste est interdit.
 - Le caillou n'a aucun besoin vital et l'absence n'est jamais punie.
 - Les Lithons n'ont aucune valeur réelle et ne sont ni achetables ni transférables.
 

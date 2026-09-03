@@ -1,4 +1,9 @@
 import { supabase } from '../../lib/supabase/client'
+import {
+  forgetPendingMutation,
+  rememberPendingMutation,
+  schedulePendingMutationReconciliation,
+} from '../../pwa/pendingMutations'
 import { loadAccessoryShop } from './accessoryApi'
 import { parseLocalPosition, parseLocalRotation } from './accessoryPlacementRules'
 import type {
@@ -106,9 +111,13 @@ export function toAccessoryPlacementError(error: PlacementRpcError) {
     return new AccessoryPlacementError('Votre session doit être vérifiée avant de modifier les accessoires.', 'session', false)
   }
   if (detail.includes('mutation_in_progress') || error.code === '40001') {
-    return new AccessoryPlacementError('La même opération est encore en cours de confirmation.', 'in-progress', true)
+    return new AccessoryPlacementError('La même opération est encore en cours de confirmation et sera réconciliée avec sa clé d’origine.', 'in-progress', true)
   }
-  return new AccessoryPlacementError('Le placement n’a pas pu être confirmé par le registre.', 'unknown', true)
+  return new AccessoryPlacementError(
+    'La confirmation serveur n’est pas arrivée. La même opération est conservée pour réconciliation, sans créer une seconde instance.',
+    'unknown',
+    true,
+  )
 }
 
 function parseTransform(row: { local_position: unknown; local_rotation: unknown; uniform_scale: number }): AccessoryTransform {
@@ -118,6 +127,14 @@ function parseTransform(row: { local_position: unknown; local_rotation: unknown;
     throw new AccessoryPlacementError('Un placement persistant contient un transform invalide.', 'invalid-transform', false)
   }
   return { localPosition, localRotation, uniformScale: row.uniform_scale }
+}
+
+async function completeOrKeepPending(eventKey: string, error: AccessoryPlacementError | null) {
+  if (!error || !error.retryable) {
+    await forgetPendingMutation(eventKey)
+    return
+  }
+  schedulePendingMutationReconciliation()
 }
 
 export async function loadAccessoryPlacements(userRockId: string): Promise<EquippedAccessoryInstance[]> {
@@ -169,17 +186,28 @@ export async function loadAccessoryPlacements(userRockId: string): Promise<Equip
 export async function createAccessoryPlacement(
   input: CreateAccessoryPlacementInput,
 ): Promise<EquippedAccessoryInstance> {
-  const { data, error } = await placementRpc('create_equipped_accessory', {
+  const args = {
     p_user_rock_id: input.userRockId,
     p_accessory_id: input.accessory.id,
     p_event_key: input.eventKey,
     p_local_position: input.transform.localPosition,
     p_local_rotation: input.transform.localRotation,
     p_uniform_scale: input.transform.uniformScale,
-  }).single()
+  }
+  await rememberPendingMutation('create_equipped_accessory', input.eventKey, args)
+  const { data, error } = await placementRpc('create_equipped_accessory', args).single()
 
-  if (error) throw toAccessoryPlacementError(error)
-  if (!data) throw new AccessoryPlacementError('Le registre n’a retourné aucune instance.', 'unknown', true)
+  if (error) {
+    const mapped = toAccessoryPlacementError(error)
+    await completeOrKeepPending(input.eventKey, mapped)
+    throw mapped
+  }
+  if (!data) {
+    const mapped = new AccessoryPlacementError('Le registre n’a retourné aucune instance.', 'unknown', true)
+    await completeOrKeepPending(input.eventKey, mapped)
+    throw mapped
+  }
+  await completeOrKeepPending(input.eventKey, null)
 
   const row = data as CreatePlacementRow
   return {
@@ -205,16 +233,27 @@ export async function createAccessoryPlacement(
 export async function stabilizeAccessoryPlacement(
   input: StabilizeAccessoryPlacementInput,
 ): Promise<StabilizeAccessoryPlacementResult> {
-  const { data, error } = await placementRpc('stabilize_equipped_accessory', {
+  const args = {
     p_instance_id: input.instanceId,
     p_event_key: input.eventKey,
     p_local_position: input.transform.localPosition,
     p_local_rotation: input.transform.localRotation,
     p_uniform_scale: input.transform.uniformScale,
-  }).single()
+  }
+  await rememberPendingMutation('stabilize_equipped_accessory', input.eventKey, args)
+  const { data, error } = await placementRpc('stabilize_equipped_accessory', args).single()
 
-  if (error) throw toAccessoryPlacementError(error)
-  if (!data) throw new AccessoryPlacementError('Le registre n’a retourné aucune pose stabilisée.', 'unknown', true)
+  if (error) {
+    const mapped = toAccessoryPlacementError(error)
+    await completeOrKeepPending(input.eventKey, mapped)
+    throw mapped
+  }
+  if (!data) {
+    const mapped = new AccessoryPlacementError('Le registre n’a retourné aucune pose stabilisée.', 'unknown', true)
+    await completeOrKeepPending(input.eventKey, mapped)
+    throw mapped
+  }
+  await completeOrKeepPending(input.eventKey, null)
 
   const row = data as StabilizePlacementRow
   return {
@@ -226,12 +265,23 @@ export async function stabilizeAccessoryPlacement(
 }
 
 export async function removeAccessoryPlacement(input: RemoveAccessoryPlacementInput): Promise<string> {
-  const { data, error } = await placementRpc('remove_equipped_accessory', {
+  const args = {
     p_instance_id: input.instanceId,
     p_event_key: input.eventKey,
-  }).single()
+  }
+  await rememberPendingMutation('remove_equipped_accessory', input.eventKey, args)
+  const { data, error } = await placementRpc('remove_equipped_accessory', args).single()
 
-  if (error) throw toAccessoryPlacementError(error)
-  if (!data) throw new AccessoryPlacementError('Le registre n’a pas confirmé le retrait.', 'unknown', true)
+  if (error) {
+    const mapped = toAccessoryPlacementError(error)
+    await completeOrKeepPending(input.eventKey, mapped)
+    throw mapped
+  }
+  if (!data) {
+    const mapped = new AccessoryPlacementError('Le registre n’a pas confirmé le retrait.', 'unknown', true)
+    await completeOrKeepPending(input.eventKey, mapped)
+    throw mapped
+  }
+  await completeOrKeepPending(input.eventKey, null)
   return (data as { instance_id: string }).instance_id
 }

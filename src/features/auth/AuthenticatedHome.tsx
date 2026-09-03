@@ -1,23 +1,32 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 
 import type { RockCatalogEntry } from '../../content/rockCatalog'
 import { adoptRock } from '../adoption/adoptionApi'
 import { EmptyRockState } from '../adoption/EmptyRockState'
-import { NamingScreen } from '../adoption/NamingScreen'
 import type { ActiveRock, AdoptRockMutation } from '../adoption/adoptionTypes'
 import type { LoadRockBioSnapshot } from '../bio/bioTypes'
 import type { RegisterCaressMutation, RockEconomySnapshot } from '../caress/caressTypes'
 import type { RegisterCleaningMutation } from '../cleaning/cleaningTypes'
 import type { DiscardRockMutation } from '../discard/discardTypes'
-import { Step11Pedestal } from '../pedestal/Step11Pedestal'
-import { Showroom } from '../showroom/Showroom'
 import type { AuthenticatedDestination } from './authRules'
+
+const LazyStep11Pedestal = lazy(() => import('../pedestal/Step11Pedestal').then((module) => ({
+  default: module.Step11Pedestal,
+})))
+const LazyShowroom = lazy(() => import('../showroom/Showroom').then((module) => ({
+  default: module.Showroom,
+})))
+const LazyNamingScreen = lazy(() => import('../adoption/NamingScreen').then((module) => ({
+  default: module.NamingScreen,
+})))
 
 interface AuthenticatedHomeProps {
   username: string
   destination: AuthenticatedDestination
   activeRock: ActiveRock | null
   economy: RockEconomySnapshot | null
+  degraded?: boolean
+  lastServerSyncAt?: string | null
   onServerStateChanged: () => Promise<void>
   onSignOut: () => Promise<void>
   adoptRockMutation?: AdoptRockMutation
@@ -27,11 +36,22 @@ interface AuthenticatedHomeProps {
   discardRockMutation?: DiscardRockMutation
 }
 
+function SceneFallback() {
+  return (
+    <main className="session-loading" aria-live="polite">
+      <p className="eyebrow">CAILLOU™</p>
+      <p>Préparation du registre minéral…</p>
+    </main>
+  )
+}
+
 export function AuthenticatedHome({
   username,
   destination,
   activeRock,
   economy,
+  degraded = false,
+  lastServerSyncAt = null,
   onServerStateChanged,
   onSignOut,
   adoptRockMutation,
@@ -59,17 +79,21 @@ export function AuthenticatedHome({
     }
 
     return (
-      <Step11Pedestal
-        activeRock={activeRock}
-        economy={economy}
-        username={username}
-        onServerStateChanged={onServerStateChanged}
-        onSignOut={onSignOut}
-        registerCaressMutation={registerCaressMutation}
-        registerCleaningMutation={registerCleaningMutation}
-        loadBioSnapshot={loadBioSnapshot}
-        discardRockMutation={discardRockMutation}
-      />
+      <Suspense fallback={<SceneFallback />}>
+        <LazyStep11Pedestal
+          activeRock={activeRock}
+          economy={economy}
+          username={username}
+          degraded={degraded}
+          lastServerSyncAt={lastServerSyncAt}
+          onServerStateChanged={onServerStateChanged}
+          onSignOut={onSignOut}
+          registerCaressMutation={registerCaressMutation}
+          registerCleaningMutation={registerCleaningMutation}
+          loadBioSnapshot={loadBioSnapshot}
+          discardRockMutation={discardRockMutation}
+        />
+      </Suspense>
     )
   }
 
@@ -85,19 +109,25 @@ export function AuthenticatedHome({
 
   if (namingRock) {
     return (
-      <NamingScreen
-        rock={namingRock}
-        username={username}
-        mutation={mutation}
-        onCancel={() => setNamingRock(null)}
-        onSignOut={onSignOut}
-        onAdopted={async () => {
-          await onServerStateChanged()
-          setNamingRock(null)
-        }}
-      />
+      <Suspense fallback={<SceneFallback />}>
+        <LazyNamingScreen
+          rock={namingRock}
+          username={username}
+          mutation={mutation}
+          onCancel={() => setNamingRock(null)}
+          onSignOut={onSignOut}
+          onAdopted={async () => {
+            await onServerStateChanged()
+            setNamingRock(null)
+          }}
+        />
+      </Suspense>
     )
   }
 
-  return <Showroom username={username} onSignOut={onSignOut} onAdopt={setNamingRock} />
+  return (
+    <Suspense fallback={<SceneFallback />}>
+      <LazyShowroom username={username} onSignOut={onSignOut} onAdopt={setNamingRock} />
+    </Suspense>
+  )
 }
