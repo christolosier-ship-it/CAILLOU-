@@ -1,6 +1,22 @@
 import { supabase } from '../../lib/supabase/client'
 import type { LoadRockBioSnapshot, RockBioSnapshot } from './bioTypes'
 
+interface QueryError {
+  code?: string
+  message?: string
+}
+
+interface ListQuery<T> extends PromiseLike<{ data: T[] | null; error: QueryError | null }> {
+  select: (columns: string) => ListQuery<T>
+  eq: (column: string, value: unknown) => ListQuery<T>
+}
+
+interface FeatureUnlockRow {
+  feature_id: string
+}
+
+const rawFrom = supabase.from.bind(supabase) as unknown as <T>(table: string) => ListQuery<T>
+
 export class BioSnapshotError extends Error {
   constructor(message: string) {
     super(message)
@@ -18,7 +34,7 @@ export const loadRockBioSnapshot: LoadRockBioSnapshot = async (userRockId): Prom
       .single(),
     supabase.from('user_accessories').select('accessory_id'),
     supabase.from('equipped_accessories').select('id').eq('user_rock_id', userRockId),
-    supabase.from('user_feature_unlocks').select('feature_id'),
+    rawFrom<FeatureUnlockRow>('user_feature_unlocks').select('feature_id'),
   ])
 
   if (walletResult.error || !walletResult.data) {
