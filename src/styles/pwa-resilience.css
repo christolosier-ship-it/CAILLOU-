@@ -1,0 +1,77 @@
+.pwa-update-notice,
+.network-resilience-notice {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  top: max(12px, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  width: min(calc(100vw - 24px), 720px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warm-stone) 72%, transparent);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-mineral-ivory) 94%, transparent);
+  color: var(--color-basalt);
+  box-shadow: 0 10px 34px rgb(24 24 23 / 12%);
+  backdrop-filter: blur(14px);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.network-resilience-notice {
+  z-index: 75;
+}
+
+.pwa-update-notice button,
+.network-resilience-notice button {
+  min-height: 44px;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-warm-stone);
+  border-radius: var(--radius-control);
+  padding: 0 14px;
+  background: var(--color-basalt);
+  color: var(--color-mineral-ivory);
+  font: inherit;
+  font-weight: 600;
+}
+
+.pwa-update-notice button:focus-visible,
+.network-resilience-notice button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-aged-bronze) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.network-resilience-notice.is-reconnecting button,
+.network-resilience-notice button:disabled {
+  opacity: 0.58;
+}
+
+.step11-pedestal-host[data-network-state='offline'] .pedestal-actions,
+.step11-pedestal-host[data-network-state='reconnecting'] .pedestal-actions,
+.step11-pedestal-host[data-network-state='offline'] .placement-panel,
+.step11-pedestal-host[data-network-state='reconnecting'] .placement-panel {
+  filter: saturate(0.72);
+}
+
+@media (max-width: 640px) {
+  .pwa-update-notice,
+  .network-resilience-notice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pwa-update-notice button,
+  .network-resilience-notice button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pwa-update-notice,
+  .network-resilience-notice {
+    backdrop-filter: none;
+  }
+}

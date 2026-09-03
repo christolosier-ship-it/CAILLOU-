@@ -12,6 +12,7 @@ import './styles/accessories.css'
 import './styles/accessory-placement.css'
 import './styles/rock-movement.css'
 import './styles/step11.css'
+import './styles/pwa-resilience.css'
 
 registerPwa()
 

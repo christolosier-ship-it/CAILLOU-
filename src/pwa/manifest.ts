@@ -1,13 +1,18 @@
 export const pwaManifest = {
+  id: '/',
   name: 'CAILLOU™',
   short_name: 'CAILLOU™',
   description: 'Une présence minérale de qualité.',
   lang: 'fr',
+  dir: 'ltr',
   start_url: '/',
   scope: '/',
   display: 'standalone',
+  orientation: 'any',
   background_color: '#f2efe9',
   theme_color: '#f2efe9',
+  categories: ['lifestyle', 'entertainment'],
+  prefer_related_applications: false,
   icons: [
     {
       src: '/icons/pwa-192x192-provisional.png',

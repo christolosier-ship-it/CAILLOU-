@@ -1,5 +1,10 @@
 import { supabase } from '../../lib/supabase/client'
 import {
+  forgetPendingMutation,
+  rememberPendingMutation,
+  schedulePendingMutationReconciliation,
+} from '../../pwa/pendingMutations'
+import {
   ROCK_MOVEMENT_FEATURE_ID,
   ROCK_MOVEMENT_PRICE_LITHONS,
   parseRockPosition,
@@ -107,9 +112,13 @@ function toRockMovementError(error: RpcError) {
     return new RockMovementError('Votre session doit être vérifiée avant cette manutention.', 'session', false)
   }
   if (detail.includes('mutation_in_progress') || error.code === '40001') {
-    return new RockMovementError('La même opération est encore en cours de confirmation.', 'in-progress', true)
+    return new RockMovementError('La même composition est encore en cours de confirmation et sera réconciliée avec sa clé d’origine.', 'in-progress', true)
   }
-  return new RockMovementError('Le registre n’a pas confirmé la manutention.', 'unknown', true)
+  return new RockMovementError(
+    'Le registre n’a pas confirmé la manutention. La composition soumise est conservée pour réconciliation sans relancer Rapier.',
+    'unknown',
+    true,
+  )
 }
 
 export async function loadRockMovementPermit(): Promise<RockMovementPermitSnapshot> {
@@ -218,15 +227,28 @@ export async function stabilizeRockComposition(
     p_accessories: payload,
   }
 
+  await rememberPendingMutation('stabilize_rock_composition', eventKey, input)
   let response = await rawRpc<CompositionRow>('stabilize_rock_composition', input).single()
   if (response.error) {
     const firstError = toRockMovementError(response.error)
-    if (!firstError.retryable) throw firstError
+    if (!firstError.retryable) {
+      await forgetPendingMutation(eventKey)
+      throw firstError
+    }
     response = await rawRpc<CompositionRow>('stabilize_rock_composition', input).single()
   }
 
-  if (response.error) throw toRockMovementError(response.error)
-  if (!response.data) throw new RockMovementError('Le registre n’a retourné aucune composition stabilisée.', 'unknown', true)
+  if (response.error) {
+    const mapped = toRockMovementError(response.error)
+    if (!mapped.retryable) await forgetPendingMutation(eventKey)
+    else schedulePendingMutationReconciliation()
+    throw mapped
+  }
+  if (!response.data) {
+    schedulePendingMutationReconciliation()
+    throw new RockMovementError('Le registre n’a retourné aucune composition stabilisée.', 'unknown', true)
+  }
+  await forgetPendingMutation(eventKey)
 
   return {
     rockPose: {
