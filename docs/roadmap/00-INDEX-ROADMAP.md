@@ -48,7 +48,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | **10.75** | **Boutique unifiée et manipulation universelle** | **Terminée - PR #27, 9/9 CI + Preview Vercel validés** | **10B, 10C, 10D, 10.5** |
 | 11 | Bio, statistiques et action Jeter | Terminée - PR #32, 8/8 GitHub + Supabase + Preview Vercel validés | 03, 07, 08, 09, 10B, **10.75** |
 | 12 | PWA, cache, reprise réseau et résilience | Terminée - PR #33, 9/9 GitHub + Supabase + Preview Vercel validés | 06 à 11, y compris 10A-10D, **10.5** et **10.75** |
-| 13 | QA, sécurité, performance et release V1 | À faire | 01 à 12, y compris 10A-10D, **10.5** et **10.75** |
+| 13 | QA, sécurité, performance et release V1 | Terminée - PR #34, 4/4 GitHub + Supabase + Preview Vercel READY ; tag V1.0 différé aux smoke tests réels | 01 à 12, y compris 10A-10D, **10.5** et **10.75** |
 
 ## Découpage de l'étape 10
 
@@ -193,6 +193,31 @@ Décisions livrées :
 - l'installation physique sur appareils réels reste un smoke test de la QA finale plutôt qu'une validation simulée.
 
 **L'étape suivante est 13 — QA, sécurité, performance et release V1.**
+
+## Étape 13 - QA, sécurité, performance et release V1 terminée
+
+Document autonome :
+
+`docs/roadmap/13-QA-SECURITE-PERFORMANCE-RELEASE.md`
+
+Décisions et validations finales :
+
+- le candidat runtime `6ae5bfda833042d1ad336d965eca99b4ec2a26d5` a obtenu 4/4 contrôles ciblés verts : CI complète, Boutique/Placement, physique/stabilisation accessoires et mouvement global ;
+- la CI finale valide le nouveau garde-fou de release, lint, TypeScript strict, 24 fichiers / 83 tests unitaires et le build de production ;
+- le validateur de release bloque désormais les écarts d'inventaire 3D, poids GLB, previews, licences/provenances, icônes PWA, règles Vercel, headers et secrets frontend ;
+- les 20 GLB cailloux restent sous 5 MiB avec un maximum mesuré à `0,78 MiB` ; les 4 accessoires restent sous le même budget avec un maximum à `2,47 MiB` ;
+- Supabase reste `ACTIVE_HEALTHY`, les invariants RLS/économie/idempotence sont conformes et l'inscription est désormais limitée côté serveur à 5 tentatives par 15 minutes et par IP pseudonymisée ;
+- les migrations `harden_auth_registration_rate_limit` et `deny_client_auth_rate_limits` verrouillent ce garde-fou anti-abus ;
+- le seul WARN sécurité Supabase restant est la protection des mots de passe compromis désactivée ; les seuls avis performance sont des index encore inutilisés, classés INFO ;
+- `THIRD-PARTY-NOTICES.md` rend explicite l'attribution CC BY 4.0 du Monocle et le catalogue conserve les preuves de provenance des ressources CC0 ;
+- Vercel applique désormais des headers de sécurité navigateur et conserve le déploiement parcimonieux par branche ;
+- une seule Preview étape 13 a été déclenchée : `dpl_GDbBc6VihWvNYYaifzS8CPX8X2T3`, état `READY`, service worker généré, précache 6 entrées pour `443,69 KiB` et aucune erreur runtime observée ;
+- le gros chunk 3D/physique reste environ `1,02 MiB` gzip, mais il est lazy/runtime et non précaché ; cette dette mesurée est acceptée pour éviter un refactor risqué en fin de V1 ;
+- les contrôles tactiles compte/session respectent désormais le minimum 44 px ;
+- aucun changement de règle produit, de direction artistique ou de pipeline de conversion 3D n'a été introduit pendant cette passe finale ; les documents normatifs existants restent applicables ;
+- **décision : GO technique pour `main` et la production ; NO-GO volontaire pour créer le tag/release `V1.0` tant que les smoke tests physiques iOS/Android/tablette/desktop exigés par la roadmap n'ont pas été réalisés.**
+
+**La roadmap technique V1 est exécutée jusqu'à son étape 13. La prochaine action de release est un smoke test matériel réel puis, uniquement s'il est vert, la création du tag/release `V1.0`.**
 
 ## Frontières importantes
 

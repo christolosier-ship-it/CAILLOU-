@@ -150,20 +150,25 @@ Les intersections volontaires de 10.75 ne doivent pas être signalées comme dé
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : Terminée — candidate V1 de production validée ; tag `V1.0` différé jusqu'aux smoke tests matériels réels**
 
-- Date :
-- PR / commits :
-- Audit GitHub :
-- Audit Supabase :
-- Audit Vercel :
-- Appareils testés :
-- Performance 3D/physique :
-- Boutique / économie :
-- Placement universel :
-- Multi-accessoires :
-- Sécurité :
-- Licences/crédits :
-- Bugs restants :
-- Dette acceptée :
-- Décision release :
+- Date : 3 septembre 2026.
+- PR / commits : PR #34 ; candidat runtime final `6ae5bfda833042d1ad336d965eca99b4ec2a26d5` ; commit technique Preview sans changement fonctionnel `466303e0f63f473e894b20e931483116e9eada1c`.
+- Audit GitHub : le head final a obtenu 4/4 contrôles ciblés verts : CI complète, Boutique/Placement, physique/stabilisation accessoires et mouvement global. La CI valide `release:validate`, lint, TypeScript strict, 24 fichiers / 83 tests unitaires et build de production.
+- Audit Supabase : projet `CAILLOU-` `ACTIVE_HEALTHY`. Les tests d'isolation utilisateur A/B, RLS, grants, autorité des prix, wallet/ledger, propriété, limite de huit instances et idempotence n'ont révélé aucune violation critique. Deux migrations de durcissement ont été appliquées : `harden_auth_registration_rate_limit` et `deny_client_auth_rate_limits`.
+- Inscription : `auth-register` est déployée en version 4 avec limitation serveur à 5 tentatives valides par 15 minutes et par IP pseudonymisée SHA-256. L'IP brute n'est pas persistée ; la table anti-abus est RLS, sans accès `anon`/`authenticated`, et le RPC de consommation est réservé au `service_role`.
+- Advisors Supabase : aucun advisor sécurité critique. Dette acceptée : `auth_leaked_password_protection` reste désactivé. Les seuls avis performance sont des index encore inutilisés, niveau INFO ; ils ne sont pas supprimés en fin de V1 sans preuve qu'ils sont inutiles à long terme.
+- Audit Vercel : une seule Preview volontaire étape 13, `dpl_GDbBc6VihWvNYYaifzS8CPX8X2T3`, branche `preview/13-final`, état `READY`. Build Node 22 / Vite 8 réussi, 2 488 modules transformés, service worker généré et aucun runtime error observé dans la fenêtre de contrôle.
+- PWA / sécurité navigateur : précache final 6 entrées pour `443,69 KiB` sur Vercel ; les scènes 3D/physique restent lazy/runtime. `vercel.json` ajoute `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` et une `Permissions-Policy` restrictive.
+- Appareils testés : les workflows Puppeteer/Chrome ont validé les parcours tactiles téléphone/tablette critiques, notamment Boutique/Placement, sol gris, physique/stabilisation et mouvement global. Aucun appareil iOS/Android/tablette/desktop physique n'était directement pilotable dans cette exécution ; ce point reste volontairement distinct des émulations navigateur.
+- Performance 3D/physique : les 20 GLB cailloux passent le budget de 5 MiB avec un maximum mesuré à `0,78 MiB`. Les 4 accessoires V1 passent le même garde-fou avec un maximum à `2,47 MiB`. Le gros chunk 3D/physique reste environ `2,87 MiB` minifié / `1,02 MiB` gzip, chargé à la demande et non précaché ; il est accepté comme dette mesurée plutôt que refactorisé à risque juste avant release.
+- Boutique / économie : prix et solde restent autoritaires Supabase ; achats accessoires et déblocages sont transactionnels/idempotents ; le Permis à 1000 Lithons conserve son circuit unique dans la Boutique. Aucun succès économique n'est fabriqué côté client.
+- Placement universel : la grammaire commune caillou/accessoires, les intersections volontaires hors sol, la frontière dure du carré gris, la reprise Rapier à `Terminer` et la persistance atomique de `stabilize_rock_composition` ont été conservées et revalidées.
+- Multi-accessoires : propriété de type et instances restent distinctes ; plusieurs instances simultanées restent permises avec plafond serveur de huit et transforms persistants.
+- Sécurité : aucune clé `service_role` côté frontend. Le nouveau validateur `scripts/release/validate-v1-release.mjs` bloque la CI si l'inventaire 3D, les poids GLB, previews, licences/provenances, icônes PWA, règles de déploiement, headers ou absence de secrets frontend ne respectent plus le contrat V1.
+- Licences/crédits : `THIRD-PARTY-NOTICES.md` est ajouté ; l'attribution CC BY 4.0 du Monocle est explicite et les trois autres accessoires conservent leur provenance CC0 vérifiée dans le catalogue.
+- Accessibilité : la cible tactile compte/session est portée à 44 px ; focus visible et reduced-motion existants restent conservés.
+- Bugs restants : aucun bug fonctionnel, économique ou sécurité critique connu au terme des contrôles automatisés et audits plateformes.
+- Dette acceptée : protection Supabase des mots de passe compromis à activer ultérieurement ; quelques index Supabase encore inutilisés ; chunk 3D runtime d'environ `1,02 MiB` gzip ; lockfile npm toujours absent, l'installation CI restant stabilisée avec `--legacy-peer-deps` ; icônes PWA toujours nommées `provisional` faute d'un nouvel asset final fourni.
+- Documentation normative : aucun changement de règle produit, de direction artistique ou de pipeline de conversion 3D n'a été introduit pendant cette passe ; les quatre documents normatifs restent applicables. Les nouveaux garde-fous sécurité/release sont consignés ici et dans le code versionné.
+- Décision release : **GO technique pour fusionner la candidate dans `main` et la déployer en production. NO-GO volontaire pour créer le tag/release `V1.0` tant que les smoke tests physiques iOS/Android/tablette/desktop exigés par cette étape n'ont pas été réalisés.**

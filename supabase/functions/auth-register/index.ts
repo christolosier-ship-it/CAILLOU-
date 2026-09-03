@@ -3,10 +3,15 @@ import {
   corsHeaders,
   json,
   normalizeUsername,
+  rateLimitKey,
   readCredentials,
   requirePublishableKey,
   sessionResponse,
+  trustedClientAddress,
 } from '../_shared/authBroker.ts'
+
+const REGISTRATION_LIMIT = 5
+const REGISTRATION_WINDOW_SECONDS = 15 * 60
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -18,6 +23,31 @@ Deno.serve(async (req: Request) => {
 
   const { display, normalized } = normalizeUsername(credentials.username)
   const { admin, publicClient } = createAuthClients()
+  const clientAddress = trustedClientAddress(req)
+
+  if (!clientAddress) {
+    return json({ code: 'registration_unavailable', message: 'Impossible de créer le compte pour le moment.' }, 503)
+  }
+
+  const quotaKey = await rateLimitKey('registration-ip', clientAddress)
+  const { data: quotaAllowed, error: quotaError } = await admin.rpc('consume_auth_rate_limit', {
+    p_key_hash: quotaKey,
+    p_limit: REGISTRATION_LIMIT,
+    p_window_seconds: REGISTRATION_WINDOW_SECONDS,
+  })
+
+  if (quotaError) {
+    console.error('registration rate-limit failure', quotaError.code)
+    return json({ code: 'registration_unavailable', message: 'Impossible de créer le compte pour le moment.' }, 503)
+  }
+
+  if (quotaAllowed !== true) {
+    return json(
+      { code: 'registration_rate_limited', message: 'Trop de tentatives de création de compte. Réessaie un peu plus tard.' },
+      429,
+      { 'Retry-After': String(REGISTRATION_WINDOW_SECONDS) },
+    )
+  }
 
   const { data: existingProfile, error: lookupError } = await admin
     .from('profiles')
