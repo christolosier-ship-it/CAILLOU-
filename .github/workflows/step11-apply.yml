@@ -12,7 +12,7 @@ permissions:
 jobs:
   apply:
     if: github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -24,16 +24,6 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-
-      - name: Update existing documentation first
-        run: |
-          python scripts/apply-step11.py docs
-          git add ARCHITECTURE-TECHNIQUE.md CAHIER-DES-CHARGES-V1.md DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md docs/PLAN-CORRECTION-HARMONISATION-SOL-ET-PLACEMENTS.md docs/roadmap/00-INDEX-ROADMAP.md
-          git diff --cached --check
-          if ! git diff --cached --quiet; then
-            git commit -m "docs: aligner l’état courant après PlacementSession"
-            git push origin HEAD:feat/11-bio-stats-jeter
-          fi
 
       - uses: actions/setup-node@v4
         with:
