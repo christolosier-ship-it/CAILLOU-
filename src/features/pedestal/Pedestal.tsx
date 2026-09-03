@@ -1,4 +1,5 @@
 import { BrushCleaning, ClipboardList, Gem, HandHeart, Move, Shirt, Trash2 } from 'lucide-react'
+import type { Dispatch } from 'react'
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import { getRockCatalogEntryById } from '../../content/rockCatalog'
@@ -37,9 +38,9 @@ import {
   INITIAL_PEDESTAL_STATE,
   pedestalReducer,
 } from './pedestalState'
-import type { PedestalShopFocus } from './pedestalState'
+import type { PedestalAction, PedestalShopFocus, PedestalState } from './pedestalState'
 
-interface PedestalProps {
+export interface PedestalProps {
   activeRock: ActiveRock
   economy: RockEconomySnapshot
   username: string
@@ -47,6 +48,8 @@ interface PedestalProps {
   onSignOut: () => Promise<void>
   registerCaressMutation?: RegisterCaressMutation | undefined
   registerCleaningMutation?: RegisterCleaningMutation | undefined
+  pedestalState?: PedestalState | undefined
+  dispatchPedestal?: Dispatch<PedestalAction> | undefined
 }
 
 interface ActiveSurfaceGesture {
@@ -70,10 +73,6 @@ const ACTIONS = [
   { label: 'Boutique', Icon: Shirt },
   { label: 'Jeter', Icon: Trash2 },
 ] as const
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(value))
-}
 
 function lithonLabel(value: number) {
   return `${value} ${value === 1 ? 'Lithon' : 'Lithons'}`
@@ -115,9 +114,13 @@ export function Pedestal({
   onSignOut,
   registerCaressMutation,
   registerCleaningMutation,
+  pedestalState: controlledPedestalState,
+  dispatchPedestal: controlledDispatchPedestal,
 }: PedestalProps) {
   const rock = getRockCatalogEntryById(activeRock.specimenId)
-  const [pedestalState, dispatchPedestal] = useReducer(pedestalReducer, INITIAL_PEDESTAL_STATE)
+  const [internalPedestalState, internalDispatchPedestal] = useReducer(pedestalReducer, INITIAL_PEDESTAL_STATE)
+  const pedestalState = controlledPedestalState ?? internalPedestalState
+  const dispatchPedestal = controlledDispatchPedestal ?? internalDispatchPedestal
   const [loadState, setLoadState] = useState<RockLoadState>('loading')
   const [retryKey, setRetryKey] = useState(0)
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null)
@@ -166,18 +169,12 @@ export function Pedestal({
     acceptComposition,
     remove: removeAccessory,
   } = useAccessoryPlacements(activeRock.id)
-  const adoptionDate = useMemo(() => formatDate(activeRock.adoptedAt), [activeRock.adoptedAt])
-  const lastCleaningDate = useMemo(
-    () => lastCleanedAtState ? formatDate(lastCleanedAtState) : 'Non requis à ce jour',
-    [lastCleanedAtState],
-  )
   const dustAmount = useMemo(
     () => getDustAmount(lastCleanedAtState, activeRock.adoptedAt),
     [activeRock.adoptedAt, lastCleanedAtState],
   )
   const cleaningAvailable = hasVisibleDust(dustAmount)
   const mode = pedestalState.interactionMode
-  const bioOpen = pedestalState.overlay === 'bio'
   const accessoryShopOpen = pedestalState.overlay === 'shop'
   const shopFocus = pedestalState.shopFocus
   const caressMode = mode === 'caress'
@@ -286,7 +283,7 @@ export function Pedestal({
     } finally {
       setCleaningPending(false)
     }
-  }, [cleaningMutation, cleaningPending, onServerStateChanged, showCleaningSuccess])
+  }, [cleaningMutation, cleaningPending, dispatchPedestal, onServerStateChanged, showCleaningSuccess])
 
   const handleSurfaceStart = useCallback((sample: RockSurfacePointerSample) => {
     const caressUnavailable = caressMode && (caressPending || retryInput)
@@ -395,7 +392,7 @@ export function Pedestal({
     setRockMovementError(null)
     if (mode === 'cleaning') setDustRevision((revision) => revision + 1)
     dispatchPedestal({ type: 'toggle-interaction', mode: target })
-  }, [capabilities.canCaress, capabilities.canClean, mode])
+  }, [capabilities.canCaress, capabilities.canClean, dispatchPedestal, mode])
 
   const openShop = useCallback((focus: PedestalShopFocus = 'default') => {
     if (!capabilities.canOpenShop) return
@@ -407,7 +404,7 @@ export function Pedestal({
     setSettlementPlan(null)
     setRockPose(canonicalRockPoseRef.current)
     dispatchPedestal({ type: 'open-overlay', overlay: 'shop', shopFocus: focus })
-  }, [capabilities.canOpenShop, mode])
+  }, [capabilities.canOpenShop, dispatchPedestal, mode])
 
   const handleAccessoryPurchased = useCallback((result: PurchaseAccessoryResult) => {
     setEconomyState((current) => ({ ...current, balance: result.balance }))
@@ -465,7 +462,7 @@ export function Pedestal({
     setSettlementPlan(null)
     setPlacementSession(createPlacementSession(rockPose, accessoryInstances))
     dispatchPedestal({ type: 'enter-placement' })
-  }, [accessoryInstances, capabilities.canEnterPlacement, capabilities.canExitPlacement, mode, rockPose])
+  }, [accessoryInstances, capabilities.canEnterPlacement, capabilities.canExitPlacement, dispatchPedestal, mode, rockPose])
 
   const selectRockForPlacement = useCallback(() => {
     if (mutationBlocked) return
@@ -512,7 +509,7 @@ export function Pedestal({
     }
     setSettlementPlan(plan)
     dispatchPedestal({ type: 'begin-settling' })
-  }, [mode, mutationBlocked, placementSession])
+  }, [dispatchPedestal, mode, mutationBlocked, placementSession])
 
   const handleAccessorySettled = useCallback((instanceId: string, transform: PlacementTransform) => {
     if (settlingMode || accessoryPersistenceRef.current.has(instanceId)) return
@@ -563,9 +560,9 @@ export function Pedestal({
     setCompositionPending(true)
     setRockMovementError(null)
 
-    const closeSuccessfulSession = async (rock: RockPose) => {
-      setRockPose(rock)
-      canonicalRockPoseRef.current = rock
+    const closeSuccessfulSession = async (rockPoseResult: RockPose) => {
+      setRockPose(rockPoseResult)
+      canonicalRockPoseRef.current = rockPoseResult
       setPlacementSession(null)
       setSettlementPlan(null)
       setPlacementTarget(null)
@@ -632,6 +629,7 @@ export function Pedestal({
     acceptStabilizedAccessory,
     activeRock.id,
     compositionPending,
+    dispatchPedestal,
     onServerStateChanged,
     refreshAccessoryPlacements,
     settlementPlan,
@@ -847,6 +845,7 @@ export function Pedestal({
             const isCaress = label === 'Caresser'
             const isCleaning = label === 'Nettoyer'
             const isShop = label === 'Boutique'
+            const isDiscard = label === 'Jeter'
             const isActive = (isCaress && caressMode)
               || (isCleaning && cleaningMode)
               || (isShop && accessoryShopOpen)
@@ -854,7 +853,9 @@ export function Pedestal({
               ? !capabilities.canCaress
               : isCleaning
                 ? !capabilities.canClean
-                : isShop ? !capabilities.canOpenShop : true
+                : isShop
+                  ? !capabilities.canOpenShop
+                  : isDiscard ? !capabilities.canDiscard : true
             const ariaLabel = isCaress
               ? (caressMode ? 'Quitter le mode Caresser' : 'Activer le mode Caresser')
               : isCleaning
@@ -863,7 +864,7 @@ export function Pedestal({
                     : cleaningMode ? 'Quitter le mode Nettoyer' : 'Activer le mode Nettoyer')
                 : isShop
                   ? (accessoryShopOpen ? 'Boutique ouverte' : 'Ouvrir la Boutique')
-                  : `${label} — fonctionnalité en préparation`
+                  : isDiscard ? 'Jeter le caillou' : `${label} — fonctionnalité indisponible`
 
             return (
               <button
@@ -878,7 +879,11 @@ export function Pedestal({
                   ? () => toggleMode('caress')
                   : isCleaning
                     ? () => toggleMode('cleaning')
-                    : isShop ? () => openShop('default') : undefined}
+                    : isShop
+                      ? () => openShop('default')
+                      : isDiscard
+                        ? () => dispatchPedestal({ type: 'open-overlay', overlay: 'discard' })
+                        : undefined}
               >
                 <Icon size={28} strokeWidth={1.75} aria-hidden="true" />
               </button>
@@ -891,41 +896,6 @@ export function Pedestal({
         <span>Présence stable.</span>
         <button type="button" onClick={() => void onSignOut()}>Déconnexion</button>
       </footer>
-
-      {bioOpen ? (
-        <div className="pedestal-dialog-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) dispatchPedestal({ type: 'close-overlay' })
-        }}>
-          <section className="pedestal-dialog" role="dialog" aria-modal="true" aria-labelledby="pedestal-bio-title">
-            <div className="pedestal-dialog-heading">
-              <div>
-                <p className="eyebrow">Dossier institutionnel</p>
-                <h2 id="pedestal-bio-title">{activeRock.name}</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => dispatchPedestal({ type: 'close-overlay' })}
-                aria-label="Fermer Bio / Stats"
-              >
-                Fermer
-              </button>
-            </div>
-            <dl>
-              <div><dt>Spécimen</dt><dd>{String(rock.catalogIndex).padStart(2, '0')}</dd></div>
-              <div><dt>Adopté le</dt><dd>{adoptionDate}</dd></div>
-              <div><dt>Statut</dt><dd>Actif</dd></div>
-              <div><dt>Caresses</dt><dd>{economyState.caressCount}</dd></div>
-              <div><dt>Nettoyages</dt><dd>{economyState.cleaningCount}</dd></div>
-              <div><dt>Dernier nettoyage</dt><dd>{lastCleaningDate}</dd></div>
-              <div><dt>Lithons générés</dt><dd>{economyState.lithonsGenerated}</dd></div>
-              <div><dt>Solde actuel</dt><dd>{lithonLabel(economyState.balance)}</dd></div>
-              <div><dt>Accessoires placés</dt><dd>{accessoryInstances.length}</dd></div>
-              <div><dt>Permis manutention</dt><dd>{rockPermit.unlocked ? 'Acquis' : 'Non acquis'}</dd></div>
-              <div><dt>Déplacement spontané</dt><dd>0 m observé</dd></div>
-            </dl>
-          </section>
-        </div>
-      ) : null}
 
       {accessoryShopOpen ? (
         <AccessoryShop
