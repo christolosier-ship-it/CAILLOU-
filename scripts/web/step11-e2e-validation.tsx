@@ -30,6 +30,7 @@ const INITIAL_ROCK: ActiveRock = {
 
 function PedestalFixture() {
   const [active, setActive] = useState(true)
+  const [degraded, setDegraded] = useState(false)
   const [adoptRequested, setAdoptRequested] = useState(false)
   const [eventKeys, setEventKeys] = useState<string[]>([])
   const serverActive = useRef(true)
@@ -76,11 +77,15 @@ function PedestalFixture() {
 
   return (
     <>
+      <button id="fixture-network" type="button" onClick={() => setDegraded((current) => !current)}>
+        Basculer réseau test
+      </button>
       {active ? (
         <PedestalScreen
           activeRock={INITIAL_ROCK}
           economy={{ balance: 321, caressCount: 1450, cleaningCount: 7, lithonsGenerated: 1450 }}
           username="V2-00"
+          degraded={degraded}
           onServerStateChanged={refresh}
           onSignOut={async () => undefined}
           loadBioSnapshot={loadBio}
