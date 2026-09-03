@@ -1,249 +1,329 @@
-# CAILLOU™ - Roadmap d'exécution V1
+# CAILLOU™ — Roadmap long terme V2.0 → V2.4
 
-> **Rôle de ce dossier : mémoire opérationnelle du projet.**
+> **Statut : vision produit et feuille de route long terme validées le 3 septembre 2026.**
 >
-> Chaque fichier d'étape est conçu pour être utilisé comme prompt autonome dans un nouveau fil de discussion. L'historique ChatGPT ne doit jamais être nécessaire pour reprendre le projet.
+> La V1 est publiée sous le tag `v1.0.0` sur le commit `e9d926be0f2f09f9f1464cf5b4360f82dbeae2ad`.
+> La roadmap V1 et tous ses fichiers d'étapes sont archivés à l'identique dans `docs/roadmap/archive/v1/` et ne doivent plus être réécrits.
+>
+> Ce document devient la source de vérité de planification pour la trajectoire **V2.0 → V2.4**. La piste **R&D widgets écran d'accueil** reste volontairement séparée de la roadmap séquentielle tant que son architecture n'est pas décidée.
 
-## Documents de référence permanents
+## 1. Principe directeur
 
-Avant toute étape, lire et respecter :
+La V1 a construit le socle : compte, adoption, économie Lithon, Boutique, accessoires, Placement, physique, Bio/Stats, PWA, sécurité, persistance et résilience.
 
-1. `CAHIER-DES-CHARGES-V1.md` - vérité fonctionnelle ;
-2. `ARCHITECTURE-TECHNIQUE.md` - vérité technique/full stack ;
-3. `DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md` - vérité UI/UX/3D ;
-4. `WORKFLOW-3D-BLENDER-GITHUB.md` - vérité pipeline 3D.
+La V2 ne doit pas devenir une accumulation de nouveaux écrans. Sa direction produit est :
 
-En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à jour les documents existants plutôt que créer une documentation concurrente.
+> **Ton caillou devient vraiment le tien.**
 
-## Règles d'orchestration
+La trajectoire V2 s'organise autour de trois axes :
 
-- Une étape = un objectif principal cohérent et testable.
-- Utiliser GitHub, Supabase et Vercel via leurs plugins lorsque l'étape le nécessite.
-- Travailler par branche + Pull Request ; `main` doit rester déployable.
-- Ne pas fusionner avec des contrôles essentiels rouges.
-- Ne pas élargir le périmètre d'une étape par opportunisme.
-- Si une découverte modifie l'architecture ou le produit, mettre à jour le fichier d'étape concerné et les documents de référence.
-- Les étapes terminées constituent un historique d'exécution : ne pas les réécrire pour refléter des décisions prises plus tard. Les évolutions sont documentées dans les étapes futures et dans les documents normatifs concernés.
-- À la fin de chaque étape, compléter la section `État / compte rendu` du fichier d'étape avec : date, PR/commit, décisions, écarts, tests, dette restante et prochaine étape.
-- Un nouveau fil peut commencer par : `@GitHub Exécute docs/roadmap/XX-....md`.
+1. **Personnaliser le petit monde** : peinture, sols, éclairage, décors, compositions, Studio Photo.
+2. **Donner une existence au caillou** : personnalité, journal, traits évolutifs, réactions et événements.
+3. **Faire du Socle un bac à sable physique** : Placement 2.0, accessoires animés et interactifs, son et haptique.
 
-## Ordre d'exécution
+## 2. Règles d'orchestration V2
 
-| # | Étape | Statut | Dépendances |
-|---:|---|---|---|
-| 01 | Fondation frontend et PWA | Terminée - PR #4 fusionnée | aucune |
-| 02 | Vercel, previews et garde-fous CI | Terminée - PR #5 fusionnée | 01 |
-| 03 | Supabase : schéma, RLS et contrats | Terminée - PR #7 fusionnée | 01 |
-| 04 | Auth pseudo + mot de passe | Terminée - PR #8 fusionnée | 03 |
-| 05 | Pipeline 3D de production et catalogue | Terminée - PR #10 fusionnée, 20/20 cailloux actifs | pipeline audit existant |
-| 06 | Showroom 3D des 20 cailloux | Terminée - PR #13 fusionnée, WebGL + téléphone/tablette validés | 01, 05 |
-| 07 | Adoption, nommage et Socle | Terminée - PR #14, adoption idempotente + Socle + E2E validés | 04, 06 |
-| 08 | Caresse et économie en Lithons | Terminée - PR #16, caresse 3D + économie autoritaire + E2E validés | 03, 07 |
-| 09 | Nettoyage et poussière cosmétique | Terminée - PR #17, poussière UV + nettoyage persistant + E2E validés | 07 |
-| 10A | Pipeline accessoires 3D et catalogue | Terminée - PR #19, catalogue GLB licencié et WebGL validé | 03, 05, 06 |
-| 10B | Boutique Lithons et propriété des accessoires | Terminée - PR #20, achat atomique/RLS et UI catalogue | 08, 10A |
-| 10C | Multi-équipement et placement libre | Terminée - PR #22, instances UUID + transforms locaux persistants + téléphone/tablette validés | 07, 10A, 10B |
-| 10D | Physique, collisions, gravité et persistance | Terminée - PR #23, Rapier + collisions + stabilisation persistante + téléphone/tablette validés | 06, 10C |
-| **10.5** | **UX tactile, sol physique et manutention du caillou** | **Terminée - PR #25 fusionnée, production Vercel validée** | **08, 10C, 10D** |
-| **10.75** | **Boutique unifiée et manipulation universelle** | **Terminée - PR #27, 9/9 CI + Preview Vercel validés** | **10B, 10C, 10D, 10.5** |
-| 11 | Bio, statistiques et action Jeter | Terminée - PR #32, 8/8 GitHub + Supabase + Preview Vercel validés | 03, 07, 08, 09, 10B, **10.75** |
-| 12 | PWA, cache, reprise réseau et résilience | Terminée - PR #33, 9/9 GitHub + Supabase + Preview Vercel validés | 06 à 11, y compris 10A-10D, **10.5** et **10.75** |
-| 13 | QA, sécurité, performance et release V1 | Terminée - PR #34, 4/4 GitHub + Supabase + Preview Vercel READY ; tag V1.0 différé aux smoke tests réels | 01 à 12, y compris 10A-10D, **10.5** et **10.75** |
+- La V1 est une archive historique : ne jamais réécrire ses étapes pour refléter une décision V2.
+- Une étape V2 terminée devient elle aussi historique.
+- Les documents normatifs racine restent la baseline tant qu'une étape V2 ne les remplace ou ne les fait évoluer explicitement.
+- Supabase reste la source de vérité métier et économique ; le frontend reste non autoritaire pour les achats, possessions, soldes et états persistants.
+- `main` doit rester déployable ; travail par branche + Pull Request ; fusion uniquement avec les contrôles essentiels verts.
+- Vercel est utilisé parcimonieusement : aucune Preview pour un changement purement documentaire et une Preview fonctionnelle seulement lorsqu'elle apporte une validation réelle.
+- Éviter la prolifération de workflows/tests redondants : réutiliser les garde-fous existants et ajouter un test uniquement lorsqu'il protège un nouveau risque réel.
+- Les migrations V1 → V2 doivent préserver les utilisateurs, leurs cailloux, Lithons, achats, déblocages et compositions existantes.
+- Les nouvelles fonctions doivent rester compatibles téléphone, tablette et desktop ; la qualité tactile reste prioritaire.
 
-## Découpage de l'étape 10
+## 3. Inventaire des idées et destination
 
-L'ancien périmètre unique `10 - Accessoires et boutique Lithons` a été exécuté en quatre sous-étapes autonomes afin de séparer les risques 3D, économiques, UX et physiques :
+| # | Idée | Intérêt utilisateur | Difficulté | Dépendances principales | Destination |
+|---:|---|---|---|---|---|
+| 1 | Ajouter des accessoires | ★★★★☆ | ★★☆☆☆ | pipeline GLB, catalogue, licences, Boutique | **V2.0** |
+| 2 | Peindre son caillou | ★★★★★ | ★★★★☆ | matériaux Three.js, UV/masques, persistance | **V2.0** |
+| 3 | Améliorer le Placement caillou/accessoires | ★★★★★ | ★★★★☆ | PlacementSession, tactile, Rapier, caméra | **V2.0 / fondation** |
+| 4 | Vraie personnalité / Bio version CAILLOU | ★★★★★ | ★★★☆☆ | Bio, historique, traits persistants | **V2.0** |
+| 5 | Accessoires animés | ★★★★☆ | ★★★★☆ | pipeline animation GLB, runtime 3D, performance | **V2.3** |
+| 6 | Widget écran d'accueil | ★★★★★ | ★★★★★ | capacités OS, PWA/native, synchronisation | **R&D séparée** |
+| 7 | Sols en Boutique : parquet, moquette, etc. | ★★★★★ | ★★★☆☆ | catalogue décor, matériaux/textures, Boutique | **V2.0** |
+| 8 | Éclairage / ambiance du Socle | ★★★★☆ | ★★★☆☆ | Three.js, environnements, persistance | **V2.1** |
+| 9 | Mode Photo / Studio | ★★★★★ | ★★★☆☆ | caméra, capture, compositions, éclairage | **V2.0** |
+| 10 | Journal du caillou | ★★★★☆ | ★★★☆☆ | événements persistants, Bio/Stats | **V2.0** |
+| 11 | Traits de personnalité évolutifs | ★★★★★ | ★★★★☆ | #4, #10, règles déterministes | **V2.2** |
+| 12 | Réactions contextuelles | ★★★★☆ | ★★★☆☆ | #4, #11, metadata accessoires/décors | **V2.2** |
+| 13 | Accessoires interactifs | ★★★★★ | ★★★★★ | #3, #5, Rapier, états persistants | **V2.3** |
+| 14 | Collections / ensembles d'accessoires | ★★★★☆ | ★★☆☆☆ | #1, catégories, Boutique | **V2.1** |
+| 15 | Décors d'arrière-plan | ★★★★☆ | ★★★☆☆ | #7, environnement, textures/GLB | **V2.1** |
+| 16 | Traces du temps / patine | ★★★☆☆ | ★★★☆☆ | #2, ancienneté, #10 | **V2.4** |
+| 17 | Événements rares et absurdes | ★★★★☆ | ★★★☆☆ | #4, #10, #11/#12 | **V2.2** |
+| 18 | Accomplissements version CAILLOU | ★★★★☆ | ★★★☆☆ | Stats, #10, moteur de conditions | **V2.2** |
+| 19 | Sauvegarder plusieurs compositions | ★★★★★ | ★★★★☆ | #3, snapshots, Supabase, décors | **V2.0** |
+| 20 | Fiche publique / partage du caillou | ★★★★☆ | ★★★★☆ | #9, confidentialité/RLS, routes publiques | **V2.3** |
+| 21 | Peinture avancée : motifs, zones, finitions, projections | ★★★★★ | ★★★★★ | #2, UV/masques, édition texture, GPU | **V2.4** |
+| 22 | Son et haptique | ★★★★☆ | ★★★☆☆ | Rapier, audio, capacités appareil | **V2.1** |
 
-- **10A** : ingestion/conversion des ressources 3D, GLB web, PBR, optimisation, provenance/licences et colliders simplifiés ;
-- **10B** : catalogue commercial, achat transactionnel en Lithons et propriété permanente au compte ;
-- **10C** : plusieurs accessoires simultanés sur un même caillou, instances UUID, placement manuel, rotation, échelle, édition tactile et persistance des transforms manuels ;
-- **10D** : collisions, gravité, stabilisation physique et persistance/reprise de l'état stabilisé.
+## 4. Périmètre V2.0
 
-**Le jalon fonctionnel historique 10 est terminé.** Les quatre sous-étapes 10A à 10D sont validées et restent inchangées comme historique d'exécution.
+La V2.0 constitue le prochain numéro majeur. Elle doit être suffisamment visible pour changer la perception de CAILLOU tout en restant finissable, testable et migrable proprement depuis la V1.
 
-## Étape 10.5 - consolidation post-10 terminée
+### Promesse V2.0
 
-Document historique autonome :
+> **Personnaliser, composer, raconter.**
 
-`docs/roadmap/10.5-UX-TACTILE-PHYSIQUE-ET-MANUTENTION-DU-CAILLOU.md`
+Le périmètre fonctionnel V2.0 comprend :
 
-10.5 a livré notamment :
+- Placement 2.0 ;
+- plusieurs compositions sauvegardées ;
+- nouveaux accessoires ;
+- sols personnalisables en Boutique ;
+- peinture simple mais robuste du caillou ;
+- Bio/personnalité 2.0 ;
+- journal de vie ;
+- Studio Photo.
 
-- le verrou explicite de l'édition des accessoires ;
-- la manipulation tactile directe des accessoires ;
-- la gravité gelée pendant la session d'édition ;
-- le grand carré comme vrai sol physique Rapier ;
-- le **Permis de manutention minérale** permanent à **1000 Lithons** ;
-- la pose persistante du caillou ;
-- la manutention 6D du caillou ;
-- le collider dynamique `hull` du caillou ;
-- la stabilisation globale caillou + accessoires ;
-- la persistance atomique et idempotente de la composition.
+### Ce qui n'entre pas dans V2.0
 
-Clôture opérationnelle :
+- accessoires animés ou interactifs ;
+- peinture complexe par zones/motifs ;
+- personnalité évolutive avancée ;
+- partage public ;
+- traces du temps ;
+- widget natif/PWA.
 
-- PR #25 fusionnée ;
-- merge `8c0d234bb97a644bc1bc7e382b210099d02b041d` ;
-- production Vercel correspondante validée `READY` ;
-- étape 11 non démarrée pendant cette clôture.
+Ces sujets restent planifiés dans V2.x ou en R&D afin de ne pas mettre le chemin critique V2.0 en danger.
 
-Le fichier 10.5 reste un compte rendu historique de son exécution. Les décisions prises après sa clôture sont documentées dans 10.75 et dans les documents normatifs.
+## 5. Ordre d'exécution V2.0
 
-## Étape 10.75 - Boutique unifiée et manipulation universelle terminée
+| Étape | Sujet | Objectif principal | Dépendances |
+|---|---|---|---|
+| **V2-00** | Architecture, cadrage et migrations | figer modèles de données, contrats, budgets et migration V1→V2 | V1 |
+| **V2-01** | Placement 2.0 | rendre manipulation, caméra, sélection, précision et stabilisation excellentes | V2-00 |
+| **V2-02** | Compositions | définir/sauvegarder/charger/dupliquer/supprimer une composition complète | V2-01 |
+| **V2-03** | Nouveaux accessoires | industrialiser le pipeline et enrichir la Boutique | V2-00, V2-01 |
+| **V2-04** | Sols | acheter, posséder, sélectionner et persister les sols | V2-02 |
+| **V2-05** | Peinture | palette, preview, finition, persistance et retour roche naturelle | V2-00, V2-02 |
+| **V2-06** | Bio / personnalité 2.0 | transformer la fiche descriptive en identité CAILLOU cohérente | V2-00 |
+| **V2-07** | Journal de vie | mémoriser les événements significatifs et fournir la base des évolutions futures | V2-06 |
+| **V2-08** | Studio Photo | cadrer, masquer l'UI et capturer les compositions personnalisées | V2-02, V2-04, V2-05 |
+| **V2-09** | Harmonisation UX V2 | consolider navigation, Boutique, Placement, Bio, Journal, Studio et responsive | V2-01 à V2-08 |
+| **V2-10** | Performance / PWA | recalibrer lazy loading, caches, mémoire GPU, textures et reprise offline | V2-03 à V2-09 |
+| **V2-11** | Sécurité / économie | auditer RLS, RPC, achats, inventaire, compositions, peinture et journal | V2-02 à V2-10 |
+| **V2-12** | QA / migration V1→V2 | automatisation ciblée + tests tactiles + tests matériels + migration réelle | V2-11 |
+| **V2-13** | Release V2.0 | Preview finale utile, production, smoke tests, tag et release | V2-12 |
 
-Document autonome :
+## 6. Détail des étapes V2.0
 
-`docs/roadmap/10.75-BOUTIQUE-UNIFIEE-ET-MANIPULATION-UNIVERSELLE.md`
+### V2-00 — Architecture, cadrage et migrations
 
-10.75 a consolidé les retours UX post-10.5 sans modifier l'économie fondamentale.
+Avant toute nouvelle UI :
 
-Décisions livrées :
+- définir le modèle canonique d'une composition ;
+- décider l'architecture de peinture ;
+- définir les futurs catalogues de sols/décors ;
+- définir le modèle personnalité + journal ;
+- préciser les nouveaux contrats Supabase/RLS/RPC ;
+- fixer budgets texture/GLB/mémoire/cache ;
+- définir une migration sans perte depuis V1 ;
+- identifier les anciennes structures à conserver, migrer ou déprécier.
 
-- **Boutique = acquérir. Placement = manipuler. Rapier = arbitrer après validation.**
-- la boutique d'accessoires est devenue la Boutique générale du Socle ;
-- accessoires et fonctionnalités payantes restent des modèles Supabase spécialisés mais sont présentés dans une même fenêtre commerciale ;
-- le Permis de manutention minérale à 1000 Lithons est acheté dans cette Boutique, et non dans une fenêtre commerciale parallèle ;
-- l'achat d'un accessoire donne une propriété permanente au compte ; la création d'instances déjà possédées se fait depuis Placement ;
-- un seul bouton **Placement** mutualise la manipulation du caillou et des accessoires ;
-- Placement commence par un sélecteur de cible : caillou, instances déjà placées et ajout d'un objet possédé ;
-- le caillou reste visible mais verrouillé si le permis n'est pas acquis, avec accès à sa fiche Boutique ;
-- caillou et accessoires partagent la même grammaire tactile Position / Orientation ;
-- les accessoires ajoutent le contrôle de Taille ;
-- après sélection, le canvas entier sert de surface de contrôle ;
-- pendant Placement, aucune collision caillou/accessoire/accessoire ne contraint le geste ; les intersections volontaires sont autorisées ;
-- **le carré gris est l'unique frontière infranchissable pendant la manipulation cinématique** ; la cible ne peut pas traverser ni passer sous ce sol ;
-- cette frontière de sol est une contrainte dure pendant le geste et tient compte du volume orienté de la cible ;
-- à `Terminer`, Rapier reprend la gravité et toutes les collisions normales ;
-- la stabilisation individuelle des accessoires et la stabilisation atomique du caillou + accessoires conservent leurs contrats de persistance ;
-- aucune migration Supabase n'a été nécessaire ;
-- le nouveau E2E 10.75 et les huit scénarios de non-régression sont verts sur le candidat fonctionnel `65e17cb07c66b35f98f0ee6f308b6f1a0c19e8d8` ;
-- une seule Preview volontaire a été utilisée : `dpl_4cHqGZvPAcYuCRSQorLDDJJWCiPP`, état `READY` ;
-- l'étape 11 n'a pas été commencée pendant l'exécution de 10.75.
+### V2-01 — Placement 2.0
 
-## Consolidation post-10.75 — Socle, PlacementSession et drafts multi-cibles
+Fondation prioritaire :
 
-Deux corrections transversales ont été exécutées avant l'étape 11. Elles ne créent pas de nouvelles étapes de roadmap : elles consolident l'architecture déjà ciblée par 10.75.
+- sélection de cible plus lisible ;
+- translation/rotation/échelle plus précises ;
+- caméra et gestes tactiles harmonisés ;
+- contraintes de sol cohérentes ;
+- feedback de sélection/manipulation ;
+- meilleur contrôle sur téléphone et tablette ;
+- annulation/restauration de session si pertinente ;
+- stabilisation Rapier et persistance sans régression V1.
 
-### PR #30 — harmonisation du Socle et du Placement
+### V2-02 — Compositions
 
-- merge : `659d055f77f665c161f5be4b2e219f7c47dc6cc4` ;
-- unification du Socle visuel/physique, des contraintes et du contrôleur de Placement ;
-- suppression des chemins legacy devenus concurrents ;
-- maintien du contrat 10.75 : Boutique = acquérir, Placement = manipuler, Rapier = arbitrer après validation.
+Une composition devient un objet produit explicite pouvant contenir :
 
-### PR #31 — PlacementSession réellement multi-cibles
+- pose du caillou ;
+- instances d'accessoires + transforms ;
+- peinture ;
+- sol ;
+- ultérieurement éclairage et arrière-plan.
 
-- merge : `d9372f4b7af8ceaa8a67dc35476cbf1398206465` ;
-- `PlacementSession` devient la source de vérité de la composition pendant toute l'édition ;
-- le caillou et chaque instance accessoire conservent un draft monde indépendant ;
-- déplacer le caillou ne déplace plus les accessoires pendant l'édition ;
-- changer de cible ne restaure plus la pose persistée et ne détruit aucun draft ;
-- aucune RPC Supabase n'est exécutée lors d'un simple changement de cible ;
-- `Terminer` valide la session entière : settlement global si le caillou est dirty, settlement limité aux accessoires dirty sinon, aucune écriture si rien n'a changé ;
-- les accessoires démarrent le settlement depuis leurs transforms monde de session ;
-- aucune migration Supabase n'a été nécessaire.
+Fonctions : créer, nommer, charger, dupliquer, supprimer et définir la composition active.
 
-Validation de clôture : neuf workflows officiels verts sur le candidat de #31, CI post-merge `main` verte, production Vercel `READY` sur le SHA exact `d9372f4b7af8ceaa8a67dc35476cbf1398206465`, sans runtime error observée au contrôle de clôture.
+### V2-03 — Nouveaux accessoires
 
-**L'étape 11 démarre donc sur cette architecture consolidée.**
+- augmenter le catalogue ;
+- maintenir provenance/licences ;
+- garder des budgets mobiles stricts ;
+- améliorer l'industrialisation du pipeline ;
+- conserver la distinction propriété d'un type / instances placées.
 
-## Étape 11 - Bio, statistiques et action Jeter terminée
+### V2-04 — Sols
 
-Document autonome :
+Premiers exemples : parquet, moquette, béton, carrelage et autres variations cohérentes avec la direction artistique.
 
-`docs/roadmap/11-BIO-STATS-JETER.md`
+Ils doivent fonctionner comme de vrais objets économiques : catalogue, prix éventuel, propriété permanente, sélection active et persistance.
 
-Décisions livrées :
+### V2-05 — Peinture
 
-- Bio/Stats repose uniquement sur les sources Supabase fiables ; `observation_seconds` n'est pas affiché tant qu'il n'existe pas de mesure serveur autoritaire ;
-- propriété des accessoires, instances placées et déblocages permanents sont comptés séparément ;
-- le Permis de manutention minérale est affiché comme déblocage existant, sans nouveau parcours d'achat ;
-- `Jeter` réutilise le RPC idempotent `discard_active_rock` et fait disparaître immédiatement le caillou après confirmation ;
-- les instances équipées sont déséquipées logiquement lors du discard, tandis que portefeuille, acquisitions, déblocages permanents et progression restent au compte ;
-- l'état post-discard est persistant et propose l'adoption d'un nouveau caillou ;
-- `Step11Pedestal` isole Bio/Jeter du moteur de Placement et bloque ces actions pendant les modes exclusifs ;
-- aucune migration Supabase supplémentaire n'a été nécessaire ;
-- le candidat fonctionnel final `d8f409c1080f037e62fc29b023a8280227b8c95e` a obtenu 8/8 workflows GitHub verts ;
-- le runtime validé reste celui de `9ba2b41f762309c366a76b78686a7949af92dfe6`, Preview Vercel `dpl_E2u2mvADfUHJrJ5rN7LRaRGqDV71` `READY`, les commits suivants ne modifiant que documentation et QA ;
-- le test transactionnel Supabase de discard/replay a été exécuté avec `ROLLBACK` et a confirmé la conservation des données de compte ;
-- l'incident d'allocation GitHub Actions a été levé après passage du dépôt en public, puis la matrice officielle a réellement exécuté ses étapes et terminé entièrement au vert.
+V2.0 doit rester volontairement maîtrisée :
 
-**L'étape suivante est 12 — PWA, cache, reprise réseau et résilience.**
+- couleur principale ;
+- prévisualisation temps réel ;
+- finition simple (par exemple mat/satiné/brillant si techniquement robuste) ;
+- validation et persistance ;
+- retour explicite à la roche naturelle.
 
-## Étape 12 - PWA, cache, reprise réseau et résilience terminée
+La peinture avancée est réservée à V2.4.
 
-Document autonome :
+### V2-06 — Bio / personnalité 2.0
 
-`docs/roadmap/12-PWA-CACHE-RESILIENCE.md`
+- traits fondamentaux ;
+- ton propre à CAILLOU ;
+- préférences et caractéristiques absurdes mais cohérentes ;
+- informations issues de l'histoire réelle du caillou ;
+- aucune génération aléatoire incohérente qui change à chaque affichage.
 
-Décisions livrées :
+### V2-07 — Journal de vie
 
-- Supabase reste la seule source de vérité pour Lithons, achats, déblocages, possessions et états persistés ; aucun succès métier n'est fabriqué localement ;
-- le précache PWA est ramené au shell léger et aux ressources essentielles ; le build Vercel final ne précache que 6 entrées pour environ `443,69 KiB` ;
-- les scènes 3D, Rapier, GLB et previews passent en chargement lazy/runtime avec caches versionnés, bornés et nettoyables ;
-- le dernier état serveur connu du Socle est conservé localement pour une consultation dégradée explicitement non autoritaire ;
-- le caillou actif, sa pose stabilisée et les accessoires équipés avec leurs transforms peuvent être restaurés depuis ce dernier snapshot connu ;
-- les achats, déblocages et mutations sensibles restent bloqués tant que Supabase n'a pas réconcilié le registre ;
-- les mutations Placement ambiguës conservent exactement leur `event_key` et leur payload dans une file persistante ; la reconnexion rejoue la même intention et ne crée pas de doublon d'instance ;
-- `stabilize_rock_composition` reste atomique et aucune composition globale n'est présentée comme partiellement confirmée ;
-- une version PWA disponible est signalée explicitement avant activation/rechargement ;
-- le candidat fonctionnel `7d39483bb6a9d6cbd1b96de521d5f842ff5615c0` a obtenu 9/9 workflows GitHub verts, avec 24 fichiers / 83 tests unitaires verts ;
-- aucune migration Supabase n'a été nécessaire ; le projet CAILLOU- reste `ACTIVE_HEALTHY` et les reçus de mutation sont indexés par `(user_id, event_key)` ;
-- une seule Preview volontaire a été utilisée : `dpl_5G7DezKX9pFFckGr7h2Peg1oif5f`, état `READY`, manifeste HTTP 200 et service worker généré ;
-- l'installation physique sur appareils réels reste un smoke test de la QA finale plutôt qu'une validation simulée.
+Événements possibles : adoption, changement de nom, nettoyage, première peinture, achats marquants, premier accessoire, changement de sol, composition créée, anniversaires d'adoption et records pertinents.
 
-**L'étape suivante est 13 — QA, sécurité, performance et release V1.**
+Le journal devient la mémoire canonique utilisée ensuite par V2.2.
 
-## Étape 13 - QA, sécurité, performance et release V1 terminée
+### V2-08 — Studio Photo
 
-Document autonome :
+- UI masquable ;
+- caméra plus libre ;
+- zoom/cadrage ;
+- formats de capture adaptés ;
+- export d'une image propre du Socle.
 
-`docs/roadmap/13-QA-SECURITE-PERFORMANCE-RELEASE.md`
+### V2-09 à V2-13 — Consolidation et release
 
-Décisions et validations finales :
+La fin de cycle V2.0 reprend la discipline éprouvée de V1 : harmonisation UX globale, performance/PWA, audit sécurité/économie, QA réelle de migration puis release uniquement lorsque les contrôles essentiels et les appareils physiques sont verts.
 
-- le candidat runtime `6ae5bfda833042d1ad336d965eca99b4ec2a26d5` a obtenu 4/4 contrôles ciblés verts : CI complète, Boutique/Placement, physique/stabilisation accessoires et mouvement global ;
-- la CI finale valide le nouveau garde-fou de release, lint, TypeScript strict, 24 fichiers / 83 tests unitaires et le build de production ;
-- le validateur de release bloque désormais les écarts d'inventaire 3D, poids GLB, previews, licences/provenances, icônes PWA, règles Vercel, headers et secrets frontend ;
-- les 20 GLB cailloux restent sous 5 MiB avec un maximum mesuré à `0,78 MiB` ; les 4 accessoires restent sous le même budget avec un maximum à `2,47 MiB` ;
-- Supabase reste `ACTIVE_HEALTHY`, les invariants RLS/économie/idempotence sont conformes et l'inscription est désormais limitée côté serveur à 5 tentatives par 15 minutes et par IP pseudonymisée ;
-- les migrations `harden_auth_registration_rate_limit` et `deny_client_auth_rate_limits` verrouillent ce garde-fou anti-abus ;
-- le seul WARN sécurité Supabase restant est la protection des mots de passe compromis désactivée ; les seuls avis performance sont des index encore inutilisés, classés INFO ;
-- `THIRD-PARTY-NOTICES.md` rend explicite l'attribution CC BY 4.0 du Monocle et le catalogue conserve les preuves de provenance des ressources CC0 ;
-- Vercel applique désormais des headers de sécurité navigateur et conserve le déploiement parcimonieux par branche ;
-- une seule Preview étape 13 a été déclenchée : `dpl_GDbBc6VihWvNYYaifzS8CPX8X2T3`, état `READY`, service worker généré, précache 6 entrées pour `443,69 KiB` et aucune erreur runtime observée ;
-- le gros chunk 3D/physique reste environ `1,02 MiB` gzip, mais il est lazy/runtime et non précaché ; cette dette mesurée est acceptée pour éviter un refactor risqué en fin de V1 ;
-- les contrôles tactiles compte/session respectent désormais le minimum 44 px ;
-- aucun changement de règle produit, de direction artistique ou de pipeline de conversion 3D n'a été introduit pendant cette passe finale ; les documents normatifs existants restent applicables ;
-- **décision : GO technique pour `main` et la production ; NO-GO volontaire pour créer le tag/release `V1.0` tant que les smoke tests physiques iOS/Android/tablette/desktop exigés par la roadmap n'ont pas été réalisés.**
+## 7. V2.1 — Décoration et sensation
 
-**La roadmap technique V1 est exécutée jusqu'à son étape 13. La prochaine action de release est un smoke test matériel réel puis, uniquement s'il est vert, la création du tag/release `V1.0`.**
+Objectif : enrichir le petit monde construit en V2.0 sans modifier ses fondations.
 
-## Frontières importantes
+Périmètre cible :
 
-- **Supabase est la source de vérité** pour compte, caillou adopté, progression, Lithons, achats, déblocages, possession d'accessoires, instances équipées, poses persistantes, état stabilisé et statistiques.
-- **Vercel distribue le frontend** et fournit les previews/production ; pas de backend métier Vercel V1 sans justification explicite.
-- **Le navigateur ne fait jamais autorité sur les Lithons** ni sur un achat ou un déblocage payant.
-- **Un seul GLB de caillou actif à la fois** dans le showroom. Jusqu'à huit GLB d'accessoires peuvent être chargés simultanément autour de ce caillou dans le contrat V1 actuel.
-- Les accessoires sont multi-instance côté équipement : le modèle ne limite pas artificiellement un caillou à un accessoire par zone ou `slot`.
-- La propriété d'un type d'accessoire appartient au compte ; une instance équipée appartient à la composition d'un caillou.
-- Les transforms d'accessoires persistants sont exprimés relativement au caillou, pas en coordonnées monde.
-- 10D a introduit Rapier et la stabilisation persistante des accessoires ; 10.5 a ajouté le vrai sol, la pose persistante du caillou et la stabilisation atomique de composition.
-- La physique est exécutée côté client ; Supabase persiste l'état stabilisé mais ne simule pas la physique.
-- Une pose stabilisée est restaurée directement au reload ; une pose intermédiaire non stabilisée ne doit jamais être présentée comme confirmée.
-- Pendant toute manipulation tactile explicite, la cible reste contrôlée cinématiquement ; Rapier reprend l'autorité après validation.
-- À partir de #31, toute la composition est capturée en monde à l'ouverture de Placement et chaque cible garde son draft monde indépendant jusqu'à `Terminer`.
-- Le grand carré gris du Socle est la seule frontière spatiale infranchissable pendant Placement.
-- Les achats sont centralisés dans la Boutique ; le placement et la création d'instances possédées sont centralisés dans Placement.
-- À partir de l'étape 12, le cache local n'est qu'une mémoire de présentation et de reprise : il peut restaurer le dernier état connu, mais ne devient jamais une source d'autorité métier.
-- Les mutations réseau ambiguës doivent conserver leur clé d'idempotence d'origine jusqu'à réconciliation avec Supabase ; créer une nouvelle clé pour le même geste est interdit.
-- Le caillou n'a aucun besoin vital et l'absence n'est jamais punie.
-- Les Lithons n'ont aucune valeur réelle et ne sont ni achetables ni transférables.
+- **#8 Éclairage / ambiance du Socle** ;
+- **#15 Décors d'arrière-plan** ;
+- **#14 Collections / ensembles d'accessoires** ;
+- **#22 Son et haptique**.
 
-## Comment reprendre dans un nouveau fil
+Résultat attendu : une composition ne change plus seulement par les objets qu'elle contient, mais également par son atmosphère visuelle et sensorielle.
 
-1. Mentionner `@GitHub` et, si nécessaire, `@Supabase` / `@Vercel`.
-2. Donner le chemin exact de l'étape concernée.
-3. Demander de lire d'abord ce fichier et les quatre documents de référence.
-4. L'assistant doit inspecter l'état réel du repo et des services avant d'agir.
-5. Exécuter uniquement l'étape demandée, puis documenter le résultat dans son fichier.
+## 8. V2.2 — Vie du caillou
+
+Objectif : exploiter la personnalité et le journal V2.0 pour rendre le caillou réellement évolutif.
+
+Périmètre cible :
+
+- **#11 Traits de personnalité évolutifs** ;
+- **#12 Réactions contextuelles** ;
+- **#17 Événements rares et absurdes** ;
+- **#18 Accomplissements version CAILLOU**.
+
+Principe : l'évolution doit être compréhensible et déterministe à partir de l'histoire du compte. Elle ne doit pas devenir un système punitif de besoins quotidiens.
+
+## 9. V2.3 — Interaction et partage
+
+Objectif : rendre la scène plus vivante et commencer à faire sortir le caillou de son Socle privé.
+
+Périmètre cible :
+
+- **#5 Accessoires animés** ;
+- **#13 Accessoires interactifs** ;
+- **#20 Fiche publique / partage du caillou**.
+
+Les accessoires animés doivent précéder ou accompagner les interactifs afin de stabiliser le pipeline animation/performance avant d'introduire des états physiques et métier supplémentaires.
+
+Le partage public reste volontairement léger : exposition optionnelle d'une fiche/composition, pas de réseau social complet.
+
+## 10. V2.4 — Personnalisation avancée et traces du temps
+
+Objectif : pousser l'appropriation individuelle lorsque la peinture et le journal sont éprouvés.
+
+Périmètre cible :
+
+- **#16 Traces du temps / patine** ;
+- **#21 Peinture avancée** : motifs, zones, finitions supplémentaires, projections ou outils créatifs compatibles avec les performances mobiles.
+
+La roche naturelle d'origine doit toujours rester récupérable. Les traces du temps doivent être cosmétiques, explicables et idéalement optionnelles.
+
+## 11. R&D séparée — Widget écran d'accueil
+
+L'idée **#6 Widget écran d'accueil** reste retenue mais n'est affectée à aucune version V2.x tant que la R&D n'a pas tranché l'architecture.
+
+Questions à résoudre séparément :
+
+- jusqu'où peut aller une PWA installée sur iOS/Android sans composant natif ;
+- faut-il envisager WidgetKit côté Apple et l'équivalent Android ;
+- faut-il emballer CAILLOU dans une couche native/hybride ou conserver une PWA pure ;
+- comment partager session/auth/données entre widget et application ;
+- fréquence d'actualisation, fonctionnement offline et consommation batterie ;
+- maintenance et distribution App Store/Play Store éventuelles ;
+- bénéfice utilisateur réel par rapport au coût architectural.
+
+Aucun changement d'architecture V2 ne doit être imposé par le widget avant cette étude.
+
+## 12. Carte des dépendances produit
+
+### Personnalisation
+
+`Placement 2.0 → Compositions → Sols / Peinture → Studio Photo → Éclairage / Arrière-plans → Partage`
+
+### Vie du caillou
+
+`Bio 2.0 → Journal → Traits évolutifs → Réactions contextuelles → Événements rares / Accomplissements`
+
+### Bac à sable physique
+
+`Placement 2.0 → Accessoires supplémentaires → Accessoires animés → Accessoires interactifs`
+
+### Création visuelle
+
+`Peinture V2.0 → Peinture avancée V2.4 → Traces du temps optionnelles`
+
+## 13. Discipline de version
+
+### V2.0
+
+Numéro majeur : personnalisation, compositions et identité du caillou changent nettement l'expérience.
+
+### V2.1
+
+Enrichissement du décor et de la sensation.
+
+### V2.2
+
+Évolution comportementale et narrative.
+
+### V2.3
+
+Interactions 3D avancées et partage.
+
+### V2.4
+
+Personnalisation visuelle avancée et histoire cosmétique.
+
+Les numéros V2.x décrivent une intention produit, pas une obligation de livrer toutes les idées si une étude technique démontre qu'elles sont disproportionnées ou incompatibles avec la qualité mobile. Tout retrait ou déplacement doit être documenté ici avant exécution.
+
+## 14. Archive V1
+
+La roadmap V1 complète est conservée dans :
+
+`docs/roadmap/archive/v1/`
+
+Elle contient l'index final et les étapes 01 à 13, y compris les sous-étapes historiques 10A, 10B, 10C, 10D, 10.5 et 10.75.
+
+Règle : **ces documents sont gelés**. Ils servent de mémoire d'exécution et de justification des décisions V1. Les corrections ou évolutions postérieures doivent être consignées dans les documents V2, jamais rétroécrites dans l'archive.
+
+Le tag Git `v1.0.0` reste en parallèle le snapshot logiciel exact de la première release publique.
+
+## 15. Prochaine action
+
+Avant toute implémentation V2 : créer et exécuter **V2-00 — Architecture, cadrage et migrations** à partir de cette feuille de route.
+
+Les fichiers détaillés `V2-XX-....md` seront créés au moment où leur périmètre est suffisamment défini pour servir de prompt autonome d'exécution. Ce document reste le niveau stratégique et l'ordre de référence.
