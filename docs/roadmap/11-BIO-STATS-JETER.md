@@ -76,10 +76,12 @@ PR dédiée. Compléter compte rendu + index. Toute statistique non fiable doit 
 
 ## État / compte rendu
 
-**Statut : Implémentée sur PR #32 — validation finale et merge bloqués par l'allocation des runners GitHub Actions**
+**Statut : Terminée — PR #32, candidat final validé 8/8 sur GitHub, Supabase validé et Preview Vercel validée**
 
 - Date : 2026-09-03.
-- PR / commit : PR #32 `feat: Bio, Stats et Jeter — étape 11`; candidat runtime `9ba2b41f762309c366a76b78686a7949af92dfe6`.
+- PR : #32 `feat: Bio, Stats et Jeter — étape 11`.
+- Candidat runtime : `9ba2b41f762309c366a76b78686a7949af92dfe6`.
+- Candidat fonctionnel final avant documentation : `d8f409c1080f037e62fc29b023a8280227b8c95e`. Les deux commits placés après le candidat runtime ne modifient que ce compte rendu Markdown et le validateur Adoption ; aucun fichier runtime n'a changé après `9ba2b41f762309c366a76b78686a7949af92dfe6`.
 - Bio/Stats : lecture des sources Supabase fiables `wallets`, `rock_progress`, `user_accessories`, `equipped_accessories` et `user_feature_unlocks`; `observation_seconds` volontairement absent tant qu'il n'est pas alimenté de manière autoritaire.
 - Accessoires possédés/équipés : propriété au compte et instances placées comptées séparément.
 - Déblocages permanents : lus indépendamment et Permis de manutention minérale affiché sans nouveau parcours d'achat.
@@ -88,7 +90,11 @@ PR dédiée. Compléter compte rendu + index. Toute statistique non fiable doit 
 - État vide : écran sobre post-discard avec CTA `Adopter un nouveau caillou`; le routing distingue jamais adopté, historique sans caillou actif et caillou actif.
 - Non-régression 10.75 : l'intégration est isolée dans `Step11Pedestal`; `Pedestal.tsx`, PlacementSession, Boutique et Rapier ne sont pas refactorés par cette étape.
 - Tests Supabase : transaction réelle avec `ROLLBACK`; deux appels avec le même `event_key` ont retourné le même `discarded_at`; après discard transactionnel l'instance équipée était retirée, tandis que solde, quatre acquisitions, déblocage et progression restaient inchangés; rollback confirmé.
-- Validation Vercel : premier build diagnostique en erreur sur le typage de `user_feature_unlocks`, correction appliquée; Preview du SHA runtime `9ba2b41f762309c366a76b78686a7949af92dfe6` `READY`, `tsc -b && vite build` réussi, aucune runtime error observée.
-- Blocage CI : GitHub Actions échoue avant toute étape, y compris après relance manuelle; payload du CI général : `steps: []`, `runner_id: 0`, `runner_name: ""`, label `ubuntu-latest`. Ce défaut d'infrastructure empêche volontairement le passage de la PR hors draft et le merge.
-- Dette : relancer les workflows officiels lorsque GitHub alloue de nouveau un runner; ne merger qu'après contrôles essentiels verts, puis valider le déploiement production sur le SHA de merge.
-- Étape suivante recommandée : 12, uniquement après clôture effective de la PR #32.
+- Supabase final : projet `ACTIVE_HEALTHY`; aucun nouveau lint sécurité lié à l'étape 11. Seul l'avertissement Auth historique `Leaked Password Protection Disabled` reste présent. Les avis performance restants sont uniquement des `unused_index` de niveau INFO.
+- Validation GitHub finale sur `d8f409c1080f037e62fc29b023a8280227b8c95e` : **8/8 workflows verts** — CI #283, Adoption #188, Caresse/Lithons #182, Nettoyage #177, Mouvement/physique #134, Multi-accessoires #157, Boutique/Placement #114 et Bio/Stats/Jeter #4.
+- Correction QA finale : le validateur Adoption historique attendait encore Jeter désactivé selon le contrat 10.75. Il a été réaligné sur le contrat post-étape-11 : Caresser, Boutique et Jeter actifs après adoption, Nettoyer encore inactif, Placement et Bio toujours validés.
+- Incident GitHub Actions : les premiers runs ne recevaient aucun runner (`steps: []`, `runner_id: 0`). Après passage du dépôt en public, les runners standards `ubuntu-latest` ont été alloués normalement et la matrice officielle a terminé 8/8 au vert. Aucun contournement des contrôles n'a été utilisé.
+- Validation Vercel : Preview `dpl_E2u2mvADfUHJrJ5rN7LRaRGqDV71` sur le SHA runtime `9ba2b41f762309c366a76b78686a7949af92dfe6`, état `READY`, build `tsc -b && vite build` réussi et aucune runtime error observée au contrôle final. Les commits suivants étant uniquement documentation/QA, aucun second déploiement runtime n'était nécessaire.
+- Migration Supabase : aucune migration supplémentaire requise pour l'étape 11 ; le RPC existant `discard_active_rock` fournit déjà le contrat autoritaire attendu.
+- Dette : `observation_seconds` reste volontairement non affiché tant qu'une instrumentation serveur fiable n'existe pas. L'avertissement Auth sur la protection des mots de passe compromis reste une dette sécurité globale hors périmètre de cette étape.
+- Étape suivante : 12 — PWA, cache, reprise réseau et résilience.
