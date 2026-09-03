@@ -1,4 +1,4 @@
-.step11-pedestal-host { min-height: 100vh; min-height: 100dvh; }
+.pedestal-screen-host { min-height: 100vh; min-height: 100dvh; }
 .bio-dialog { max-height: min(88dvh, 760px); overflow: auto; }
 .bio-specimen-label, .bio-loading, .bio-error p, .bio-editorial p { margin: 0; color: var(--color-graphite); }
 .bio-specimen-label { margin-top: 2px; font-size: .78rem; }
