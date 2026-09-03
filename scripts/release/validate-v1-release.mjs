@@ -145,4 +145,4 @@ const accessories = await validateAccessories();
 await validatePwaAndHosting();
 await validateNoFrontendSecrets();
 
-console.log(`[release] OK — ${rocks.count} cailloux (max ${(rocks.maxBytes / 1024 / 1024).toFixed(2)} MiB), ${accessories.count} accessoires (max ${(accessories.maxBytes / 1024 / 1024).toFixed(2)} MiB), PWA/headers/licences/secrets vérifiés.`);
+process.stdout.write(`[release] OK — ${rocks.count} cailloux (max ${(rocks.maxBytes / 1024 / 1024).toFixed(2)} MiB), ${accessories.count} accessoires (max ${(accessories.maxBytes / 1024 / 1024).toFixed(2)} MiB), PWA/headers/licences/secrets vérifiés.\n`);
