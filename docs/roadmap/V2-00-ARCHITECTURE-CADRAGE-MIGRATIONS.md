@@ -1,9 +1,9 @@
 # V2-00 — Architecture, cadrage et migrations
 
-> **Statut : implémentation terminée — validation finale avant merge.**
+> **Statut : terminé — fusionné et validé en production le 3 septembre 2026.**
 >
-> Ce document constitue à la fois le cahier des charges historique et le compte rendu d'exécution de V2-00.
-> La branche de chantier est `refactor/v2-00`, portée par la PR #38.
+> Ce document est le cahier des charges historique et le compte rendu final de l'étape V2-00 de CAILLOU™.
+> L'implémentation a été menée dans la PR #38 puis fusionnée en squash dans `main` au commit `cec15e6ce33421c1aed5476dafb057628b1368f1`.
 > La V1 de référence reste le tag `v1.0.0` sur `e9d926be0f2f09f9f1464cf5b4360f82dbeae2ad`.
 
 ## 1. Finalité
@@ -60,10 +60,10 @@ AuthenticatedHome
 
 L'état canonique distingue :
 
-- `interactionMode`: `orbit`, `caress`, `cleaning`, `placement`, `settling` ;
-- `overlay`: `none`, `shop`, `bio`, `discard` ;
-- `network`: `online`, `reconnecting`, `offline` ;
-- `shopFocus`: focus Boutique explicite.
+- `interactionMode` : `orbit`, `caress`, `cleaning`, `placement`, `settling` ;
+- `overlay` : `none`, `shop`, `bio`, `discard` ;
+- `network` : `online`, `reconnecting`, `offline` ;
+- `shopFocus` : focus Boutique explicite.
 
 Les capacités sont dérivées par des fonctions pures testables, notamment `canCaress`, `canClean`, `canOpenShop`, `canOpenBio`, `canDiscard`, `canEnterPlacement`, `canExitPlacement`, `canPurchase` et `canPersist`.
 
@@ -161,7 +161,7 @@ Décisions :
 7. Création, duplication, activation et suppression devront être atomiques/idempotentes lorsque leur répétition réseau peut produire un doublon.
 8. La décision SQL exacte, y compris la manière de représenter la composition active, appartient à V2-02 après audit de son besoin réel.
 
-Aucune table `compositions` n'est créée pendant V2-00.
+Aucune table `compositions` n'a été créée pendant V2-00.
 
 ## 5. Contrat V2 — peinture
 
@@ -178,7 +178,7 @@ Décisions :
 - aucun écrasement du matériau source du GLB ;
 - V2.4 pourra ajouter zones, masques, motifs ou couches en faisant évoluer `schemaVersion`, sans casser `solid` V2.0.
 
-Aucune colonne/table de peinture n'est créée pendant V2-00.
+Aucune colonne/table de peinture n'a été créée pendant V2-00.
 
 ## 6. Contrat V2 — sols et décors
 
@@ -209,11 +209,11 @@ Décisions :
 - provenance/licence reste obligatoire pour toute ressource tierce ;
 - l'éclairage et les arrière-plans V2.1 pourront suivre la même famille de contrats sans être ajoutés maintenant.
 
-Aucun catalogue de sols n'est créé pendant V2-00.
+Aucun catalogue de sols n'a été créé pendant V2-00.
 
 ## 7. Contrat V2 — personnalité et journal
 
-Les responsabilités sont séparées :
+Les responsabilités sont séparées.
 
 ### Identité stable
 
@@ -241,7 +241,7 @@ Le journal visible est une projection des événements et statistiques canonique
 
 Traits évolutifs, réactions contextuelles, événements rares et accomplissements devront consommer cette histoire canonique plutôt que créer une seconde mémoire parallèle.
 
-Aucune table personnalité/journal n'est créée pendant V2-00.
+Aucune table personnalité/journal n'a été créée pendant V2-00.
 
 ## 8. Supabase et migration V1 → V2
 
@@ -288,7 +288,7 @@ Performance : uniquement des informations `unused_index` sur plusieurs index V1.
 
 ## 9. Budgets et garde-fous V2
 
-Les budgets suivants deviennent la baseline jusqu'à mesure plus précise dans V2-10 :
+Les budgets suivants deviennent la baseline jusqu'à mesure plus précise dans V2-10.
 
 ### Assets 3D
 
@@ -342,16 +342,14 @@ Seulement deux workflows restent normatifs :
 - `CI` ;
 - `Browser regression`.
 
-Le refactor V2-00 protège désormais les règles métier et non les raccords historiques.
+Validation du SHA final de PR `a9a4d94fa5ac74b86a8e36b560eeb1f25fb951c9` :
 
-Validations déjà obtenues sur le SHA Lot C `9bdf3fdde39994ef7c507d18becd51674da28f47` :
-
-- CI `33807059086` : succès ;
-- Browser regression `33807059119` : succès ;
+- CI `33808347502` : succès ;
+- Browser regression `33808347473` : succès ;
 - matrice navigateur V1 complète : showroom, adoption, caresse, nettoyage, accessoires, physique, mouvement du caillou, Placement, Bio/Jeter ;
 - build production : succès.
 
-Une dernière exécution sera exigée sur le SHA documentaire final de la PR avant merge.
+Après fusion, la CI `33808773776` sur `cec15e6ce33421c1aed5476dafb057628b1368f1` est également verte.
 
 ## 11. Limite explicitement reportée à V2-01
 
@@ -398,8 +396,8 @@ V2-00 n'a volontairement pas :
 - [x] Jeter/retry/nouvelle adoption ;
 - [x] offline/reconnexion ;
 - [x] aucune régression RLS/économie connue ;
-- [x] CI verte sur le dernier SHA runtime ;
-- [x] Browser regression verte sur le dernier SHA runtime.
+- [x] CI verte ;
+- [x] Browser regression verte.
 
 ### Cadrage V2
 
@@ -415,20 +413,24 @@ V2-00 n'a volontairement pas :
 
 - [x] Supabase audité et sain ;
 - [x] aucune Preview intermédiaire Vercel consommée ;
-- [ ] Preview finale intentionnelle et/ou production finale contrôlée après validation du SHA de clôture ;
-- [ ] déploiement production post-merge contrôlé.
+- [x] Preview finale intentionnelle validée ;
+- [x] déploiement production post-merge contrôlé ;
+- [x] production HTTP 200 ;
+- [x] aucun runtime error Vercel détecté après merge.
 
-## 13. Compte rendu de chantier
+## 13. Compte rendu final
 
 Date : **3 septembre 2026**.
 
-PR : **#38 — V2-00 — refactor architectural du Socle**.
+PR principale : **#38 — V2-00 — refactor architectural du Socle**.
 
 Commits structurants de fin de lots :
 
 - Lot A : `08d7c7b6cdc78438581be009d30bc84240596888` ;
 - Lot B : `844f8d402bcf1306ed844762d531cc6b2583ba59` ;
-- Lot C : `9bdf3fdde39994ef7c507d18becd51674da28f47`.
+- Lot C : `9bdf3fdde39994ef7c507d18becd51674da28f47` ;
+- candidat final de PR : `a9a4d94fa5ac74b86a8e36b560eeb1f25fb951c9` ;
+- squash merge `main` : `cec15e6ce33421c1aed5476dafb057628b1368f1`.
 
 Migrations Supabase V2-00 : **aucune**.
 
@@ -436,6 +438,29 @@ Dépendances ajoutées : **aucune**.
 
 Preview Vercel intermédiaire : **aucune**.
 
+Preview finale intentionnelle :
+
+- branche `preview/v2-00-final` ;
+- commit de déclenchement tree-identical `ad4f777c33f2830ad36ad7ffbc64e5fbb2dca199` ;
+- deployment `dpl_7jD5bfysK9TFD4gp7yBGzywXxDJK` ;
+- état `READY` ;
+- HTTP 200.
+
+Production après merge :
+
+- deployment `dpl_4bdLiTtZAxwkSpCoYBzgYyNtkLPP` ;
+- SHA applicatif `cec15e6ce33421c1aed5476dafb057628b1368f1` ;
+- état `READY` ;
+- alias public `caillou-sigma.vercel.app` : HTTP 200 ;
+- headers de sécurité conservés ;
+- aucun runtime error détecté dans la fenêtre de contrôle.
+
+Supabase après merge : `ACTIVE_HEALTHY`.
+
 Dette reportée : **refactor profond de `ShowroomScene` et amélioration Placement dans V2-01**.
 
-État avant merge : Socle refactoré, lots A/B/C verts, contrats V2 et migration documentés. La clôture finale doit encore enregistrer le SHA final de PR, le résultat des deux workflows sur ce SHA, l'éventuelle Preview finale utile, le SHA de merge et l'état production post-merge.
+## 14. Sortie
+
+V2-00 est **terminée**. Le Socle V1 conserve son comportement tout en disposant d'une architecture React explicite et extensible. Les contrats V2 futurs sont figés sans schéma spéculatif et la migration sera matérialisée progressivement dans les étapes fonctionnelles concernées.
+
+La prochaine étape autorisée est **V2-01 — Placement 2.0**. Son cahier des charges autonome doit être cadré avant toute implémentation.
