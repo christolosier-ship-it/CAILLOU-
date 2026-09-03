@@ -23,6 +23,7 @@ interface AccessoryShopProps {
   permitError: string | null
   permitRetrying?: boolean
   highlightPermit?: boolean
+  interactionDisabled?: boolean
   onPermitPurchase: () => Promise<boolean>
   loadShop?: () => Promise<AccessoryShopSnapshot>
   purchaseMutation?: PurchaseAccessoryMutation
@@ -57,6 +58,7 @@ export function AccessoryShop({
   permitError,
   permitRetrying = false,
   highlightPermit = false,
+  interactionDisabled = false,
   onPermitPurchase,
   loadShop = loadAccessoryShop,
   purchaseMutation = purchaseAccessory,
@@ -69,6 +71,7 @@ export function AccessoryShop({
   const [purchaseFeedback, setPurchaseFeedback] = useState<string | null>(null)
   const [retryInput, setRetryInput] = useState<PurchaseAccessoryInput | null>(null)
   const busy = pendingId !== null || permitPending
+  const mutationBlocked = busy || interactionDisabled
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -96,7 +99,7 @@ export function AccessoryShop({
   }, [busy, onClose])
 
   const submitPurchase = useCallback(async (input: PurchaseAccessoryInput) => {
-    if (busy) return
+    if (mutationBlocked) return
     setPendingId(input.accessoryId)
     setPurchaseError(null)
     setPurchaseFeedback(null)
@@ -121,10 +124,10 @@ export function AccessoryShop({
     } finally {
       setPendingId(null)
     }
-  }, [busy, onBalanceChanged, onPurchased, purchaseMutation, refresh])
+  }, [mutationBlocked, onBalanceChanged, onPurchased, purchaseMutation, refresh])
 
   const submitPermitPurchase = useCallback(async () => {
-    if (busy || permitLoading || !permit || permit.unlockedAt) return
+    if (mutationBlocked || permitLoading || !permit || permit.unlockedAt) return
     setPurchaseError(null)
     setPurchaseFeedback(null)
     const success = await onPermitPurchase()
@@ -132,7 +135,7 @@ export function AccessoryShop({
       setPurchaseFeedback('Permis de manutention minérale délivré. Le caillou est désormais disponible dans Placement.')
       navigator.vibrate?.(16)
     }
-  }, [busy, onPermitPurchase, permit, permitLoading])
+  }, [mutationBlocked, onPermitPurchase, permit, permitLoading])
 
   const permitOwned = permit?.unlockedAt != null
   const permitAffordable = permit ? balance >= permit.priceLithons : false
@@ -192,7 +195,7 @@ export function AccessoryShop({
                 type="button"
                 className={permitOwned ? 'accessory-buy is-secondary' : 'accessory-buy'}
                 autoFocus={highlightPermit && !permitOwned}
-                disabled={busy || permitLoading || !permit || permitOwned || !permitAffordable}
+                disabled={mutationBlocked || permitLoading || !permit || permitOwned || !permitAffordable}
                 onClick={() => void submitPermitPurchase()}
               >
                 {permitLoading
@@ -235,7 +238,7 @@ export function AccessoryShop({
                   balance,
                   priceLithons: item.priceLithons,
                   purchasedAt: item.purchasedAt,
-                  pending: busy,
+                  pending: mutationBlocked,
                 })
 
                 return (
@@ -281,7 +284,7 @@ export function AccessoryShop({
           <div className="accessory-shop-error" role="alert">
             <span>{purchaseError}</span>
             {retryInput ? (
-              <button type="button" disabled={busy} onClick={() => void submitPurchase(retryInput)}>
+              <button type="button" disabled={mutationBlocked} onClick={() => void submitPurchase(retryInput)}>
                 Renvoyer la même opération
               </button>
             ) : null}
