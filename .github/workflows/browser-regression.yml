@@ -1,0 +1,125 @@
+name: Browser regression
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/assets/**'
+      - 'scripts/web/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - '.github/workflows/browser-regression.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: V1 browser regression suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies once
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Install Chrome validation driver once
+        run: npm install --legacy-peer-deps --no-save --package-lock=false --no-audit --no-fund puppeteer-core@24.16.0
+
+      - name: Build frontend once
+        run: npm run build
+
+      - name: Run browser regression scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          google-chrome --version
+
+          run_vite() {
+            name="$1"
+            port="$2"
+            validator="$3"
+            log="/tmp/caillou-${name}-vite.log"
+
+            echo "::group::${name}"
+            npm exec -- vite --host 127.0.0.1 --port "$port" > "$log" 2>&1 &
+            server_pid=$!
+            sleep 3
+
+            status=0
+            node "$validator" || status=$?
+
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+
+            if [ "$status" -ne 0 ]; then
+              echo "Validator ${name} failed. Vite log follows:" >&2
+              cat "$log" >&2 || true
+              echo "::endgroup::"
+              return "$status"
+            fi
+
+            echo "::endgroup::"
+          }
+
+          run_http() {
+            name="$1"
+            port="$2"
+            validator="$3"
+            log="/tmp/caillou-${name}-http.log"
+
+            echo "::group::${name}"
+            python3 -m http.server "$port" > "$log" 2>&1 &
+            server_pid=$!
+            sleep 2
+
+            status=0
+            node "$validator" || status=$?
+
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+
+            if [ "$status" -ne 0 ]; then
+              echo "Validator ${name} failed. HTTP log follows:" >&2
+              cat "$log" >&2 || true
+              echo "::endgroup::"
+              return "$status"
+            fi
+
+            echo "::endgroup::"
+          }
+
+          run_http showroom-memory 4173 scripts/web/validate-showroom-memory.mjs
+          run_vite showroom-ui 4174 scripts/web/validate-showroom-ui.mjs
+          run_vite adoption 4175 scripts/web/validate-adoption-e2e.mjs
+          run_vite caress 4176 scripts/web/validate-caress-e2e.mjs
+          run_vite cleaning 4177 scripts/web/validate-cleaning-e2e.mjs
+          run_vite accessory-placement 4178 scripts/web/validate-accessory-placement-e2e.mjs
+          run_vite accessory-physics 4178 scripts/web/validate-accessory-physics-e2e.mjs
+          run_vite rock-movement 4179 scripts/web/validate-rock-movement-e2e.mjs
+          run_vite placement-unified 4181 scripts/web/validate-placement-unified-e2e.mjs
+          run_vite bio-discard 4175 scripts/web/validate-step11-e2e.mjs
+
+      - name: Upload browser diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: caillou-browser-regression-${{ github.run_id }}
+          path: build/
+          if-no-files-found: warn
+          retention-days: 14
