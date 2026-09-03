@@ -25,8 +25,9 @@ describe('auth rules', () => {
     expect(validatePassword('un-mot-de-passe-long')).toBeNull()
   })
 
-  it('routes authenticated users according to active rock ownership', () => {
-    expect(resolveAuthenticatedDestination(false)).toBe('showroom')
-    expect(resolveAuthenticatedDestination(true)).toBe('socle')
+  it('routes never-adopted, discarded and active accounts distinctly', () => {
+    expect(resolveAuthenticatedDestination(false, false)).toBe('showroom')
+    expect(resolveAuthenticatedDestination(false, true)).toBe('empty')
+    expect(resolveAuthenticatedDestination(true, true)).toBe('socle')
   })
 })

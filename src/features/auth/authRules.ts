@@ -5,6 +5,8 @@ export const PASSWORD_MAX_LENGTH = 128
 
 const USERNAME_PATTERN = /^[\p{L}\p{N}](?:[\p{L}\p{N} ._-]*[\p{L}\p{N}])?$/u
 
+export type AuthenticatedDestination = 'showroom' | 'empty' | 'socle'
+
 export function normalizeUsername(raw: string) {
   const display = raw.trim().replace(/\s+/gu, ' ')
   return {
@@ -35,6 +37,10 @@ export function validatePassword(password: string) {
   return null
 }
 
-export function resolveAuthenticatedDestination(hasActiveRock: boolean) {
-  return hasActiveRock ? 'socle' : 'showroom'
+export function resolveAuthenticatedDestination(
+  hasActiveRock: boolean,
+  hasRockHistory: boolean,
+): AuthenticatedDestination {
+  if (hasActiveRock) return 'socle'
+  return hasRockHistory ? 'empty' : 'showroom'
 }
