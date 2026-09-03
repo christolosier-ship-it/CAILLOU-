@@ -76,17 +76,19 @@ PR dédiée. Compléter compte rendu + index. Toute statistique non fiable doit 
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : Implémentée sur PR #32 — validation finale et merge bloqués par l'allocation des runners GitHub Actions**
 
-- Date :
-- PR / commit :
-- Bio/Stats :
-- Accessoires possédés/équipés :
-- Déblocages permanents :
-- Mutation Jeter :
-- Règle instances du caillou jeté :
-- État vide :
-- Non-régression 10.75 :
-- Tests :
-- Dette :
-- Étape suivante recommandée : 12
+- Date : 2026-09-03.
+- PR / commit : PR #32 `feat: Bio, Stats et Jeter — étape 11`; candidat runtime `9ba2b41f762309c366a76b78686a7949af92dfe6`.
+- Bio/Stats : lecture des sources Supabase fiables `wallets`, `rock_progress`, `user_accessories`, `equipped_accessories` et `user_feature_unlocks`; `observation_seconds` volontairement absent tant qu'il n'est pas alimenté de manière autoritaire.
+- Accessoires possédés/équipés : propriété au compte et instances placées comptées séparément.
+- Déblocages permanents : lus indépendamment et Permis de manutention minérale affiché sans nouveau parcours d'achat.
+- Mutation Jeter : réutilisation de `discard_active_rock`; confirmation explicite, disparition visuelle immédiate et retry idempotent avec le même `event_key` lorsque la réponse réseau est incertaine.
+- Règle instances du caillou jeté : déséquipement logique des `equipped_accessories`; les propriétés `user_accessories`, le portefeuille, les déblocages et `rock_progress` sont conservés.
+- État vide : écran sobre post-discard avec CTA `Adopter un nouveau caillou`; le routing distingue jamais adopté, historique sans caillou actif et caillou actif.
+- Non-régression 10.75 : l'intégration est isolée dans `Step11Pedestal`; `Pedestal.tsx`, PlacementSession, Boutique et Rapier ne sont pas refactorés par cette étape.
+- Tests Supabase : transaction réelle avec `ROLLBACK`; deux appels avec le même `event_key` ont retourné le même `discarded_at`; après discard transactionnel l'instance équipée était retirée, tandis que solde, quatre acquisitions, déblocage et progression restaient inchangés; rollback confirmé.
+- Validation Vercel : premier build diagnostique en erreur sur le typage de `user_feature_unlocks`, correction appliquée; Preview du SHA runtime `9ba2b41f762309c366a76b78686a7949af92dfe6` `READY`, `tsc -b && vite build` réussi, aucune runtime error observée.
+- Blocage CI : GitHub Actions échoue avant toute étape, y compris après relance manuelle; payload du CI général : `steps: []`, `runner_id: 0`, `runner_name: ""`, label `ubuntu-latest`. Ce défaut d'infrastructure empêche volontairement le passage de la PR hors draft et le merge.
+- Dette : relancer les workflows officiels lorsque GitHub alloue de nouveau un runner; ne merger qu'après contrôles essentiels verts, puis valider le déploiement production sur le SHA de merge.
+- Étape suivante recommandée : 12, uniquement après clôture effective de la PR #32.
