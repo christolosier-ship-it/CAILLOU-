@@ -10,8 +10,8 @@ import type { RegisterCleaningMutation } from '../cleaning/cleaningTypes'
 import type { DiscardRockMutation } from '../discard/discardTypes'
 import type { AuthenticatedDestination } from './authRules'
 
-const LazyStep11Pedestal = lazy(() => import('../pedestal/Step11Pedestal').then((module) => ({
-  default: module.Step11Pedestal,
+const LazyPedestalScreen = lazy(() => import('../pedestal/PedestalScreen').then((module) => ({
+  default: module.PedestalScreen,
 })))
 const LazyShowroom = lazy(() => import('../showroom/Showroom').then((module) => ({
   default: module.Showroom,
@@ -80,7 +80,7 @@ export function AuthenticatedHome({
 
     return (
       <Suspense fallback={<SceneFallback />}>
-        <LazyStep11Pedestal
+        <LazyPedestalScreen
           activeRock={activeRock}
           economy={economy}
           username={username}
