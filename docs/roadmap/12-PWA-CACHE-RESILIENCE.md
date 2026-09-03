@@ -72,16 +72,20 @@ PR dédiée. Compléter compte rendu + index avec la matrice de tests réseau/ap
 
 ## État / compte rendu
 
-**Statut : À faire**
+**Statut : Terminée**
 
-- Date :
-- PR / commit :
-- Stratégie cache :
-- Cache GLB accessoires :
-- Offline/degraded :
-- Reprise Boutique/déblocages :
-- Reprise Placement/composition :
-- Tests reconnexion :
-- Tests installation :
-- Dette :
-- Étape suivante recommandée : 13
+- Date : 3 septembre 2026.
+- PR / commit : PR #33 ; candidat fonctionnel final `7d39483bb6a9d6cbd1b96de521d5f842ff5615c0` ; branche de validation Vercel `preview/12-final`, commit technique sans changement fonctionnel `6a8333cee630d45148e2dea5ae7bd7cff297e5d7`.
+- Stratégie cache : le service worker ne précache plus l'ensemble des bundles/ressources lourdes. Le précache est limité au shell d'entrée et aux ressources légères nécessaires ; les chunks 3D/physique, modèles GLB et previews passent par des caches runtime versionnés et bornés avec nettoyage des anciennes générations. Le build Vercel final mesure 6 entrées de précache pour `443,69 KiB`, contre environ `1,44 MiB` avant le dernier découpage lazy.
+- Cache GLB accessoires : le caillou actif et les assets des accessoires équipés sont réchauffés à la demande ; les modèles ne sont jamais aspirés en masse au premier démarrage. Le cache GLB runtime est limité à 12 entrées, ce qui couvre le caillou actif et la composition V1 sans transformer le navigateur en dépôt d'archives.
+- Offline/degraded : le dernier snapshot serveur connu est persisté en IndexedDB avec repli localStorage. En cas d'indisponibilité Supabase, le Socle peut restaurer le caillou actif, sa pose stabilisée, l'économie connue et les accessoires équipés avec leurs transforms, en affichant explicitement qu'il s'agit du dernier état connu. Les parcours qui exigent une nouvelle vérité serveur restent bloqués.
+- Reprise Boutique/déblocages : achats, déblocages et solde ne sont jamais simulés localement. Après reconnexion, l'état canonique Boutique/portefeuille/déblocages est relu depuis Supabase. Les opérations sensibles existantes conservent leur `event_key` et reposent sur les reçus d'idempotence serveur.
+- Reprise Placement/composition : création, retrait et stabilisation d'accessoires conservent désormais `event_key` + payload dans une file persistante lorsqu'une réponse réseau devient ambiguë. La reconnexion rejoue exactement la même intention serveur puis relit l'état canonique, sans créer une seconde instance et sans relancer Rapier si l'état serveur est déjà stabilisé. `stabilize_rock_composition` reste l'unique persistance atomique de la composition globale et n'est jamais découpé en succès partiels.
+- Mise à jour PWA : la mise à jour n'est plus appliquée silencieusement au milieu d'une session. Une nouvelle version est signalée et l'utilisateur peut déclencher explicitement son activation/rechargement.
+- Tests reconnexion / cache : `src/pwa/cachePolicy.test.ts` couvre les politiques de cache ; les tests de contrats placement/accessoires valident l'idempotence et les erreurs retryables ; la CI finale a exécuté 24 fichiers / 83 tests unitaires avec succès. Les 9 workflows GitHub officiels sont verts sur le candidat fonctionnel, dont adoption, caresse/Lithons, nettoyage, Placement multi-accessoires, Boutique/Placement, physique/stabilisation, mouvement global et Bio/Jeter.
+- Tests réseau/appareils : les workflows Chrome téléphone/tablette de non-régression ont réellement exécuté leurs scénarios et sont verts. La coupure/reprise est couverte au niveau des contrats de cache, file de mutations persistantes et réconciliation serveur ; aucune réussite locale autoritaire n'est créée en offline.
+- Tests installation : la Preview Vercel `dpl_5G7DezKX9pFFckGr7h2Peg1oif5f` est `READY`. Son `manifest.webmanifest` répond en HTTP 200 avec `display: standalone`, `start_url`, `scope`, identité et icônes 192/512 ; le build génère bien `dist/sw.js`. L'installation physique sur appareils iOS/Android réels n'a pas été simulée artificiellement dans la CI et reste un smoke test matériel de release à refaire en étape 13.
+- Supabase : aucune migration nécessaire. Le projet `CAILLOU-` reste `ACTIVE_HEALTHY`. `private.mutation_receipts` possède la clé primaire `(user_id, event_key)` et autorise les opérations concernées, notamment `create_equipped_accessory`, `remove_equipped_accessory`, `stabilize_equipped_accessory`, `purchase_feature_unlock` et `stabilize_rock_composition`.
+- Vercel : une seule Preview volontaire a été consommée pour le candidat final de l'étape 12, `dpl_5G7DezKX9pFFckGr7h2Peg1oif5f`, `READY`.
+- Dette : le gros chunk 3D reste volontairement conséquent, mais il est désormais hors précache et chargé seulement lorsqu'une scène 3D le demande. Les avertissements Supabase préexistants sur la protection des mots de passe compromis et quelques index encore inutilisés restent hors périmètre. Le smoke test d'installation sur matériel iOS/Android/desktop est à refaire dans la QA finale.
+- Étape suivante recommandée : 13 — QA, sécurité, performance et release V1.
