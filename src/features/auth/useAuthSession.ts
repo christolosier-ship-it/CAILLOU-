@@ -8,6 +8,7 @@ import type { ActiveRock } from '../adoption/adoptionTypes'
 import type { RockEconomySnapshot } from '../caress/caressTypes'
 import { parseRockPosition, parseRockRotation } from '../rockMovement/rockMovementRules'
 import { resolveAuthenticatedDestination } from './authRules'
+import type { AuthenticatedDestination } from './authRules'
 
 const USERNAME_CACHE = 'caillou.auth.username'
 const SESSION_SEEN = 'caillou.auth.session-seen'
@@ -39,7 +40,7 @@ export type AuthSessionState =
   | {
     status: 'authenticated'
     username: string
-    destination: 'showroom' | 'socle'
+    destination: AuthenticatedDestination
     activeRock: ActiveRock | null
     economy: RockEconomySnapshot | null
   }
@@ -56,6 +57,7 @@ export function useAuthSession() {
         { data: profile, error: profileError },
         { data: rock, error: rockError },
         { data: wallet, error: walletError },
+        { data: rockHistory, error: rockHistoryError },
       ] = await Promise.all([
         supabase.from('profiles').select('username').eq('id', session.user.id).single(),
         rawFrom<CanonicalRockRow>('user_rocks')
@@ -68,10 +70,11 @@ export function useAuthSession() {
           .select('balance')
           .eq('user_id', session.user.id)
           .single(),
+        supabase.from('user_rocks').select('id').eq('user_id', session.user.id).limit(1),
       ])
 
-      if (profileError || !profile || rockError || walletError || !wallet) {
-        throw profileError ?? rockError ?? walletError ?? new Error('Canonical session state missing')
+      if (profileError || !profile || rockError || walletError || !wallet || rockHistoryError) {
+        throw profileError ?? rockError ?? walletError ?? rockHistoryError ?? new Error('Canonical session state missing')
       }
 
       const activeRock: ActiveRock | null = rock ? {
@@ -108,7 +111,7 @@ export function useAuthSession() {
       setState({
         status: 'authenticated',
         username: profile.username,
-        destination: resolveAuthenticatedDestination(activeRock !== null),
+        destination: resolveAuthenticatedDestination(activeRock !== null, (rockHistory?.length ?? 0) > 0),
         activeRock,
         economy,
       })

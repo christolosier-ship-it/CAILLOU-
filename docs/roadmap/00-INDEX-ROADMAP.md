@@ -46,7 +46,7 @@ En cas de contradiction, l'étape en cours doit signaler l'écart et mettre à j
 | 10D | Physique, collisions, gravité et persistance | Terminée - PR #23, Rapier + collisions + stabilisation persistante + téléphone/tablette validés | 06, 10C |
 | **10.5** | **UX tactile, sol physique et manutention du caillou** | **Terminée - PR #25 fusionnée, production Vercel validée** | **08, 10C, 10D** |
 | **10.75** | **Boutique unifiée et manipulation universelle** | **Terminée - PR #27, 9/9 CI + Preview Vercel validés** | **10B, 10C, 10D, 10.5** |
-| 11 | Bio, statistiques et action Jeter | À faire | 03, 07, 08, 09, 10B, **10.75** |
+| 11 | Bio, statistiques et action Jeter | Terminée - PR #32, 8/8 GitHub + Supabase + Preview Vercel validés | 03, 07, 08, 09, 10B, **10.75** |
 | 12 | PWA, cache, reprise réseau et résilience | À faire | 06 à 11, y compris 10A-10D, **10.5** et **10.75** |
 | 13 | QA, sécurité, performance et release V1 | À faire | 01 à 12, y compris 10A-10D, **10.5** et **10.75** |
 
@@ -120,7 +120,55 @@ Décisions livrées :
 - une seule Preview volontaire a été utilisée : `dpl_4cHqGZvPAcYuCRSQorLDDJJWCiPP`, état `READY` ;
 - l'étape 11 n'a pas été commencée pendant l'exécution de 10.75.
 
-**La prochaine étape à exécuter est donc 11.**
+## Consolidation post-10.75 — Socle, PlacementSession et drafts multi-cibles
+
+Deux corrections transversales ont été exécutées avant l'étape 11. Elles ne créent pas de nouvelles étapes de roadmap : elles consolident l'architecture déjà ciblée par 10.75.
+
+### PR #30 — harmonisation du Socle et du Placement
+
+- merge : `659d055f77f665c161f5be4b2e219f7c47dc6cc4` ;
+- unification du Socle visuel/physique, des contraintes et du contrôleur de Placement ;
+- suppression des chemins legacy devenus concurrents ;
+- maintien du contrat 10.75 : Boutique = acquérir, Placement = manipuler, Rapier = arbitrer après validation.
+
+### PR #31 — PlacementSession réellement multi-cibles
+
+- merge : `d9372f4b7af8ceaa8a67dc35476cbf1398206465` ;
+- `PlacementSession` devient la source de vérité de la composition pendant toute l'édition ;
+- le caillou et chaque instance accessoire conservent un draft monde indépendant ;
+- déplacer le caillou ne déplace plus les accessoires pendant l'édition ;
+- changer de cible ne restaure plus la pose persistée et ne détruit aucun draft ;
+- aucune RPC Supabase n'est exécutée lors d'un simple changement de cible ;
+- `Terminer` valide la session entière : settlement global si le caillou est dirty, settlement limité aux accessoires dirty sinon, aucune écriture si rien n'a changé ;
+- les accessoires démarrent le settlement depuis leurs transforms monde de session ;
+- aucune migration Supabase n'a été nécessaire.
+
+Validation de clôture : neuf workflows officiels verts sur le candidat de #31, CI post-merge `main` verte, production Vercel `READY` sur le SHA exact `d9372f4b7af8ceaa8a67dc35476cbf1398206465`, sans runtime error observée au contrôle de clôture.
+
+**L'étape 11 démarre donc sur cette architecture consolidée.**
+
+## Étape 11 - Bio, statistiques et action Jeter terminée
+
+Document autonome :
+
+`docs/roadmap/11-BIO-STATS-JETER.md`
+
+Décisions livrées :
+
+- Bio/Stats repose uniquement sur les sources Supabase fiables ; `observation_seconds` n'est pas affiché tant qu'il n'existe pas de mesure serveur autoritaire ;
+- propriété des accessoires, instances placées et déblocages permanents sont comptés séparément ;
+- le Permis de manutention minérale est affiché comme déblocage existant, sans nouveau parcours d'achat ;
+- `Jeter` réutilise le RPC idempotent `discard_active_rock` et fait disparaître immédiatement le caillou après confirmation ;
+- les instances équipées sont déséquipées logiquement lors du discard, tandis que portefeuille, acquisitions, déblocages permanents et progression restent au compte ;
+- l'état post-discard est persistant et propose l'adoption d'un nouveau caillou ;
+- `Step11Pedestal` isole Bio/Jeter du moteur de Placement et bloque ces actions pendant les modes exclusifs ;
+- aucune migration Supabase supplémentaire n'a été nécessaire ;
+- le candidat fonctionnel final `d8f409c1080f037e62fc29b023a8280227b8c95e` a obtenu 8/8 workflows GitHub verts ;
+- le runtime validé reste celui de `9ba2b41f762309c366a76b78686a7949af92dfe6`, Preview Vercel `dpl_E2u2mvADfUHJrJ5rN7LRaRGqDV71` `READY`, les commits suivants ne modifiant que documentation et QA ;
+- le test transactionnel Supabase de discard/replay a été exécuté avec `ROLLBACK` et a confirmé la conservation des données de compte ;
+- l'incident d'allocation GitHub Actions a été levé après passage du dépôt en public, puis la matrice officielle a réellement exécuté ses étapes et terminé entièrement au vert.
+
+**L'étape suivante est 12 — PWA, cache, reprise réseau et résilience.**
 
 ## Frontières importantes
 
@@ -135,7 +183,7 @@ Décisions livrées :
 - La physique est exécutée côté client ; Supabase persiste l'état stabilisé mais ne simule pas la physique.
 - Une pose stabilisée est restaurée directement au reload ; une pose intermédiaire non stabilisée ne doit jamais être présentée comme confirmée.
 - Pendant toute manipulation tactile explicite, la cible reste contrôlée cinématiquement ; Rapier reprend l'autorité après validation.
-- À partir de 10.75, les intersections entre objets sont un choix utilisateur autorisé pendant Placement. Aucune règle d'anti-pénétration ne doit empêcher le placement fin.
+- À partir de #31, toute la composition est capturée en monde à l'ouverture de Placement et chaque cible garde son draft monde indépendant jusqu'à `Terminer`.
 - Le grand carré gris du Socle est la seule frontière spatiale infranchissable pendant Placement.
 - Les achats sont centralisés dans la Boutique ; le placement et la création d'instances possédées sont centralisés dans Placement.
 - Le caillou n'a aucun besoin vital et l'absence n'est jamais punie.

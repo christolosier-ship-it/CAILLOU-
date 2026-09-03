@@ -1,6 +1,6 @@
 # CAILLOU™ - Cahier des charges produit V1
 
-> **Statut : document de référence V1, aligné après 10.5 et sur la cible 10.75**  
+> **Statut : document de référence V1 courant, aligné après 10.75, PR #30 et PlacementSession PR #31**  
 > **Produit : CAILLOU™**  
 > **Nature : compagnon minéral numérique persistant, contemplatif et absurdement sérieux**  
 > **Principe directeur : faire très peu de choses, mais les faire avec un niveau de finition disproportionné.**
@@ -166,7 +166,7 @@ La V1 n'impose pas de flux email puisqu'aucune adresse email n'est demandée. La
 
 ### 5.4 Après authentification
 
-- compte sans caillou actif : ouverture du showroom d'adoption ;
+- compte sans caillou actif et sans historique : ouverture du showroom d'adoption ;
 - compte avec caillou actif : ouverture directe du Socle ;
 - compte dont le dernier caillou a été jeté : état vide avec proposition d'adopter un nouveau spécimen.
 
@@ -430,17 +430,28 @@ Ni le caillou ni un accessoire ne doivent pouvoir être déplacés à travers ou
 
 La contrainte est appliquée pendant le geste en tenant compte de l'enveloppe de la cible, et pas uniquement après coup par une collision Rapier.
 
-### 13.5 Validation et physique
+### 13.5 Session multi-cibles, validation et physique
 
-Au clic sur **Terminer** :
+À l'ouverture de Placement, la composition est capturée en coordonnées monde dans un `PlacementSession`. Les accessoires persistés localement sont convertis local → monde une seule fois.
 
-- Rapier reprend l'autorité ;
-- gravité et collisions normales redeviennent actives ;
-- une intersection créée volontairement peut provoquer glissement, rotation ou éjection rapide ;
-- cet effet physique est acceptable et ne doit pas être remplacé par une correction artificielle de placement ;
-- le résultat stabilisé est persisté côté Supabase.
+Pendant toute la session :
 
-Pour un accessoire seul, la pose finale reste exprimée dans le repère local du caillou. Pour la manutention du caillou, caillou et accessoires sont stabilisés ensemble et la composition est persistée atomiquement.
+- chaque cible conserve son propre draft monde ;
+- déplacer le caillou ne déplace pas les accessoires ;
+- déplacer un accessoire ne modifie pas les autres objets ;
+- changer de cible ne restaure jamais la pose persistée ;
+- revenir sur une cible reprend exactement son dernier draft ;
+- aucun mouvement ni changement de cible ne produit une écriture Supabase.
+
+Au clic sur **Terminer**, c'est la session entière qui est validée :
+
+- si le caillou a été modifié, Rapier stabilise globalement caillou + accessoires depuis leurs transforms monde de session, puis la composition est persistée atomiquement ;
+- si seuls des accessoires ont été modifiés, le caillou et les accessoires non modifiés restent fixes, seuls les accessoires dirty sont stabilisés puis persistés ;
+- si rien n'a été modifié, Placement se ferme sans écriture serveur ;
+- gravité et collisions normales redeviennent actives uniquement pendant le settlement ;
+- une intersection créée volontairement peut provoquer glissement, rotation ou éjection rapide.
+
+La pose finale d'un accessoire est convertie monde → local uniquement à la frontière de persistance.
 
 ---
 
@@ -450,15 +461,16 @@ Le bouton **Jeter** permet de se séparer du caillou actif après confirmation e
 
 Après confirmation :
 
-- disparition immédiate ;
+- disparition immédiate du rendu ;
 - aucune animation de lancer ;
-- `discarded_at` enregistré ;
+- `discarded_at` enregistré via l'opération serveur idempotente `discard_active_rock` ;
 - aucun caillou actif ;
 - portefeuille conservé ;
 - accessoires possédés conservés ;
 - déblocages permanents conservés ;
-- historique conservé ;
-- règle explicite pour les anciennes instances du caillou afin d'éviter tout orphelin métier.
+- caillou, progression et ledger conservés comme historique ;
+- les instances `equipped_accessories` du caillou jeté sont déséquipées logiquement et retirées de la composition active ;
+- cette suppression d'instances ne retire jamais la propriété `user_accessories` correspondante du compte.
 
 Puis état vide : **Aucun caillou actuellement sous votre responsabilité.** et CTA **Adopter un nouveau caillou**.
 
@@ -476,15 +488,19 @@ Informations minimales selon disponibilité :
 - ancienneté ;
 - caresses ;
 - nettoyages ;
-- Lithons générés ;
+- Lithons générés par ce caillou ;
 - solde actuel ;
-- accessoires possédés ;
+- total de Lithons gagnés et dépensés au compte ;
+- types d'accessoires possédés ;
 - instances actuellement placées ;
+- nombre de déblocages permanents ;
 - Permis de manutention minérale acquis ou non ;
-- temps d'observation s'il est réellement fiable ;
-- statistiques éditoriales telles que déplacement spontané `0 m`.
+- temps d'observation uniquement s'il devient réellement instrumenté et fiable ;
+- indicateurs éditoriaux absurdes clairement séparés des mesures métier.
 
-Une donnée fantaisiste ne doit jamais être présentée comme une mesure scientifique réelle.
+À l'état actuel du backend, `observation_seconds` n'est alimenté par aucune mutation autoritaire : il est donc volontairement omis de l'interface.
+
+Une donnée fantaisiste ne doit jamais être présentée comme une mesure scientifique réelle. Les indicateurs éditoriaux portent une mention explicite **non scientifiques**.
 
 ---
 
@@ -531,7 +547,7 @@ Interdits : streak quotidien, énergie, faim, bonheur, dette d'entretien, expira
 - caresses ;
 - nettoyages ;
 - interactions ;
-- temps d'observation si retenu ;
+- temps d'observation uniquement si une instrumentation autoritaire est ajoutée ;
 - Lithons générés ;
 - compteurs Bio utiles.
 
@@ -568,7 +584,7 @@ Interdits : streak quotidien, énergie, faim, bonheur, dette d'entretien, expira
 
 L'application doit être installable lorsque la plateforme le permet, mettre en cache le shell et les ressources essentielles, charger les modèles 3D à la demande et conserver un cache local non autoritaire pour une reprise rapide.
 
-Les mutations économiques et les stabilisations physiques ne doivent jamais être déclarées réussies localement sans confirmation serveur. L'étape 12 formalise la réconciliation offline/reconnexion.
+Les mutations économiques, les stabilisations physiques et Jeter ne doivent jamais être déclarés confirmés localement sans confirmation serveur. L'étape 12 formalise la réconciliation offline/reconnexion.
 
 ---
 

@@ -1,6 +1,6 @@
 # CAILLOU™ - Design system et direction artistique V1
 
-> **Statut : référence visuelle V1, alignée après 10.5 et sur la cible 10.75**  
+> **Statut : référence visuelle V1 courante, alignée après 10.75, PR #30 et PlacementSession PR #31**  
 > **Intention : traiter un simple caillou avec le sérieux d'un objet de collection haut de gamme.**  
 > **Règle d'or : si l'interface devient plus intéressante que le caillou, le design a échoué.**
 
@@ -152,7 +152,7 @@ Le nom devient l'identité principale sans changer physiquement la pierre.
 
 ## 9. Le Socle
 
-### 9.1 Composition cible 10.75
+### 9.1 Composition courante
 
 ```text
 ┌─────────────────────────────┐
@@ -386,6 +386,12 @@ Le caillou ne change jamais d'échelle.
 
 Les réglages X/Y/Z peuvent exister dans un panneau `Réglage fin` replié. Ils restent secondaires, utiles à l'accessibilité clavier et aux placements millimétriques.
 
+### 17.6 Session multi-cibles
+
+Depuis la PR #31, changer de cible ne doit jamais faire « revenir » l'objet à sa pose persistée. Le dernier draft de chaque cible reste visible et éditable jusqu'à `Terminer`.
+
+Déplacer le caillou pendant l'édition ne doit pas entraîner les accessoires. Ceux-ci restent strictement à leurs positions monde de session jusqu'à ce que l'utilisateur les modifie ou que Rapier reprenne l'autorité après validation.
+
 ---
 
 ## 18. Liberté de placement
@@ -439,21 +445,69 @@ Les accessoires peuvent avoir des réactions physiques compatibles avec leur col
 
 ## 20. Bio / Stats
 
-Le dossier institutionnel peut afficher : nom, spécimen, adoption, caresses, nettoyages, Lithons générés, solde, accessoires placés, statut du permis et statistiques absurdes clairement éditoriales.
+La Bio est un **dossier institutionnel**, pas un dashboard de performance.
 
-L'objectif n'est pas l'optimisation statistique, mais la documentation excessivement sérieuse d'une relation avec un caillou.
+Organisation recommandée :
+
+```text
+DOSSIER INSTITUTIONNEL
+BERNARD
+
+Identité
+  Spécimen
+  Adopté le
+  Ancienneté
+  Dernière pose stabilisée
+
+Registre
+  Caresses
+  Nettoyages
+  Lithons générés par ce caillou
+
+Compte
+  Solde
+  Lithons gagnés
+  Lithons dépensés
+
+Composition et autorisations
+  Types d'accessoires possédés
+  Instances placées
+  Déblocages permanents
+  Permis de manutention
+
+Indicateurs éditoriaux — non scientifiques
+  Mobilité spontanée : non constatée
+```
+
+Les catégories **propriété au compte**, **instances placées** et **déblocages permanents** ne doivent jamais être fusionnées sous un compteur ambigu.
+
+Le temps d'observation n'est affiché que lorsqu'une instrumentation autoritaire existe. Une colonne présente dans la base mais non alimentée n'est pas une preuve suffisante.
+
+Les statistiques absurdes portent explicitement la mention **« non scientifiques »**. Chargement, erreur et retry restent contenus dans le dossier sans fermer brutalement la Bio.
 
 ---
 
 ## 21. Jeter
 
-Confirmation sobre :
+`Jeter` reste visuellement discret dans la barre d'actions et ne devient pas rouge en permanence.
+
+Le clic ouvre un `alertdialog` au ton sec :
 
 > **Jeter Bernard ?**
 >
-> Cette opération mettra fin à une relation minérale jusque-là correctement documentée.
+> Cette opération mettra fin à la composition minérale active. Le caillou et son historique resteront archivés. Vos Lithons, acquisitions et autorisations permanentes sont conservés. Les accessoires actuellement placés seront déséquipés.
 
-Après confirmation, le caillou disparaît immédiatement. Pas d'animation de lancer, chute, rebond ou explosion. Cette action métier reste distincte de la physique ludique du Placement.
+Actions : **Annuler** et **Jeter Bernard**.
+
+Après confirmation :
+
+- le caillou disparaît **immédiatement** du rendu ;
+- aucune animation de lancer, chute, rebond ou disparition dramatique ;
+- pendant la confirmation serveur, l'écran indique uniquement la mise à jour du registre ;
+- en cas de réponse réseau incertaine, un retry conserve la même opération idempotente ;
+- après confirmation, l'état vide affiche **« Aucun caillou actuellement sous votre responsabilité. »** et le CTA **« Adopter un nouveau caillou »**.
+
+Bio et Jeter ne peuvent pas s'ouvrir pendant Placement, Caresser, Nettoyer ou un settlement en cours.
 
 ---
 
@@ -544,7 +598,7 @@ Exemple hors ligne :
 
 Les actions économiques sont désactivées ou mises en attente explicitement plutôt que simulées localement.
 
-Une pose locale non confirmée ne doit jamais ressembler à une sauvegarde serveur réussie.
+Une pose locale non confirmée ou un discard non confirmé ne doit jamais ressembler à une confirmation serveur réussie.
 
 ---
 
@@ -559,7 +613,8 @@ Une pose locale non confirmée ne doit jamais ressembler à une sauvegarde serve
 - aucune fonction essentielle exclusivement inaccessible au clavier ;
 - réglage fin disponible comme alternative lorsque la manipulation gestuelle est imprécise ;
 - sélecteur de cible lisible par lecteur d'écran ;
-- états `Acquis`, `Verrouillé`, `En cours` annoncés sémantiquement.
+- états `Acquis`, `Verrouillé`, `En cours` annoncés sémantiquement ;
+- Bio utilise une structure sémantique `dialog` et Jeter un `alertdialog` explicite.
 
 ---
 
@@ -621,7 +676,9 @@ Deuxième monnaie, packs de Lithons, prix barrés, offre limitée, bonus quotidi
 - snapping agressif sur la surface du caillou ;
 - anti-pénétration objet/objet qui empêche un placement volontaire précis ;
 - franchissement du carré gris ;
-- collision Rapier active pendant le geste au point de lutter contre la main.
+- collision Rapier active pendant le geste au point de lutter contre la main ;
+- statistique non instrumentée présentée comme mesure réelle ;
+- couleur rouge permanente ou animation dramatique pour Jeter.
 
 ---
 
@@ -653,6 +710,20 @@ Deuxième monnaie, packs de Lithons, prix barrés, offre limitée, bonus quotidi
 - [ ] Jeter ;
 - [ ] modes exclusifs.
 
+### Bio / Stats
+
+- [ ] sections lisibles et non dashboard ;
+- [ ] propriété, instances et déblocages clairement distingués ;
+- [ ] statistiques éditoriales marquées non scientifiques ;
+- [ ] aucune donnée non instrumentée affichée comme réelle.
+
+### Jeter
+
+- [ ] confirmation explicite ;
+- [ ] aucune couleur destructive permanente ;
+- [ ] disparition immédiate sans animation dramatique ;
+- [ ] état vide sobre avec CTA nouvelle adoption.
+
 ### Boutique
 
 - [ ] accessoires ;
@@ -673,6 +744,8 @@ Deuxième monnaie, packs de Lithons, prix barrés, offre limitée, bonus quotidi
 - [ ] Orientation commune ;
 - [ ] Taille accessoire ;
 - [ ] réglage fin secondaire ;
+- [ ] drafts multi-cibles conservés ;
+- [ ] déplacer le caillou ne déplace pas les accessoires pendant l'édition ;
 - [ ] intersections volontaires non bloquées ;
 - [ ] carré gris infranchissable ;
 - [ ] reprise Rapier à Terminer ;

@@ -2,13 +2,47 @@
 
 > **Nature du document :** plan technique autonome, hors roadmap.
 >
-> **Statut :** validé comme cible d’architecture, non exécuté.
+> **Statut :** exécuté par la PR #30 puis complété par la PR #31 ; architecture en production.
 >
 > **Date d’analyse :** 2 septembre 2026.
 >
-> **État de référence :** `main` après la correction post-10.75, SHA `c8e3c34fd96857f4a608acb0d5b4536dbad5901a`.
+> **État de référence actuel :** `main` après finalisation du PlacementSession, SHA `d9372f4b7af8ceaa8a67dc35476cbf1398206465`.
 >
-> Ce document ne crée pas une nouvelle étape de roadmap et ne démarre pas l’étape 11. Il décrit une correction transversale destinée à assainir le Socle, la manipulation 3D et la persistance avant toute poursuite fonctionnelle.
+> Ce document conserve le plan original comme historique. Le compte rendu ci-dessous décrit son exécution réelle avant l’étape 11.
+
+---
+
+## Compte rendu d'exécution
+
+Le plan a été réalisé en deux temps afin de corriger à la fois l’architecture et les défauts UX révélés après sa première mise en production.
+
+### PR #30 — harmonisation du Socle et du Placement
+
+Merge : `659d055f77f665c161f5be4b2e219f7c47dc6cc4`.
+
+Cette PR a unifié le Socle visuel/physique, les contraintes de Placement, le contrôleur tactile et le cycle editing → settling. Les chemins legacy devenus concurrents ont été supprimés ou absorbés.
+
+### PR #31 — PlacementSession réellement multi-cibles
+
+Merge : `d9372f4b7af8ceaa8a67dc35476cbf1398206465`.
+
+Deux défauts UX subsistaient après #30 : déplacer le caillou entraînait encore les accessoires pendant l’édition, et un changement de cible pouvait restaurer une pose persistée au lieu de conserver le draft courant.
+
+La correction finale a établi le `PlacementSession` comme source de vérité temporaire de toute la composition :
+
+- snapshot monde du caillou et de chaque accessoire à l’ouverture de Placement ;
+- drafts indépendants conservés pendant toute la session ;
+- déplacer le caillou ne modifie plus les drafts accessoires ;
+- déplacer un accessoire ne modifie pas les autres cibles ;
+- changement de cible sans RPC Supabase et sans perte de draft ;
+- settlement global si le caillou est dirty ;
+- settlement limité aux accessoires dirty si le caillou est propre ;
+- aucune écriture si rien n’a été modifié ;
+- conversion monde → local limitée à la frontière de persistance.
+
+Validation de clôture : neuf workflows officiels verts sur le candidat #31, CI `main` post-merge verte, aucune migration Supabase supplémentaire, production Vercel `READY` sur le SHA exact de merge #31, sans runtime error observée lors du contrôle final.
+
+La grille d’acceptation historique ci-dessous est conservée telle qu’elle a servi à guider le chantier. Le code de `main`, les PR #30/#31 et le présent compte rendu constituent l’état exécuté faisant foi.
 
 ---
 
