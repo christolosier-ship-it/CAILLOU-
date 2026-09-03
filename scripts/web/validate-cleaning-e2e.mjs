@@ -60,6 +60,11 @@ try {
   const initialDust = Number(await page.$eval('.pedestal-stage', (element) => element.getAttribute('data-dust-amount') ?? '0'))
   if (initialDust < 0.95) throw new Error(`expected a visibly dusty fixture, got ${initialDust}`)
 
+  const initialHydratedLastCleanedAt = await page.$eval(
+    '#cleaning-e2e-state',
+    (element) => element.getAttribute('data-hydrated-last-cleaned-at') ?? '',
+  )
+
   const cleaningButton = 'button[aria-label="Activer le mode Nettoyer"]'
   await page.waitForSelector(`${cleaningButton}:not([disabled])`)
   await page.click(cleaningButton)
@@ -121,7 +126,7 @@ try {
     lastCleanedAt: element.getAttribute('data-hydrated-last-cleaned-at') ?? '',
   }))
   if (rehydrated.cleaningCount !== '3') throw new Error('canonical reload did not retain cleaning_count')
-  if (!rehydrated.lastCleanedAt || rehydrated.lastCleanedAt === INITIAL_CLEANED_AT) {
+  if (!rehydrated.lastCleanedAt || rehydrated.lastCleanedAt === initialHydratedLastCleanedAt) {
     throw new Error('canonical reload did not retain the new last_cleaned_at')
   }
 
