@@ -1,6 +1,6 @@
 # CAILLOU™ - Architecture technique et stack V1
 
-> **Statut : architecture V1 après 10.5, cible d'exécution 10.75**  
+> **Statut : architecture V1 courante après 10.75, PR #30 et PlacementSession PR #31**  
 > **Objectif : PWA 3D tactile avec compte, progression persistante, économie Lithon, boutique unifiée, manipulation universelle et physique cliente**  
 > **Principe : Supabase protège la vérité métier ; Three.js et Rapier donnent corps au caillou ; l'UI n'expose qu'une grammaire simple.**
 
@@ -313,9 +313,9 @@ purchase_feature_unlock(feature_id, event_key)
 
 Même contrat d'autorité serveur. Le Permis de manutention minérale est permanent et coûte 1000 Lithons.
 
-### Cible 10.75 : Shop UI agrégé, backend spécialisé
+### Boutique actuelle : UI agrégée, backend spécialisé
 
-La Boutique frontend doit pouvoir charger et présenter `accessories` et `feature_catalog` dans une seule fenêtre, sans fusion de schéma.
+La Boutique frontend charge et présente `accessories` et `feature_catalog` dans une seule fenêtre, sans fusion de schéma.
 
 Le type de produit détermine le RPC appelé. L'UI partage présentation, solde, état acheté et gestion d'erreur, mais conserve les contrats backend spécialisés.
 
@@ -385,74 +385,30 @@ Contrat : pose du caillou + toutes les instances attendues persistées atomiquem
 
 ---
 
-## 10. Cible 10.75 : moteur de manipulation universel
+## 10. Moteur de Placement actuel : contrôleur universel + PlacementSession
 
-### 10.1 Motivation
+Le caillou et les accessoires utilisent la même grammaire de manipulation et le même cycle editing → settling. La cible ne change que ses capabilities, notamment la Taille disponible uniquement pour les accessoires.
 
-Le contrôleur de manutention du caillou est retenu comme référence ergonomique. La logique tactile des accessoires doit converger vers la même abstraction.
-
-### 10.2 Modèle cible
-
-Conceptuellement :
+Depuis la PR #31, une session de Placement conserve **toute la composition en coordonnées monde** :
 
 ```text
-ManipulationController
-  targetId
-  targetKind: rock | accessory
-  capabilities:
-    position: true
-    rotation: true
-    scale: boolean
+PlacementSessionState
+  rock: PlacementTransform
+  accessories: Record<instanceId, PlacementTransform>
+  dirtyRock: boolean
+  dirtyAccessoryIds: string[]
 ```
 
-Le contrôleur agit sur une cible sélectionnée et utilise le canvas entier comme surface de geste.
+À l'ouverture de Placement, la pose monde du caillou est capturée et chaque accessoire persistant est converti local → monde une seule fois. Pendant l'édition :
 
-### 10.3 Gestes
+- déplacer le caillou modifie uniquement `session.rock` ;
+- déplacer un accessoire modifie uniquement son draft ;
+- changer de cible ne détruit aucun draft ;
+- aucune RPC Supabase n'est déclenchée par un mouvement ou un changement de cible ;
+- le Socle gris reste l'unique frontière dure ;
+- les intersections objet/objet restent autorisées.
 
-**Position** : 1 doigt = plan de vue, 2 doigts = profondeur.
-
-**Orientation** : 1 doigt = orientation libre par axes caméra, twist = rotation autour de l'axe de vue.
-
-**Taille** : pinch uniquement pour les accessoires, borné par le catalogue.
-
-### 10.4 Sélection
-
-Le bouton Placement ouvre un sélecteur contenant :
-
-- caillou ;
-- instances accessoires existantes ;
-- création d'une nouvelle instance depuis les types possédés.
-
-Le caillou sans `rock_movement` reste listé mais verrouillé. L'action commerciale mène vers le Permis dans la Boutique.
-
-### 10.5 Liberté de collision pendant le geste
-
-Pendant Placement, la cible est cinématique et le contrôleur **ne doit pas** appliquer d'anti-pénétration avec :
-
-- le caillou ;
-- les accessoires ;
-- les autres instances.
-
-Les intersections sont une entrée utilisateur valide. Les anciens mécanismes de projection/snap vers la surface ne doivent pas être conservés comme contrainte principale.
-
-### 10.6 Sol gris : contrainte dure
-
-Exception unique : le carré gris est infranchissable.
-
-La géométrie manipulée ne peut pas passer à travers ou sous le plan du sol. Cette protection doit être appliquée directement lors du calcul de pose cinématique, en utilisant l'enveloppe/bounding volume de la cible.
-
-Ne pas dépendre uniquement d'une résolution Rapier ultérieure, car un corps cinématique piloté directement peut autrement franchir une frontière entre deux frames.
-
-### 10.7 `Terminer`
-
-À la validation :
-
-- fin du contrôle cinématique ;
-- gravité normale ;
-- collisions normales caillou/accessoires/sol ;
-- Rapier résout les pénétrations éventuelles ;
-- une éjection rapide issue d'une forte superposition est acceptable ;
-- la pose stabilisée est ensuite persistée.
+`Terminer` construit un plan de settlement : global si le caillou est dirty, limité aux accessoires dirty sinon, aucune écriture si rien n'a changé. Les accessoires ne sont convertis monde → local qu'à la frontière de persistance.
 
 ---
 
@@ -461,7 +417,7 @@ Ne pas dépendre uniquement d'une résolution Rapier ultérieure, car un corps c
 ### État serveur canonique
 
 - session/profil ;
-- caillou actif ;
+- caillou actif ou historique jeté ;
 - progression ;
 - wallet/ledger indirect ;
 - pose caillou ;
@@ -470,23 +426,17 @@ Ne pas dépendre uniquement d'une résolution Rapier ultérieure, car un corps c
 - instances équipées ;
 - transforms locaux et `stabilized_at`.
 
-### État UI temporaire actuel
-
-10.5 possède notamment des modes `orbit`, `caress`, `cleaning`, `accessory`, `rock-position`, `rock-orientation`, `composition-settle`.
-
-### État UI cible 10.75
-
-La représentation interne peut être simplifiée autour de :
+### État UI courant
 
 ```text
 mode: orbit | caress | cleaning | placement | settling
 placementTarget: rock | accessory-instance | null
-placementSubmode: position | orientation
+placementTool: position | orientation | size
+placementSession: snapshot monde multi-cibles | null
+settlementPlan: rock + accessoryIds | null
 ```
 
-La capacité `scale` est liée à la cible plutôt qu'à un mode produit séparé.
-
-La Boutique est un état UI commercial distinct de Placement.
+Le `PlacementSession` garde tous les drafts jusqu'à la fin de la session ; `placementTarget` ne choisit que la cible active.
 
 ### État 3D temporaire
 
@@ -494,7 +444,7 @@ La Boutique est un état UI commercial distinct de Placement.
 - corps Rapier ;
 - caméra ;
 - poussière ;
-- brouillon de pose ;
+- drafts de session ;
 - cible sélectionnée ;
 - vitesses pendant résolution.
 
@@ -517,6 +467,25 @@ Pendant Placement :
 - franchissement du sol interdit.
 
 Les cibles tactiles UI font au moins 44 px. Les réglages fins restent accessibles hors Canvas et au clavier lorsque pertinent.
+
+### 12.1 Bio / Stats — sources fiables de l'étape 11
+
+La Bio lit sous RLS les sources métier existantes : `user_rocks`, `rock_progress`, `wallets`, `user_accessories`, `equipped_accessories` et `user_feature_unlocks`.
+
+`observation_seconds` existe dans le schéma historique mais aucun contrat serveur courant ne l'alimente. Il ne doit donc pas être présenté comme une statistique fiable tant qu'une instrumentation autoritaire n'existe pas.
+
+### 12.2 Jeter — contrat serveur existant
+
+L'opération `discard_active_rock(user_rock_id, event_key)` existe déjà dans Supabase. Elle est transactionnelle, vérifie le propriétaire et utilise les reçus de mutation idempotents.
+
+Lors du premier discard :
+
+1. `user_rocks.discarded_at` est renseigné ;
+2. les lignes `equipped_accessories` liées à ce caillou sont supprimées comme déséquipement logique ;
+3. le caillou, `rock_progress` et le ledger restent conservés comme historique ;
+4. `wallets`, `user_accessories` et `user_feature_unlocks` restent intacts.
+
+Aucune migration Supabase supplémentaire n'est requise pour l'étape 11.
 
 ---
 
@@ -552,9 +521,9 @@ Une reprise locale distingue toujours :
 - pose stabilisée non encore confirmée ;
 - pose canonique confirmée.
 
-Après perte réseau, le client ne doit pas inventer un achat, un déblocage ou une stabilisation réussie. Les opérations idempotentes rejouent le même `event_key` lorsque nécessaire.
+Après perte réseau, le client ne doit pas inventer un achat, un déblocage, un discard ou une stabilisation réussie. Les opérations idempotentes rejouent le même `event_key` lorsque nécessaire.
 
-L'étape 12 formalise cette réconciliation pour la Boutique unifiée et Placement.
+L'étape 12 formalise cette réconciliation.
 
 ---
 
@@ -577,7 +546,7 @@ L'étape 12 formalise cette réconciliation pour la Boutique unifiée et Placeme
 - corps endormis lorsqu'ils sont stabilisés ;
 - disposal lors du retrait.
 
-La factorisation du contrôleur 10.75 ne doit pas créer une boucle de rendu permanente au repos.
+Le moteur de Placement ne doit pas créer une boucle de rendu permanente au repos.
 
 ---
 
@@ -593,7 +562,9 @@ La factorisation du contrôleur 10.75 ne doit pas créer une boucle de rendu per
 - quaternions ;
 - limite huit instances ;
 - transformations monde/local ;
-- contrainte de sol.
+- contrainte de sol ;
+- routing état vide après discard ;
+- formatage Bio sans statistique non fiable.
 
 ### Base
 
@@ -606,29 +577,12 @@ La factorisation du contrôleur 10.75 ne doit pas créer une boucle de rendu per
 - pose caillou persistante ;
 - stabilisation accessoire idempotente ;
 - stabilisation composition atomique/idempotente ;
+- discard idempotent ;
+- discard conserve wallet, propriétés et déblocages ;
+- discard déséquipe les instances ;
 - writes directs sensibles refusés.
 
-### E2E 10.75
-
-```text
-ouvrir Placement
-→ sélectionner caillou/accessoire
-→ manipuler depuis n'importe quelle zone du canvas
-→ Position X/Y + profondeur
-→ Orientation
-→ Scale accessoire
-→ créer intersection volontaire
-→ vérifier sol infranchissable
-→ Terminer
-→ Rapier résout la composition
-→ persister
-→ reload
-→ retrouver la pose confirmée
-```
-
-Ajouter : caillou verrouillé sans permis, navigation vers Boutique, achat du permis, nouvelle instance d'un accessoire possédé, plusieurs instances identifiables, téléphone et tablette.
-
-Les validations historiques showroom/adoption/caresse/nettoyage/10C/10D/10.5 restent des non-régressions.
+Les validations historiques showroom/adoption/caresse/nettoyage/10C/10D/10.5/10.75 et PlacementSession restent des non-régressions.
 
 ---
 
@@ -636,14 +590,7 @@ Les validations historiques showroom/adoption/caresse/nettoyage/10C/10D/10.5 res
 
 `main` doit rester déployable.
 
-Une étape runtime passe par branche + PR + CI + tests ciblés. Pour 10.75 :
-
-- itérer d'abord avec les tests GitHub et navigateur ;
-- éviter les previews inutiles ;
-- déclencher au plus une validation Vercel volontaire sur le candidat final si elle apporte une preuve utile ;
-- après merge, vérifier le déploiement Production du SHA fusionné.
-
-Les changements purement documentaires sont destinés à être ignorés par le garde-fou Vercel.
+Une étape runtime passe par branche + PR + CI + tests ciblés. Les previews Vercel restent limitées aux candidats qui apportent une validation réelle. Les changements purement documentaires sont destinés à être ignorés par le garde-fou Vercel.
 
 ---
 
@@ -668,7 +615,9 @@ Caresser, Lithons, nettoyage, Bio/Stats et Jeter.
 - 10C : multi-instance et placement manuel ;
 - 10D : physique/collisions/stabilisation ;
 - 10.5 : sol physique, permis, pose/manutention du caillou, composition atomique ;
-- 10.75 : Boutique unifiée, Placement unique et contrôleur tactile commun.
+- 10.75 : Boutique unifiée, Placement unique et contrôleur tactile commun ;
+- PR #30 : harmonisation du Socle et du moteur de Placement ;
+- PR #31 : `PlacementSession` multi-cibles et drafts monde indépendants.
 
 ### Phase 4 - Résilience
 
@@ -695,13 +644,13 @@ Réponse : grants minimaux, `auth.uid()`, tests A/B/anon.
 Réponse : un GLB de caillou, plafond accessoires, disposal et tests navigateur.
 
 ### R5 - Désolidarisation des accessoires
-Réponse : transforms persistés localement au caillou et conversions monde/local centralisées.
+Réponse : transforms persistés localement au caillou, mais snapshot monde indépendant pendant `PlacementSession` ; conversions local/monde limitées aux frontières d'ouverture et de persistance.
 
 ### R6 - Placement tactile trop contraint
-Réponse 10.75 : supprimer l'anti-pénétration objet/objet pendant le geste ; seule la frontière du sol reste dure.
+Réponse : supprimer l'anti-pénétration objet/objet pendant le geste ; seule la frontière du sol reste dure.
 
 ### R7 - Traversée du sol par un corps cinématique
-Réponse : clamp/contrainte géométrique avant application de la pose, calculée avec l'enveloppe de la cible.
+Réponse : contrainte géométrique avant application de la pose, calculée avec l'enveloppe de la cible.
 
 ### R8 - Résolution Rapier énergique après intersection
 Réponse : comportement accepté par le produit ; borner seulement les valeurs non finies, les pertes hors scène et les instabilités bloquantes.
@@ -734,3 +683,5 @@ Social, amis, classement, échanges, argent réel, notifications de rétention, 
 > **Pendant Placement, la main gagne contre les autres objets, mais jamais contre le sol.**
 
 > **Après Terminer, Rapier reprend l'arbitrage et Supabase conserve le dernier résultat confirmé.**
+
+> **Pendant Placement, chaque cible garde son propre draft monde jusqu'à la validation de la session entière.**
