@@ -94,7 +94,7 @@ Ces sujets restent planifiés dans V2.x ou en R&D afin de ne pas mettre le chemi
 
 | Étape | Sujet | Objectif principal | Dépendances |
 |---|---|---|---|
-| **V2-00** | Architecture, cadrage et migrations | figer modèles de données, contrats, budgets et migration V1→V2 | V1 |
+| **[V2-00](V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md)** | Architecture, cadrage et migrations | figer modèles de données, contrats, budgets et migration V1→V2 | V1 |
 | **V2-01** | Placement 2.0 | rendre manipulation, caméra, sélection, précision et stabilisation excellentes | V2-00 |
 | **V2-02** | Compositions | définir/sauvegarder/charger/dupliquer/supprimer une composition complète | V2-01 |
 | **V2-03** | Nouveaux accessoires | industrialiser le pipeline et enrichir la Boutique | V2-00, V2-01 |
@@ -112,6 +112,8 @@ Ces sujets restent planifiés dans V2.x ou en R&D afin de ne pas mettre le chemi
 ## 6. Détail des étapes V2.0
 
 ### V2-00 — Architecture, cadrage et migrations
+
+Prompt autonome : [`V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md`](V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md).
 
 Avant toute nouvelle UI :
 
@@ -324,6 +326,10 @@ Le tag Git `v1.0.0` reste en parallèle le snapshot logiciel exact de la premiè
 
 ## 15. Prochaine action
 
-Avant toute implémentation V2 : créer et exécuter **V2-00 — Architecture, cadrage et migrations** à partir de cette feuille de route.
+Le prompt autonome de l'étape est maintenant disponible dans :
 
-Les fichiers détaillés `V2-XX-....md` seront créés au moment où leur périmètre est suffisamment défini pour servir de prompt autonome d'exécution. Ce document reste le niveau stratégique et l'ordre de référence.
+`docs/roadmap/V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md`
+
+Prochaine action : **exécuter V2-00 — Architecture, cadrage et migrations** à partir de ce cahier des charges.
+
+Les autres fichiers détaillés `V2-XX-....md` seront créés au moment où leur périmètre est suffisamment défini pour servir de prompt autonome d'exécution. Ce document reste le niveau stratégique et l'ordre de référence.
