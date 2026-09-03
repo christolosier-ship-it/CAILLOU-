@@ -1,0 +1,94 @@
+name: Apply Step 11 implementation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/11-bio-stats-jeter
+    paths:
+      - 'scripts/apply-step11.py'
+      - '.github/workflows/step11-apply.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: step11-apply-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/11-bio-stats-jeter
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Update existing documentation first
+        run: |
+          python scripts/apply-step11.py docs
+          git add ARCHITECTURE-TECHNIQUE.md CAHIER-DES-CHARGES-V1.md DESIGN-SYSTEM-DIRECTION-ARTISTIQUE.md docs/PLAN-CORRECTION-HARMONISATION-SOL-ET-PLACEMENTS.md docs/roadmap/00-INDEX-ROADMAP.md
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: aligner l’état courant après PlacementSession"
+            git push origin HEAD:feat/11-bio-stats-jeter
+          fi
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Apply Step 11 product
+        run: python scripts/apply-step11.py product
+
+      - name: Validate lint TypeScript tests and build
+        run: npm run check
+
+      - name: Install Chrome validation driver
+        run: npm install --no-save --package-lock=false --no-audit --no-fund puppeteer-core@24.16.0
+
+      - name: Validate Step 11 before product commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm exec -- vite --host 127.0.0.1 --port 4175 > /tmp/caillou-step11-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          sleep 3
+          google-chrome --version
+          node scripts/web/validate-step11-e2e.mjs
+          node scripts/web/validate-adoption-e2e.mjs
+
+      - name: Guard Step 11 invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "discard_active_rock" src/features/discard/discardApi.ts
+          grep -q "observation_seconds" ARCHITECTURE-TECHNIQUE.md
+          ! grep -q "observation_seconds" src/features/bio/BioDialog.tsx
+          grep -q "user_accessories" src/features/bio/bioApi.ts
+          grep -q "user_feature_unlocks" src/features/bio/bioApi.ts
+          grep -q "discardedVisual" src/features/pedestal/Pedestal.tsx
+          grep -q "destination === 'empty'" src/features/auth/AuthenticatedHome.tsx
+          git diff --check
+
+      - name: Commit validated product changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add src scripts/web/step11-e2e-validation.html scripts/web/step11-e2e-validation.tsx scripts/web/validate-step11-e2e.mjs .github/workflows/step11-validation.yml
+          git diff --cached --check
+          git commit -m "feat: livrer Bio Stats et Jeter (étape 11)"
+          git push origin HEAD:feat/11-bio-stats-jeter
