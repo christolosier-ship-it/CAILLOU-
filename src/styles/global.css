@@ -43,7 +43,7 @@ button { color: inherit; }
 .auth-error { margin: 0; padding: var(--space-3); border-radius: 12px; color: #6f2e25; background: rgb(153 70 56 / 10%); font-size: .88rem; }
 .auth-footnote { margin: var(--space-5) 0 0; color: var(--color-graphite); font-size: .78rem; line-height: 1.5; }
 .account-chip { display: flex; align-items: center; gap: var(--space-3); color: var(--color-graphite); font-size: .82rem; }
-.account-chip button, .session-actions button { min-height: 42px; padding: 0 var(--space-3); border: 1px solid rgb(52 51 48 / 16%); border-radius: 999px; background: rgb(242 239 233 / 70%); cursor: pointer; }
+.account-chip button, .session-actions button { min-height: 44px; padding: 0 var(--space-3); border: 1px solid rgb(52 51 48 / 16%); border-radius: 999px; background: rgb(242 239 233 / 70%); cursor: pointer; }
 .session-loading { min-height: 100vh; min-height: 100dvh; padding: var(--space-6); display: grid; place-content: center; gap: var(--space-3); text-align: center; }
 .session-loading > p, .session-loading h1 { margin: 0; }
 .session-offline { max-width: 38rem; margin: 0 auto; }
