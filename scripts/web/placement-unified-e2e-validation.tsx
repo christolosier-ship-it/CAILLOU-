@@ -104,6 +104,7 @@ function Fixture() {
   const [readyAccessories, setReadyAccessories] = useState<string[]>([])
   const [individualSettled, setIndividualSettled] = useState(0)
   const [lastSettledWorld, setLastSettledWorld] = useState<{ instanceId: string; transform: PlacementTransform } | null>(null)
+  const [cancelCount, setCancelCount] = useState(0)
 
   const selectedAccessoryId = target?.kind === 'accessory' ? target.instanceId : null
   const selectedWorld = useMemo(() => {
@@ -150,6 +151,23 @@ function Fixture() {
       : instance))
     setIndividualSettled((current) => current + 1)
   }, [pose])
+
+  const handleCancel = useCallback(() => {
+    setPose({ position: [...INITIAL_POSE.position], rotation: [...INITIAL_POSE.rotation] })
+    setInstances(INITIAL_INSTANCES.map((instance) => ({
+      ...instance,
+      localPosition: [...instance.localPosition],
+      localRotation: [...instance.localRotation],
+    })))
+    setPlacementSession(null)
+    setSettlementPlan(null)
+    setTarget(null)
+    setTool('position')
+    setSettled(null)
+    setReadyAccessories([INITIAL_INSTANCES[0]!.id])
+    setMode('orbit')
+    setCancelCount((current) => current + 1)
+  }, [])
 
   const handleDone = useCallback(() => {
     const plan = buildPlacementSettlementPlan(placementSession)
@@ -251,6 +269,7 @@ function Fixture() {
                 setInstances((current) => current.filter((instance) => instance.id !== instanceId))
                 setPlacementSession((current) => current ? removePlacementSessionAccessory(current, instanceId) : current)
               }}
+              onCancel={handleCancel}
               onDone={handleDone}
             />
           ) : (
@@ -301,6 +320,7 @@ function Fixture() {
         data-rock-position={JSON.stringify(pose.position)}
         data-rock-rotation={JSON.stringify(pose.rotation)}
         data-instance-count={String(instances.length)}
+        data-cancel-count={String(cancelCount)}
         data-session-accessories={JSON.stringify(placementSession?.accessories ?? {})}
         data-session-dirty-rock={String(placementSession?.dirtyRock ?? false)}
         data-session-dirty-accessories={JSON.stringify(placementSession?.dirtyAccessoryIds ?? [])}
