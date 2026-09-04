@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client'
 import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import { ACCESSORY_WORLD_GRAVITY } from '../../src/features/accessories/accessoryPhysics'
 import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import { accessoryPlacementTarget } from '../../src/features/placement/placementObject'
 import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
 import { buildPlacementSettlementPlan, createPlacementSession, updatePlacementSession } from '../../src/features/placement/placementSession'
 import type { PlacementSessionState, PlacementSettlementPlan } from '../../src/features/placement/placementSession'
@@ -155,6 +156,13 @@ function PhysicsFixture() {
   const [probe, setProbe] = useState({ collision: 0, settled: false, finalY: 1 })
 
   const selectedWorld = useMemo(() => placementSession.accessories[selectedId] ?? null, [placementSession, selectedId])
+  const selectedInstance = useMemo(
+    () => INITIAL_INSTANCES.find((instance) => instance.id === selectedId) ?? null,
+    [selectedId],
+  )
+  const placementTarget = mode === 'orbit' || !selectedInstance
+    ? null
+    : accessoryPlacementTarget(selectedInstance)
 
   const select = useCallback((instanceId: string) => {
     setSelectedId(instanceId)
@@ -218,7 +226,7 @@ function PhysicsFixture() {
             onInteractionChange={() => undefined}
             interactionMode={mode}
             rockPose={DEFAULT_ROCK_POSE}
-            placementTarget={mode === 'orbit' ? null : { kind: 'accessory', instanceId: selectedId }}
+            placementTarget={placementTarget}
             placementTool={tool}
             placementSession={placementSession}
             settlementPlan={settlementPlan}
