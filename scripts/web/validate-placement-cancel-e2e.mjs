@@ -119,7 +119,10 @@ try {
   assertVectorClose('cancelled rock position', cancelled.rockPosition, initial.rockPosition)
   assertVectorClose('cancelled rock rotation', cancelled.rockRotation, initial.rockRotation)
 
-  await page.click('#reopen-placement')
+  // Fixture-only helper: it intentionally sits below the 3D stage and can be
+  // visually covered by the canvas. Trigger its React handler through the DOM
+  // instead of asking Puppeteer to synthesize a coordinate click on the canvas.
+  await page.$eval('#reopen-placement', (button) => button.click())
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
   await page.click('.placement-targets > button:nth-child(2)')
   const reopened = await state()
