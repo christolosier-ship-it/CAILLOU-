@@ -167,6 +167,11 @@ export function useAccessoryPlacements(userRockId: string) {
     setError(null)
   }, [userRockId])
 
+  const acceptPlacementSession = useCallback((next: EquippedAccessoryInstance[]) => {
+    replaceCanonical(next)
+    setError(null)
+  }, [replaceCanonical])
+
   const remove = useCallback(async (instanceId: string) => {
     if (pendingId) return false
     const retryKey = `remove:${instanceId}`
@@ -199,6 +204,7 @@ export function useAccessoryPlacements(userRockId: string) {
     place,
     acceptStabilizedAccessory,
     acceptComposition,
+    acceptPlacementSession,
     remove,
     clearError: () => setError(null),
   }
