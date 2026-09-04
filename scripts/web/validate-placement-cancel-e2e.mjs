@@ -96,15 +96,26 @@ try {
     return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, initialAccessory.position)
 
+  const moved = await state()
+  if (!vectorChanged(moved.sessionAccessories[initialId]?.position, initialAccessory.position)) {
+    throw new Error('initial accessory draft did not change before cancellation')
+  }
+
   await page.click('.placement-owned summary')
+  if ((await page.$$('.placement-owned-grid button')).length !== 0) {
+    throw new Error('already placed accessory remained available before removal')
+  }
+
+  await page.click('.placement-remove')
+  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-instance-count') ?? 0) === 0)
   await page.waitForSelector('.placement-owned-grid button', { timeout: 10_000 })
   await page.click('.placement-owned-grid button')
-  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-instance-count') ?? 0) === 2)
+  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-instance-count') ?? 0) === 1)
 
   const dirty = await state()
-  if (dirty.instanceCount !== 2) throw new Error('draft accessory was not added before cancellation')
-  if (!vectorChanged(dirty.sessionAccessories[initialId]?.position, initialAccessory.position)) {
-    throw new Error('initial accessory draft did not change before cancellation')
+  const replacementIds = Object.keys(dirty.sessionAccessories)
+  if (replacementIds.length !== 1 || replacementIds[0] === initialId) {
+    throw new Error(`draft membership did not replace the initial instance: ${JSON.stringify(replacementIds)}`)
   }
 
   await page.click('.placement-panel-heading > .placement-cancel')
@@ -143,13 +154,14 @@ try {
     status: 'pass',
     draftTransformChangedBeforeCancel: true,
     draftMembershipChangedBeforeCancel: true,
+    uniqueAccessoryRemoveReaddBeforeCancel: true,
     cancelRestoredRockSnapshot: true,
     cancelRestoredAccessoryMembership: true,
     reopenRestoredAccessoryTransform: true,
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] Placement cancel E2E PASS: multi-change draft restored to exact session snapshot')
+  console.log('[CAILLOU] Placement cancel E2E PASS: unique-accessory membership + transform draft restored to exact session snapshot')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})
