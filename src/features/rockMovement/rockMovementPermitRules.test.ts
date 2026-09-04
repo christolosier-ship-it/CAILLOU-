@@ -27,8 +27,13 @@ describe('rock-scoped permit frontend rules', () => {
 
   it('never treats an unscoped legacy account cache as a V2 entitlement', () => {
     const legacySnapshot: RockMovementPermitSnapshot = {
-      ...unlockedPermit,
-      userRockId: undefined,
+      featureId: unlockedPermit.featureId,
+      name: unlockedPermit.name,
+      description: unlockedPermit.description,
+      priceLithons: unlockedPermit.priceLithons,
+      unlockedAt: unlockedPermit.unlockedAt,
+      pricePaid: unlockedPermit.pricePaid,
+      acquisitionSource: unlockedPermit.acquisitionSource,
     }
     expect(permitSnapshotForRock(legacySnapshot, 'rock-a')).toBeNull()
     expect(permitUnlockedForRock(legacySnapshot, 'rock-a')).toBe(false)
