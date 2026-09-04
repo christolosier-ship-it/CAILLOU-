@@ -200,12 +200,11 @@ export function usePlacementCollisionResolver(
       return constrainedDesired
     }
 
-    let firstBlockingObjectId: string | null = null
     const isCandidateValid = (fraction: number) => {
       const interpolated = interpolatePlacementCollisionTransform(current, constrainedDesired, motion, fraction)
       const candidate = constrainTransformToPedestal(interpolated, geometry)
       const query = createQueryShape(candidate)
-      const intersection = world.intersectionWithShape(
+      return world.intersectionWithShape(
         query.position,
         query.rotation,
         query.shape,
@@ -214,20 +213,7 @@ export function usePlacementCollisionResolver(
         undefined,
         undefined,
         regularFilter,
-      ) as WorldCollider | null
-      if (intersection && firstBlockingObjectId === null) {
-        const parent = intersection.parent()
-        const userData = parent?.userData as {
-          placementObjectId?: unknown
-          placementBoundary?: unknown
-        } | undefined
-        firstBlockingObjectId = typeof userData?.placementObjectId === 'string'
-          ? userData.placementObjectId
-          : typeof userData?.placementBoundary === 'string'
-            ? userData.placementBoundary
-            : `collider:${intersection.handle}`
-      }
-      return intersection === null
+      ) === null
     }
 
     const coarseSteps = motion === 'rotation'
@@ -245,18 +231,6 @@ export function usePlacementCollisionResolver(
       coarseSteps,
       COLLISION_REFINEMENT_STEPS,
     )
-    if (import.meta.env.DEV && motion === 'rotation' && fraction < 0.9999) {
-      console.debug('[CAILLOU placement collision] rotation bounded', JSON.stringify({
-        target: activeObjectId,
-        blocker: firstBlockingObjectId,
-        fraction,
-        currentPosition: current.position,
-        currentRotation: current.rotation,
-        desiredPosition: constrainedDesired.position,
-        desiredRotation: constrainedDesired.rotation,
-        legacyPenetrations: legacyPenetrations.map((collider) => collider.handle),
-      }))
-    }
     const resolved = interpolatePlacementCollisionTransform(current, constrainedDesired, motion, fraction)
     return constrainTransformToPedestal(resolved, geometry)
   }, [geometry, rapier, target, world])
