@@ -30,6 +30,25 @@ const glasses: PlacementSessionAccessorySource = {
 }
 
 describe('PlacementSession', () => {
+  it('keeps an immutable canonical snapshot while drafts evolve', () => {
+    const session = createPlacementSession(pose, [monocle, glasses])
+    const initialRock = structuredClone(session.initialRock)
+    const initialAccessories = structuredClone(session.initialAccessories)
+    let edited = updatePlacementSession(session, { kind: 'rock' }, {
+      position: [1.1, 0.5, -0.4],
+      rotation: [0, 0.2, 0, 0.9797959],
+      scale: 1,
+    })
+    edited = updatePlacementSession(edited, { kind: 'accessory', instanceId: monocle.id }, {
+      position: [0.8, 0.7, 0.4], rotation: [0, 0, 0, 1], scale: 1.2,
+    })
+
+    expect(edited.initialRock).toEqual(initialRock)
+    expect(edited.initialAccessories).toEqual(initialAccessories)
+    expect(edited.rock).not.toEqual(initialRock)
+    expect(edited.accessories[monocle.id]).not.toEqual(initialAccessories[monocle.id])
+  })
+
   it('keeps accessory world drafts fixed when the rock moves', () => {
     const session = createPlacementSession(pose, [monocle, glasses])
     const monocleBefore = placementSessionTransform(session, { kind: 'accessory', instanceId: monocle.id })
@@ -67,7 +86,11 @@ describe('PlacementSession', () => {
     const accessoryOnly = updatePlacementSession(base, { kind: 'accessory', instanceId: monocle.id }, {
       position: [0.7, 0.6, 0.5], rotation: [0, 0, 0, 1], scale: 1,
     })
-    expect(buildPlacementSettlementPlan(accessoryOnly)).toEqual({ rock: false, accessoryIds: ['monocle-1'] })
+    expect(buildPlacementSettlementPlan(accessoryOnly)).toEqual({
+      rock: false,
+      accessoryIds: ['monocle-1'],
+      membershipChanged: false,
+    })
 
     const rockChanged = updatePlacementSession(accessoryOnly, { kind: 'rock' }, {
       position: [0.5, 0.5, 0], rotation: [0, 0, 0, 1], scale: 1,
@@ -75,20 +98,45 @@ describe('PlacementSession', () => {
     expect(buildPlacementSettlementPlan(rockChanged)).toEqual({
       rock: true,
       accessoryIds: ['monocle-1', 'glasses-1'],
+      membershipChanged: false,
     })
   })
 
-  it('adds and removes accessories without disturbing existing drafts', () => {
+  it('tracks membership changes without disturbing existing drafts', () => {
     let session = createPlacementSession(pose, [monocle])
     session = updatePlacementSession(session, { kind: 'accessory', instanceId: monocle.id }, {
       position: [0.9, 0.8, 0.7], rotation: [0, 0, 0, 1], scale: 1.1,
     })
     session = addPlacementSessionAccessory(session, glasses)
     expect(session.accessories[monocle.id]?.position).toEqual([0.9, 0.8, 0.7])
-    expect(session.accessories[glasses.id]).toBeDefined()
+    expect(session.addedAccessoryIds).toEqual(['glasses-1'])
 
     session = removePlacementSessionAccessory(session, monocle.id)
     expect(session.accessories[monocle.id]).toBeUndefined()
-    expect(session.accessories[glasses.id]).toBeDefined()
+    expect(session.removedAccessoryIds).toEqual(['monocle-1'])
+    expect(buildPlacementSettlementPlan(session)).toEqual({
+      rock: false,
+      accessoryIds: ['glasses-1'],
+      membershipChanged: true,
+    })
+  })
+
+  it('treats add then remove of the same draft instance as a no-op', () => {
+    let session = createPlacementSession(pose, [monocle])
+    session = addPlacementSessionAccessory(session, glasses)
+    session = removePlacementSessionAccessory(session, glasses.id)
+
+    expect(session.addedAccessoryIds).toEqual([])
+    expect(session.removedAccessoryIds).toEqual([])
+    expect(buildPlacementSettlementPlan(session)).toBeNull()
+  })
+
+  it('keeps a removal-only session commit-worthy without inventing a physical body to settle', () => {
+    const session = removePlacementSessionAccessory(createPlacementSession(pose, [monocle, glasses]), glasses.id)
+    expect(buildPlacementSettlementPlan(session)).toEqual({
+      rock: false,
+      accessoryIds: [],
+      membershipChanged: true,
+    })
   })
 })

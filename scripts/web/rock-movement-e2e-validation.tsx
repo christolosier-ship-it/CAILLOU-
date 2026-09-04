@@ -3,11 +3,12 @@ import { createRoot } from 'react-dom/client'
 
 import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import type { EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
+import { rockPlacementTarget } from '../../src/features/placement/placementObject'
 import { worldCompositionToPersistence } from '../../src/features/placement/placementPersistence'
 import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
 import { buildPlacementSettlementPlan, createPlacementSession, updatePlacementSession } from '../../src/features/placement/placementSession'
 import type { PlacementSessionState, PlacementSettlementPlan } from '../../src/features/placement/placementSession'
-import type { PlacementTarget, PlacementTool } from '../../src/features/placement/placementTypes'
+import type { PlacementTool } from '../../src/features/placement/placementTypes'
 import type { RockCompositionDraft, RockPose } from '../../src/features/rockMovement/rockMovementTypes'
 import { ShowroomScene } from '../../src/scene/ShowroomScene'
 import '../../src/styles/global.css'
@@ -22,7 +23,7 @@ const INITIAL_POSE: RockPose = {
   position: [0, 0.52, 0],
   rotation: [0, 0, 0, 1],
 }
-const ROCK_TARGET: PlacementTarget = { kind: 'rock' }
+const ROCK_TARGET = rockPlacementTarget()
 
 const INSTANCE: EquippedAccessoryInstance = {
   id: '105e0000-0000-4000-8000-000000000001',
@@ -76,33 +77,32 @@ function Fixture() {
     setAccessoryReady(state === 'ready')
   }, [])
 
+  const handleRockDraft = useCallback((nextPose: RockPose) => {
+    setPose(nextPose)
+    setPlacementSession((current) => updatePlacementSession(current, { kind: 'rock' }, {
+      position: [...nextPose.position],
+      rotation: [...nextPose.rotation],
+      scale: 1,
+    }))
+  }, [])
 
-const handleRockDraft = useCallback((nextPose: RockPose) => {
-  setPose(nextPose)
-  setPlacementSession((current) => updatePlacementSession(current, ROCK_TARGET, {
-    position: [...nextPose.position],
-    rotation: [...nextPose.rotation],
-    scale: 1,
-  }))
-}, [])
+  const handleSettled = useCallback((world: SettledWorldComposition) => {
+    const draft = worldCompositionToPersistence(world)
+    setSettled(draft)
+    setPose(draft.rockPose)
+    setPlacementSession(createPlacementSession(draft.rockPose, [
+      { ...INSTANCE, ...(draft.accessories[0] ?? {}) },
+    ]))
+    setSettlementPlan(null)
+    setMode('orbit')
+  }, [])
 
-const handleSettled = useCallback((world: SettledWorldComposition) => {
-  const draft = worldCompositionToPersistence(world)
-  setSettled(draft)
-  setPose(draft.rockPose)
-  setPlacementSession(createPlacementSession(draft.rockPose, [
-    { ...INSTANCE, ...(draft.accessories[0] ?? {}) },
-  ]))
-  setSettlementPlan(null)
-  setMode('orbit')
-}, [])
-
-const requestSettlement = useCallback(() => {
-  const plan = buildPlacementSettlementPlan(placementSession)
-  if (!plan) return
-  setSettlementPlan(plan)
-  setMode('settling')
-}, [placementSession])
+  const requestSettlement = useCallback(() => {
+    const plan = buildPlacementSettlementPlan(placementSession)
+    if (!plan) return
+    setSettlementPlan(plan)
+    setMode('settling')
+  }, [placementSession])
 
   return (
     <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : mode === 'settling' ? ' is-composition-settling' : ''}`}>

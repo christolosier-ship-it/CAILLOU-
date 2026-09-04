@@ -8,6 +8,7 @@ export type PendingMutationOperation =
   | 'remove_equipped_accessory'
   | 'stabilize_equipped_accessory'
   | 'stabilize_rock_composition'
+  | 'commit_placement_session'
 
 export interface PendingServerMutation {
   operation: PendingMutationOperation

@@ -121,8 +121,7 @@ export function Pedestal({
     if (placement.placementMode) {
       if (!capabilities.canExitPlacement) return
       care.prepareExternalTransition()
-      placement.resetDraft()
-      dispatchPedestal({ type: 'return-to-orbit' })
+      placement.handlePlacementCancel()
       return
     }
     if (!capabilities.canEnterPlacement) return
@@ -209,6 +208,7 @@ export function Pedestal({
           data-dust-amount={care.dustAmount.toFixed(3)}
           data-accessory-count={placement.accessoryInstances.length}
           data-rock-mode={mode}
+          data-placement-control={placement.cameraSelected ? 'camera' : placement.placementTarget ? 'object' : ''}
           data-placement-target={placement.placementTarget?.kind === 'accessory'
             ? placement.placementTarget.instanceId
             : placement.placementTarget?.kind ?? ''}
@@ -235,6 +235,9 @@ export function Pedestal({
             placementTool={placement.placementTool}
             placementSession={placement.placementSession}
             settlementPlan={placement.settlementPlan}
+            cameraControlActive={placement.cameraSelected}
+            onRockSelect={selectRockForPlacement}
+            onAccessorySelect={placement.handleAccessorySelect}
             dustAmount={care.dustAmount}
             dustRevision={care.dustRevision}
             onSurfacePointerDown={care.handleSurfaceStart}
@@ -307,16 +310,20 @@ export function Pedestal({
               permitLoading={placement.rockPermit.loading}
               instances={placement.accessoryInstances}
               selectedTarget={placement.placementTarget}
+              cameraSelected={placement.cameraSelected}
+              lastObjectTarget={placement.lastObjectTarget}
               tool={placement.placementTool}
               busy={placement.mutationPending}
               message={placement.message}
               maxInstances={placement.maxInstances}
               onSelectRock={selectRockForPlacement}
+              onSelectCamera={placement.selectCameraForPlacement}
               onOpenPermitShop={() => openShop('permit')}
               onSelectAccessory={placement.handleAccessorySelect}
               onToolChange={placement.handlePlacementTool}
               onAddOwned={placement.handlePlacementAdd}
               onRemove={placement.handleAccessoryRemove}
+              onCancel={placement.handlePlacementCancel}
               onDone={placement.handlePlacementDone}
             />
           ) : null}

@@ -10,16 +10,20 @@ interface PlacementPanelProps {
   permitLoading: boolean
   instances: EquippedAccessoryInstance[]
   selectedTarget: PlacementTarget | null
+  cameraSelected?: boolean
+  lastObjectTarget?: PlacementTarget | null
   tool: PlacementTool
   busy: boolean
   message: string | null
   maxInstances: number
   onSelectRock: () => void
+  onSelectCamera?: () => void
   onOpenPermitShop: () => void
   onSelectAccessory: (instanceId: string) => void
   onToolChange: (tool: PlacementTool) => void
   onAddOwned: (item: AccessoryCatalogItem) => Promise<void>
   onRemove: (instanceId: string) => void
+  onCancel: () => void
   onDone: () => void
   loadShop?: () => Promise<AccessoryShopSnapshot>
 }
@@ -39,16 +43,20 @@ export function PlacementPanel({
   permitLoading,
   instances,
   selectedTarget,
+  cameraSelected = false,
+  lastObjectTarget = null,
   tool,
   busy,
   message,
   maxInstances,
   onSelectRock,
+  onSelectCamera,
   onOpenPermitShop,
   onSelectAccessory,
   onToolChange,
   onAddOwned,
   onRemove,
+  onCancel,
   onDone,
   loadShop = loadAccessoryShop,
 }: PlacementPanelProps) {
@@ -77,7 +85,13 @@ export function PlacementPanel({
   const selectedAccessory = selectedTarget?.kind === 'accessory'
     ? instances.find((instance) => instance.id === selectedTarget.instanceId) ?? null
     : null
+  const capabilities = selectedTarget?.profile.capabilities ?? null
   const canAdd = instances.length < maxInstances && !busy && addingId === null
+  const lastObjectLabel = lastObjectTarget?.kind === 'rock'
+    ? rockName
+    : lastObjectTarget?.kind === 'accessory'
+      ? instances.find((instance) => instance.id === lastObjectTarget.instanceId)?.name ?? 'accessoire'
+      : null
 
   const addOwned = async (item: AccessoryCatalogItem) => {
     if (!canAdd) return
@@ -86,7 +100,7 @@ export function PlacementPanel({
     try {
       await onAddOwned(item)
     } catch (error) {
-      setCatalogError(error instanceof Error ? error.message : 'L’instance n’a pas pu être créée.')
+      setCatalogError(error instanceof Error ? error.message : 'L’instance n’a pas pu être ajoutée au draft.')
     } finally {
       setAddingId(null)
     }
@@ -97,13 +111,14 @@ export function PlacementPanel({
       <header className="placement-panel-heading">
         <div>
           <p className="eyebrow">Placement</p>
-          <h2>{selectedTarget ? 'Cible sélectionnée' : 'Choisir une cible'}</h2>
-          <p>{instances.length}/{maxInstances} accessoires placés</p>
+          <h2>{cameraSelected ? 'Caméra sélectionnée' : selectedTarget ? 'Cible sélectionnée' : 'Choisir une cible'}</h2>
+          <p>{instances.length}/{maxInstances} accessoires dans le draft</p>
         </div>
-        <button type="button" onClick={onDone} disabled={busy || addingId !== null}>Terminer</button>
+        <button className="placement-finish" type="button" onClick={onDone} disabled={busy || addingId !== null}>Terminer</button>
+        <button className="placement-cancel" type="button" onClick={onCancel} disabled={busy || addingId !== null}>Annuler</button>
       </header>
 
-      <div className="placement-targets" aria-label="Cibles disponibles">
+      <div className="placement-targets" aria-label="Objets disponibles">
         <button
           type="button"
           className={selectedTarget?.kind === 'rock' ? 'is-selected' : undefined}
@@ -136,23 +151,45 @@ export function PlacementPanel({
         ))}
       </div>
 
-      {selectedTarget ? (
+      {onSelectCamera ? (
+        <div className="placement-targets" aria-label="Point de vue">
+          <button
+            type="button"
+            className={cameraSelected ? 'is-selected' : undefined}
+            aria-pressed={cameraSelected}
+            disabled={busy}
+            onClick={onSelectCamera}
+          >
+            <span>
+              <strong>Caméra</strong>
+              <small>Point de vue</small>
+            </span>
+            <em>Orbite · zoom</em>
+          </button>
+        </div>
+      ) : null}
+
+      {selectedTarget && capabilities ? (
         <div className="placement-tools" role="group" aria-label="Type de manipulation">
-          <button
-            type="button"
-            className={tool === 'position' ? 'is-active' : undefined}
-            aria-pressed={tool === 'position'}
-            disabled={busy}
-            onClick={() => onToolChange('position')}
-          >Position</button>
-          <button
-            type="button"
-            className={tool === 'orientation' ? 'is-active' : undefined}
-            aria-pressed={tool === 'orientation'}
-            disabled={busy}
-            onClick={() => onToolChange('orientation')}
-          >Orientation</button>
-          {selectedAccessory ? (
+          {capabilities.canPosition ? (
+            <button
+              type="button"
+              className={tool === 'position' ? 'is-active' : undefined}
+              aria-pressed={tool === 'position'}
+              disabled={busy}
+              onClick={() => onToolChange('position')}
+            >Position</button>
+          ) : null}
+          {capabilities.canRotate ? (
+            <button
+              type="button"
+              className={tool === 'orientation' ? 'is-active' : undefined}
+              aria-pressed={tool === 'orientation'}
+              disabled={busy}
+              onClick={() => onToolChange('orientation')}
+            >Orientation</button>
+          ) : null}
+          {capabilities.canScale ? (
             <button
               type="button"
               className={tool === 'size' ? 'is-active' : undefined}
@@ -165,13 +202,15 @@ export function PlacementPanel({
       ) : null}
 
       <p className="placement-hint">
-        {!selectedTarget
-          ? 'Sélectionnez d’abord le caillou ou une instance. Ensuite, tout le canvas devient la surface de contrôle.'
-          : tool === 'position'
-            ? 'Un doigt déplace dans le plan de vue. Deux doigts agissent sur la profondeur. Le carré gris reste infranchissable.'
-            : tool === 'orientation'
-              ? 'Un doigt oriente librement. Tournez deux doigts pour pivoter autour de la vue.'
-              : 'Pincez à deux doigts pour redimensionner dans les limites homologuées.'}
+        {cameraSelected
+          ? `Caméra active : glissez pour tourner autour de la scène et pincez pour zoomer.${lastObjectLabel ? ` Dernière cible : ${lastObjectLabel}. Touchez-la dans la scène ou la liste pour reprendre.` : ''}`
+          : !selectedTarget
+            ? 'Touchez directement un objet dans la scène ou choisissez-le dans la liste. Ensuite, tout le canvas devient sa surface de contrôle.'
+            : tool === 'position'
+              ? 'Un doigt déplace dans le plan de vue. Deux doigts agissent sur la profondeur. Les collisions restent actives.'
+              : tool === 'orientation'
+                ? 'Un doigt oriente librement. Tournez deux doigts pour pivoter autour de la vue.'
+                : 'Pincez à deux doigts pour redimensionner dans les limites homologuées.'}
       </p>
 
       <details className="placement-owned">
@@ -189,7 +228,7 @@ export function PlacementPanel({
               >
                 <img src={item.previewPath} alt="" aria-hidden="true" />
                 <span>{item.name}</span>
-                <small>{addingId === item.id ? 'Création…' : instances.length >= maxInstances ? 'Limite atteinte' : 'Ajouter'}</small>
+                <small>{addingId === item.id ? 'Ajout au draft…' : instances.length >= maxInstances ? 'Limite atteinte' : 'Ajouter au draft'}</small>
               </button>
             ))}
           </div>
@@ -202,7 +241,7 @@ export function PlacementPanel({
           className="placement-remove"
           disabled={busy}
           onClick={() => onRemove(selectedAccessory.id)}
-        >Retirer {selectedAccessory.name} du caillou</button>
+        >Retirer {selectedAccessory.name} du draft</button>
       ) : null}
 
       {message ? <p className="placement-message" role="status">{message}</p> : null}

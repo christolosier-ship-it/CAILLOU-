@@ -8,6 +8,7 @@ import type { EquippedAccessoryInstance } from '../../src/features/accessories/a
 import { PlacementBody } from '../../src/features/placement/PlacementBody'
 import type { PlacementBodyPhysicsConfig } from '../../src/features/placement/PlacementBody'
 import type { PlacementGeometry } from '../../src/features/placement/placementGeometry'
+import { accessoryPlacementTarget } from '../../src/features/placement/placementObject'
 import { worldAccessoryToPersistence } from '../../src/features/placement/placementPersistence'
 import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
 import { buildPlacementSettlementPlan, createPlacementSession, removePlacementSessionAccessory, updatePlacementSession } from '../../src/features/placement/placementSession'
@@ -283,6 +284,13 @@ function AccessoryPlacementFixture() {
     }, 0)
   }, [])
 
+  const selectedInstance = selectedId
+    ? instances.find((instance) => instance.id === selectedId) ?? null
+    : null
+  const placementTarget = mode === 'orbit' || !selectedInstance
+    ? null
+    : accessoryPlacementTarget(selectedInstance)
+
   return (
     <div className={`pedestal-shell${mode === 'placement' ? ' is-placement-mode' : ''}`}>
       <IntersectionProbe />
@@ -296,7 +304,7 @@ function AccessoryPlacementFixture() {
             onInteractionChange={() => undefined}
             interactionMode={mode}
             rockPose={DEFAULT_ROCK_POSE}
-            placementTarget={mode === 'orbit' || !selectedId ? null : { kind: 'accessory', instanceId: selectedId }}
+            placementTarget={placementTarget}
             placementTool={tool}
             placementSession={placementSession}
             settlementPlan={settlementPlan}
