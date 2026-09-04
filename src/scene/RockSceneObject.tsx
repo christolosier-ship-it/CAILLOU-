@@ -8,7 +8,6 @@ import type { PlacementBodyState } from '../features/placement/placementBodyStat
 import type { PlacementGeometry } from '../features/placement/placementGeometry'
 import type { PlacementTransform } from '../features/placement/placementTypes'
 import { ROCK_SETTLE_TIMEOUT_MS } from '../features/rockMovement/rockMovementRules'
-import type { RockPose } from '../features/rockMovement/rockMovementTypes'
 import { RockModel } from './RockModel'
 import type { RockLoadState, RockSurfacePointerSample } from './RockModel'
 
