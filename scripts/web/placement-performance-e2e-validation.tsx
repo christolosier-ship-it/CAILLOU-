@@ -245,7 +245,7 @@ function cloneInstances(instances: EquippedAccessoryInstance[]) {
 function Fixture() {
   const requestedCount = Number(new URLSearchParams(window.location.search).get('count') ?? '1')
   const objectCount = requestedCount === 4 || requestedCount === 8 ? requestedCount : 1
-  const [instances, setInstances] = useState<EquippedAccessoryInstance[]>(() => Array.from({ length: objectCount }, (_, index) => makeInstance(index)))
+  const [instances, setInstances] = useState<EquippedAccessoryInstance[]>(() => cloneInstances(Array.from({ length: objectCount }, (_, index) => makeInstance(index))))
   const [pose, setPose] = useState<RockPose>(INITIAL_POSE)
   const [session, setSession] = useState<PlacementSessionState>(() => createPlacementSession(INITIAL_POSE, instances))
   const [target, setTarget] = useState<PlacementTarget | null>(null)
