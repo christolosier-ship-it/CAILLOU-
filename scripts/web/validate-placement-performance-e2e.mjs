@@ -125,6 +125,12 @@ async function measureGestureLatency(page) {
 
   const before = await page.$eval('#placement-performance-e2e-state', (element) => element.getAttribute('data-selected-world-position'))
   const rect = await canvasRect(page)
+  const startX = rect.left + rect.width * 0.16
+  const startY = rect.top + rect.height * 0.18
+
+  // Move the automation pointer into place before arming the metric. Otherwise
+  // Puppeteer's positioning move is incorrectly counted as gesture latency.
+  await page.mouse.move(startX, startY)
 
   await page.evaluate((baseline) => {
     const output = document.querySelector('#placement-performance-e2e-state')
@@ -145,9 +151,6 @@ async function measureGestureLatency(page) {
     observer.observe(output, { attributes: true, attributeFilter: ['data-selected-world-position'] })
   }, before)
 
-  const startX = rect.left + rect.width * 0.16
-  const startY = rect.top + rect.height * 0.18
-  await page.mouse.move(startX, startY)
   await page.mouse.down()
   await page.mouse.move(startX + 24, startY - 12)
   await page.mouse.up()
