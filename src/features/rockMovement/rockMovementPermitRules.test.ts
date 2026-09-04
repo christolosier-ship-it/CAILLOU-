@@ -33,7 +33,6 @@ describe('rock-scoped permit frontend rules', () => {
       priceLithons: unlockedPermit.priceLithons,
       unlockedAt: unlockedPermit.unlockedAt,
       pricePaid: unlockedPermit.pricePaid,
-      acquisitionSource: unlockedPermit.acquisitionSource,
     }
     expect(permitSnapshotForRock(legacySnapshot, 'rock-a')).toBeNull()
     expect(permitUnlockedForRock(legacySnapshot, 'rock-a')).toBe(false)
