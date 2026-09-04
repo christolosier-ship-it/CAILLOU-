@@ -245,10 +245,11 @@ export function usePlacementCollisionResolver(
       coarseSteps,
       COLLISION_REFINEMENT_STEPS,
     )
-    if (import.meta.env.DEV && motion === 'rotation' && fraction <= 0.0001) {
-      console.debug('[CAILLOU placement collision] rotation blocked', {
+    if (import.meta.env.DEV && motion === 'rotation' && fraction < 0.9999) {
+      console.debug('[CAILLOU placement collision] rotation bounded', {
         target: activeObjectId,
         blocker: firstBlockingObjectId,
+        fraction,
         currentPosition: current.position,
         currentRotation: current.rotation,
         desiredPosition: constrainedDesired.position,
