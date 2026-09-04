@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  accessoryAlreadyPlaced,
+  availableOwnedAccessories,
   clampAccessoryScale,
   defaultAccessoryTransform,
   parseLocalPosition,
@@ -29,5 +31,14 @@ describe('accessory placement persistence rules', () => {
     expect(parseLocalPosition([0.1, 'x', 0.3])).toBeNull()
     expect(parseLocalRotation([0, 0, 0, 1])).toEqual([0, 0, 0, 1])
     expect(parseLocalRotation([0, 0, 0, 0])).toBeNull()
+  })
+
+  it('treats a catalogue reference as one unique placeable object', () => {
+    const instances = [{ accessoryId: 'monocle' }]
+    const owned = [{ id: 'monocle' }, { id: 'glasses' }]
+
+    expect(accessoryAlreadyPlaced('monocle', instances)).toBe(true)
+    expect(accessoryAlreadyPlaced('glasses', instances)).toBe(false)
+    expect(availableOwnedAccessories(owned, instances).map((item) => item.id)).toEqual(['glasses'])
   })
 })

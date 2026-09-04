@@ -6,6 +6,7 @@ import type {
   AccessoryLocalPosition,
   AccessoryLocalRotation,
   AccessoryTransform,
+  EquippedAccessoryInstance,
 } from './accessoryTypes'
 
 export const MAX_EQUIPPED_ACCESSORIES = 8
@@ -38,6 +39,21 @@ export function parseLocalRotation(value: Json | null): AccessoryLocalRotation |
 
 export function clampAccessoryScale(value: number, min: number, max: number) {
   return clamp(Number.isFinite(value) ? value : 1, min, max)
+}
+
+export function accessoryAlreadyPlaced(
+  accessoryId: string,
+  instances: readonly Pick<EquippedAccessoryInstance, 'accessoryId'>[],
+) {
+  return instances.some((instance) => instance.accessoryId === accessoryId)
+}
+
+export function availableOwnedAccessories<T extends Pick<AccessoryCatalogItem, 'id'>>(
+  items: readonly T[],
+  instances: readonly Pick<EquippedAccessoryInstance, 'accessoryId'>[],
+): T[] {
+  const placedIds = new Set(instances.map((instance) => instance.accessoryId))
+  return items.filter((item) => !placedIds.has(item.id))
 }
 
 export function defaultAccessoryTransform(
