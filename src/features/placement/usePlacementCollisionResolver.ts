@@ -246,7 +246,7 @@ export function usePlacementCollisionResolver(
       COLLISION_REFINEMENT_STEPS,
     )
     if (import.meta.env.DEV && motion === 'rotation' && fraction < 0.9999) {
-      console.debug('[CAILLOU placement collision] rotation bounded', {
+      console.debug('[CAILLOU placement collision] rotation bounded', JSON.stringify({
         target: activeObjectId,
         blocker: firstBlockingObjectId,
         fraction,
@@ -255,7 +255,7 @@ export function usePlacementCollisionResolver(
         desiredPosition: constrainedDesired.position,
         desiredRotation: constrainedDesired.rotation,
         legacyPenetrations: legacyPenetrations.map((collider) => collider.handle),
-      })
+      }))
     }
     const resolved = interpolatePlacementCollisionTransform(current, constrainedDesired, motion, fraction)
     return constrainTransformToPedestal(resolved, geometry)
