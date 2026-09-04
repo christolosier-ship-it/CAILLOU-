@@ -161,7 +161,6 @@ async function loadGlbPositionPoints(url) {
 const ROCK_018_SUPPORT_POINTS = await loadGlbPositionPoints(`${baseUrl}/assets/rocks/rock-018/model.glb`)
 const MONOCLE_SUPPORT_POINTS = await loadGlbPositionPoints(`${baseUrl}/assets/accessories/monocle/model.glb`)
 
-
 function worldSupportBounds(supportPoints, position, rotation, scale = 1) {
   const length = Math.hypot(...rotation)
   const [qx, qy, qz, qw] = length > 0.000001 ? rotation.map((value) => value / length) : [0, 0, 0, 1]
@@ -270,6 +269,13 @@ async function state() {
   }))
 }
 
+async function selectTool(buttonIndex, expectedTool) {
+  await page.click(`.placement-tools button:nth-child(${buttonIndex})`)
+  await page.waitForFunction((expected) => (
+    document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-tool') === expected
+  ), {}, expectedTool)
+}
+
 async function dispatchSinglePointer(dx, dy, xRatio = 0.16, yRatio = 0.18) {
   await page.$eval('.pedestal-stage canvas', (canvas, deltaX, deltaY, relativeX, relativeY) => {
     const rect = canvas.getBoundingClientRect()
@@ -298,7 +304,6 @@ async function dispatchPinch(multiplier = 1.35) {
     canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, pointerId: 182, clientX: cx + finalHalf, clientY: cy, buttons: 0 }))
   }, multiplier)
 }
-
 
 async function dispatchTwist(radians = 0.55) {
   await page.$eval('.pedestal-stage canvas', (canvas, angle) => {
@@ -376,18 +381,17 @@ try {
     throw new Error('moving the rock changed accessory world drafts during editing')
   }
 
-
-for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
-  await dispatchSinglePointer(dx, dy, 0.2, 0.2)
-  const boundedRock = await state()
-  assertInsidePedestal('rock four-border stress', ROCK_018_SUPPORT_POINTS, boundedRock.rockPosition, boundedRock.rockRotation)
-}
+  for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
+    await dispatchSinglePointer(dx, dy, 0.2, 0.2)
+    const boundedRock = await state()
+    assertInsidePedestal('rock four-border stress', ROCK_018_SUPPORT_POINTS, boundedRock.rockPosition, boundedRock.rockRotation)
+  }
 
   for (let index = 0; index < 5; index += 1) await dispatchSinglePointer(0, 540, 0.13, 0.14)
   const rockFlooredDuringPosition = await state()
   assertInsidePedestal('during rock position', ROCK_018_SUPPORT_POINTS, rockFlooredDuringPosition.rockPosition, rockFlooredDuringPosition.rockRotation)
 
-  await page.click('.placement-tools button:nth-child(2)')
+  await selectTool(2, 'orientation')
   await dispatchSinglePointer(54, 34, 0.82, 0.2)
   await page.waitForFunction((before) => {
     const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-rock-rotation') ?? '[0,0,0,1]')
@@ -396,15 +400,14 @@ for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
   const rockFlooredDuringOrientation = await state()
   assertInsidePedestal('during rock orientation', ROCK_018_SUPPORT_POINTS, rockFlooredDuringOrientation.rockPosition, rockFlooredDuringOrientation.rockRotation)
 
-
-const beforeRockTwist = rockFlooredDuringOrientation.rockRotation
-await dispatchTwist(0.62)
-await page.waitForFunction((before) => {
-  const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-rock-rotation') ?? '[0,0,0,1]')
-  return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
-}, {}, beforeRockTwist)
-const rockAfterTwist = await state()
-assertInsidePedestal('during rock two-finger twist', ROCK_018_SUPPORT_POINTS, rockAfterTwist.rockPosition, rockAfterTwist.rockRotation)
+  const beforeRockTwist = rockFlooredDuringOrientation.rockRotation
+  await dispatchTwist(0.62)
+  await page.waitForFunction((before) => {
+    const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-rock-rotation') ?? '[0,0,0,1]')
+    return value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+  }, {}, beforeRockTwist)
+  const rockAfterTwist = await state()
+  assertInsidePedestal('during rock two-finger twist', ROCK_018_SUPPORT_POINTS, rockAfterTwist.rockPosition, rockAfterTwist.rockRotation)
 
   // Regression #31: switching targets must retain every draft and rock edits must not drag accessories.
   await page.click('.placement-targets > button:nth-child(2)')
@@ -450,9 +453,9 @@ assertInsidePedestal('during rock two-finger twist', ROCK_018_SUPPORT_POINTS, ro
   await page.$eval('#reopen-placement', (button) => button.click())
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
 
-const reopenedRock = await state()
-assertVectorClose('rock persisted position rehydration', reopenedRock.rockPosition, rockAfterRapier.globalRockPosition)
-assertQuaternionEquivalent('rock persisted rotation rehydration', reopenedRock.rockRotation, rockAfterRapier.globalRockRotation)
+  const reopenedRock = await state()
+  assertVectorClose('rock persisted position rehydration', reopenedRock.rockPosition, rockAfterRapier.globalRockPosition)
+  assertQuaternionEquivalent('rock persisted rotation rehydration', reopenedRock.rockRotation, rockAfterRapier.globalRockRotation)
 
   await page.click('.placement-targets > button:nth-child(2)')
   await page.waitForFunction(() => (document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') ?? '').includes('000000000001'))
@@ -463,12 +466,11 @@ assertQuaternionEquivalent('rock persisted rotation rehydration', reopenedRock.r
     return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, beforeAccessory.selectedWorldPosition)
 
-
-for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
-  await dispatchSinglePointer(dx, dy, 0.18, 0.18)
-  const boundedAccessory = await state()
-  assertInsidePedestal('accessory four-border stress', MONOCLE_SUPPORT_POINTS, boundedAccessory.selectedWorldPosition, boundedAccessory.selectedWorldRotation, boundedAccessory.selectedScale)
-}
+  for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
+    await dispatchSinglePointer(dx, dy, 0.18, 0.18)
+    const boundedAccessory = await state()
+    assertInsidePedestal('accessory four-border stress', MONOCLE_SUPPORT_POINTS, boundedAccessory.selectedWorldPosition, boundedAccessory.selectedWorldRotation, boundedAccessory.selectedScale)
+  }
 
   for (let index = 0; index < 4; index += 1) await dispatchSinglePointer(0, 520, 0.12, 0.12)
   const floored = await state()
@@ -480,30 +482,47 @@ for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
     floored.selectedScale,
   )
 
-  await page.click('.placement-tools button:nth-child(3)')
-  const beforeScale = (await state()).selectedScale
-  await dispatchPinch(1.45)
-  await page.waitForFunction((before) => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-scale') ?? 0) > before + 0.01, {}, beforeScale)
+  // A collision-safe scale test must not assume that an object already in contact can grow freely.
+  // Shrinking opens measurable clearance; growing again then proves the gesture while the resolver
+  // remains free to stop before a border, the rock or another accessory.
+  await selectTool(3, 'scale')
+  const scaleBeforeShrink = (await state()).selectedScale
+  await dispatchPinch(0.7)
+  await page.waitForFunction((before) => Number(
+    document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-scale') ?? 0,
+  ) < before - 0.01, {}, scaleBeforeShrink)
+  const shrunken = await state()
+  assertInsidePedestal(
+    'during accessory shrink',
+    MONOCLE_SUPPORT_POINTS,
+    shrunken.selectedWorldPosition,
+    shrunken.selectedWorldRotation,
+    shrunken.selectedScale,
+  )
+
+  await dispatchPinch(1.1)
+  await page.waitForFunction((before) => Number(
+    document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-scale') ?? 0,
+  ) > before + 0.01, {}, shrunken.selectedScale)
   const scaled = await state()
   if (scaled.selectedScale > 1.35 + 0.001) throw new Error(`accessory exceeded scaleMax: ${scaled.selectedScale}`)
   assertInsidePedestal(
-    'during accessory scale',
+    'during accessory collision-aware grow',
     MONOCLE_SUPPORT_POINTS,
     scaled.selectedWorldPosition,
     scaled.selectedWorldRotation,
     scaled.selectedScale,
   )
 
-
-await page.click('.placement-tools button:nth-child(2)')
-const beforeAccessoryTwist = (await state()).selectedWorldRotation
-await dispatchTwist(-0.58)
-await page.waitForFunction((before) => {
-  const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-world-rotation') ?? 'null')
-  return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
-}, {}, beforeAccessoryTwist)
-const accessoryAfterTwist = await state()
-assertInsidePedestal('during accessory two-finger twist', MONOCLE_SUPPORT_POINTS, accessoryAfterTwist.selectedWorldPosition, accessoryAfterTwist.selectedWorldRotation, accessoryAfterTwist.selectedScale)
+  await selectTool(2, 'orientation')
+  const beforeAccessoryTwist = (await state()).selectedWorldRotation
+  await dispatchTwist(-0.58)
+  await page.waitForFunction((before) => {
+    const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-world-rotation') ?? 'null')
+    return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+  }, {}, beforeAccessoryTwist)
+  const accessoryAfterTwist = await state()
+  assertInsidePedestal('during accessory two-finger twist', MONOCLE_SUPPORT_POINTS, accessoryAfterTwist.selectedWorldPosition, accessoryAfterTwist.selectedWorldRotation, accessoryAfterTwist.selectedScale)
 
   await page.click('.placement-owned summary')
   await page.click('.placement-owned-grid button')
@@ -518,22 +537,21 @@ assertInsidePedestal('during accessory two-finger twist', MONOCLE_SUPPORT_POINTS
   await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'orbit')
   await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-individual-settled') ?? 0) >= 1, { timeout: 12_000 })
 
-
-const settledAccessory = await state()
-if (!settledAccessory.lastSettledInstance || !Array.isArray(settledAccessory.lastSettledWorldPosition) || !Array.isArray(settledAccessory.lastSettledWorldRotation)) {
-  throw new Error('accessory final settled world pose was not captured')
-}
-await page.$eval('#reopen-placement', (button) => button.click())
-await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
-await page.click('.placement-targets > button:last-child')
-await page.waitForFunction((instanceId) => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') === instanceId, {}, settledAccessory.lastSettledInstance)
-const rehydratedAccessory = await state()
-assertVectorClose('accessory persisted position rehydration', rehydratedAccessory.selectedWorldPosition, settledAccessory.lastSettledWorldPosition)
-assertQuaternionEquivalent('accessory persisted rotation rehydration', rehydratedAccessory.selectedWorldRotation, settledAccessory.lastSettledWorldRotation)
-if (Math.abs(rehydratedAccessory.selectedScale - settledAccessory.lastSettledScale) > 0.008) {
-  throw new Error(`accessory persisted scale rehydration drift: ${rehydratedAccessory.selectedScale} != ${settledAccessory.lastSettledScale}`)
-}
-assertInsidePedestal('rehydrated accessory pose', MONOCLE_SUPPORT_POINTS, rehydratedAccessory.selectedWorldPosition, rehydratedAccessory.selectedWorldRotation, rehydratedAccessory.selectedScale)
+  const settledAccessory = await state()
+  if (!settledAccessory.lastSettledInstance || !Array.isArray(settledAccessory.lastSettledWorldPosition) || !Array.isArray(settledAccessory.lastSettledWorldRotation)) {
+    throw new Error('accessory final settled world pose was not captured')
+  }
+  await page.$eval('#reopen-placement', (button) => button.click())
+  await page.waitForFunction(() => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-mode') === 'placement')
+  await page.click('.placement-targets > button:last-child')
+  await page.waitForFunction((instanceId) => document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-target') === instanceId, {}, settledAccessory.lastSettledInstance)
+  const rehydratedAccessory = await state()
+  assertVectorClose('accessory persisted position rehydration', rehydratedAccessory.selectedWorldPosition, settledAccessory.lastSettledWorldPosition)
+  assertQuaternionEquivalent('accessory persisted rotation rehydration', rehydratedAccessory.selectedWorldRotation, settledAccessory.lastSettledWorldRotation)
+  if (Math.abs(rehydratedAccessory.selectedScale - settledAccessory.lastSettledScale) > 0.008) {
+    throw new Error(`accessory persisted scale rehydration drift: ${rehydratedAccessory.selectedScale} != ${settledAccessory.lastSettledScale}`)
+  }
+  assertInsidePedestal('rehydrated accessory pose', MONOCLE_SUPPORT_POINTS, rehydratedAccessory.selectedWorldPosition, rehydratedAccessory.selectedWorldRotation, rehydratedAccessory.selectedScale)
 
   const targetSizes = await page.$$eval('.placement-panel button, .accessory-shop button', (buttons) => buttons.every((button) => {
     const rect = button.getBoundingClientRect()
@@ -569,6 +587,7 @@ assertInsidePedestal('rehydrated accessory pose', MONOCLE_SUPPORT_POINTS, rehydr
     rockPersistenceRehydration: true,
     canvasAccessoryPosition: true,
     accessoryTwoFingerPinch: true,
+    accessoryCollisionAwareScale: true,
     accessoryTwoFingerTwist: true,
     accessoryFinitePedestal: true,
     accessoryPersistenceRehydration: true,
