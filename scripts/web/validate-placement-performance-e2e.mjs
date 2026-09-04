@@ -34,6 +34,13 @@ function percentile(values, ratio) {
   return sorted[Math.max(0, Math.ceil(sorted.length * ratio) - 1)] ?? 0
 }
 
+function median(values) {
+  const sorted = [...values].sort((left, right) => left - right)
+  const middle = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 0) return ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2
+  return sorted[middle] ?? 0
+}
+
 function summarizeFrames(values) {
   return {
     samples: values.length,
@@ -144,7 +151,7 @@ async function measureGestureLatency(page) {
     const metric = window.__CAILLOU_GESTURE_METRIC__
     canvas.addEventListener('pointermove', () => {
       if (metric.startedAt === null) metric.startedAt = performance.now()
-    }, { capture: true })
+    }, { capture: true, once: true })
     const observer = new MutationObserver(() => {
       const value = output.getAttribute('data-selected-world-position')
       if (value !== metric.baseline && metric.startedAt !== null && metric.durationMs === null) {
@@ -160,6 +167,18 @@ async function measureGestureLatency(page) {
   await page.mouse.up()
   await page.waitForFunction(() => window.__CAILLOU_GESTURE_METRIC__?.durationMs != null, { timeout: 5_000 })
   return page.evaluate(() => window.__CAILLOU_GESTURE_METRIC__.durationMs)
+}
+
+async function measureGestureLatencyStable(page, sampleCount = 3) {
+  const samples = []
+  for (let index = 0; index < sampleCount; index += 1) {
+    samples.push(await measureGestureLatency(page))
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())))
+  }
+  return {
+    samples,
+    medianMs: median(samples),
+  }
 }
 
 async function measureInteractiveFrames(page) {
@@ -222,7 +241,7 @@ const report = {
   environment: {
     renderer: 'GitHub Actions headless Chrome / ANGLE SwiftShader',
     frameCadencePolicy: 'diagnostic absolute values; regression gate uses tablet 1→4→8 relative growth',
-    gestureLatencyPolicy: 'diagnostic absolute values; regression gate uses tablet 1→4→8 relative growth because React commit latency is runner/render-scheduler dependent',
+    gestureLatencyPolicy: 'median of 3 same-scenario gestures; regression gate keeps tablet 1→4→8 relative growth to reject scaling regressions without treating runner scheduler jitter as product latency',
   },
   thresholds: {
     collisionP95Ms: 25,
@@ -273,7 +292,8 @@ try {
 
       const browserBefore = await page.metrics()
       const selectionMs = await measureDirectSelection(page)
-      const gestureMs = await measureGestureLatency(page)
+      const gesture = await measureGestureLatencyStable(page)
+      const gestureMs = gesture.medianMs
       const frameDurations = await measureInteractiveFrames(page)
       const frame = summarizeFrames(frameDurations)
 
@@ -308,6 +328,7 @@ try {
         viewport: `${scenario.width}x${scenario.height}`,
         selectionRaycastMs: selectionMs,
         gesturePublishMs: gestureMs,
+        gesturePublishSamplesMs: gesture.samples,
         interactiveFrames: frame,
         collisionQueries: collision,
         rapierSettlementMs: settlementMs,
@@ -319,7 +340,7 @@ try {
       }
       report.scenarios.push(metrics)
       await writeFile(`${outputDir}/${scenario.label}.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-      console.log(`[CAILLOU] Lot F ${scenario.label} PASS: raycast=${selectionMs.toFixed(1)}ms gesture=${gestureMs.toFixed(1)}ms (runner diagnostic) frame-p95=${frame.p95Ms.toFixed(1)}ms (SwiftShader diagnostic) settlement=${settlementMs.toFixed(1)}ms`)
+      console.log(`[CAILLOU] Lot F ${scenario.label} PASS: raycast=${selectionMs.toFixed(1)}ms gesture-median=${gestureMs.toFixed(1)}ms samples=[${gesture.samples.map((value) => value.toFixed(1)).join(', ')}] (runner diagnostic) frame-p95=${frame.p95Ms.toFixed(1)}ms (SwiftShader diagnostic) settlement=${settlementMs.toFixed(1)}ms`)
     } finally {
       await page.close()
     }
