@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import type { EquippedAccessoryInstance } from '../accessories/accessoryTypes'
+import { normalizeRockPose } from '../rockMovement/rockMovementRules'
+import type { RockPose, WorldAccessoryTransform } from '../rockMovement/rockMovementTypes'
 import type { SettledWorldComposition } from './placementPersistence'
 import type { PlacementSessionState, PlacementSettlementPlan } from './placementSession'
 import type { PlacementTransform } from './placementTypes'
-import { normalizeRockPose } from '../rockMovement/rockMovementRules'
-import type { RockPose, WorldAccessoryTransform } from '../rockMovement/rockMovementTypes'
 
 interface PlacementSettlementCoordinatorOptions {
   settling: boolean
   settlementPlan: PlacementSettlementPlan | null
   placementSession: PlacementSessionState | null
   accessories: EquippedAccessoryInstance[]
-  onCompositionSettled?: (composition: SettledWorldComposition) => void
-  onAccessorySettled?: (instanceId: string, transform: PlacementTransform) => void
+  onCompositionSettled?: ((composition: SettledWorldComposition) => void) | undefined
+  onAccessorySettled?: ((instanceId: string, transform: PlacementTransform) => void) | undefined
 }
 
 export function usePlacementSettlementCoordinator({

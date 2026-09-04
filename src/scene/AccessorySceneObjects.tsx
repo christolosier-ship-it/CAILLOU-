@@ -17,12 +17,12 @@ interface AccessorySceneObjectsProps {
   onSettledWorld: (instanceId: string, transform: PlacementTransform) => void
   onGlobalSettled: (transform: WorldAccessoryTransform) => void
   onPlacementGeometryReady: (instanceId: string, geometry: PlacementGeometry | null) => void
-  onLoadStateChange?: (
+  onLoadStateChange?: ((
     instanceId: string,
     state: 'loading' | 'ready' | 'error',
     message?: string,
-  ) => void
-  onDisposed?: (instanceId: string, report: DisposalReport) => void
+  ) => void) | undefined
+  onDisposed?: ((instanceId: string, report: DisposalReport) => void) | undefined
 }
 
 export function AccessorySceneObjects({
