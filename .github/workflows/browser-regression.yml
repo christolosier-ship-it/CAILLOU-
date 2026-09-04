@@ -106,6 +106,7 @@ jobs:
 
           run_vite placement-unified 4181 scripts/web/validate-placement-unified-e2e.mjs
           run_vite placement-collision 4182 scripts/web/validate-placement-collision-e2e.mjs
+          run_vite placement-cancel 4184 scripts/web/validate-placement-cancel-e2e.mjs
           run_http showroom-memory 4173 scripts/web/validate-showroom-memory.mjs
           run_vite showroom-ui 4174 scripts/web/validate-showroom-ui.mjs
           run_vite adoption 4175 scripts/web/validate-adoption-e2e.mjs
