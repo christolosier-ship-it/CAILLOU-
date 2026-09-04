@@ -187,6 +187,8 @@ export type Database = {
           event_key: string
           feature_id: string | null
           id: string
+          item_id: string | null
+          item_kind: string | null
           reason: string
           user_id: string
           user_rock_id: string | null
@@ -198,6 +200,8 @@ export type Database = {
           event_key: string
           feature_id?: string | null
           id?: string
+          item_id?: string | null
+          item_kind?: string | null
           reason: string
           user_id: string
           user_rock_id?: string | null
@@ -209,6 +213,8 @@ export type Database = {
           event_key?: string
           feature_id?: string | null
           id?: string
+          item_id?: string | null
+          item_kind?: string | null
           reason?: string
           user_id?: string
           user_rock_id?: string | null
