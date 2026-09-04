@@ -1,16 +1,18 @@
 # V2-01 — Placement 2.0 & scène interactive
 
-> **Statut : spécifiée — prête à exécuter après V2-00.**
+> **Statut : ✅ terminée — fusionnée et vérifiée en production le 4 septembre 2026.**
 >
 > **Date de spécification : 4 septembre 2026.**
 >
 > **Spécification enrichie : 4 septembre 2026 — extensibilité objets / collisions / futurs adhésifs.**
 >
+> **Clôture : 4 septembre 2026 — PR #43, merge `86e223102315a70c2abbf16fa2055be7200f0622`, production Vercel `dpl_TBETKBSmqtbAGFQtVVfsCYPN2wNK`.**
+>
 > **Position : première étape produit réelle de la V2.0.**
 >
 > **Dépendances : V2-00 terminée.**
 >
-> Ce fichier est le **prompt autonome d'exécution** de V2-01. Après réalisation, il devient le compte rendu historique de l'étape. Il doit pouvoir être utilisé dans une nouvelle conversation sans dépendre d'un contexte implicite.
+> Ce fichier est désormais le **compte rendu historique d'exécution** de V2-01. Il conserve la spécification qui a guidé l'étape et son bloc final consigne le résultat réellement livré.
 
 ## 1. Prompt d'exécution
 
@@ -742,54 +744,54 @@ Ne pas ajouter de faux test « googly eye » tant que l'objet n'existe pas réel
 
 ### Architecture / extensibilité
 
-- [ ] caillou et accessoires utilisent un moteur de manipulation commun ;
-- [ ] capabilities explicites indépendantes du simple `kind` ;
-- [ ] profil de placement explicite pour les objets actuels ;
-- [ ] aucun comportement codé par ID catalogue ;
-- [ ] architecture compatible avec un futur `surfaceAttached` sans l'implémenter ;
-- [ ] aucune table/colonne d'attachment spéculative créée ;
-- [ ] RenderGeometry, SelectionGeometry et CollisionGeometry sont conceptuellement séparées ;
-- [ ] la zone de sélection tactile n'agrandit pas le collider physique.
+- [x] caillou et accessoires utilisent un moteur de manipulation commun ;
+- [x] capabilities explicites indépendantes du simple `kind` ;
+- [x] profil de placement explicite pour les objets actuels ;
+- [x] aucun comportement codé par ID catalogue ;
+- [x] architecture compatible avec un futur `surfaceAttached` sans l'implémenter ;
+- [x] aucune table/colonne d'attachment spéculative créée ;
+- [x] RenderGeometry, SelectionGeometry et CollisionGeometry sont conceptuellement séparées ;
+- [x] la zone de sélection tactile n'agrandit pas le collider physique.
 
 ### UX
 
-- [ ] sélection directe par tap ;
-- [ ] sélecteur fallback fonctionnel ;
-- [ ] caméra sélectionnable sans quitter Placement ;
-- [ ] retour vers le dernier objet sans perte de draft ;
-- [ ] Position/Rotation communes ;
-- [ ] outils affichés selon capabilities ;
-- [ ] Taille uniquement pour les objets autorisés.
+- [x] sélection directe par tap ;
+- [x] sélecteur fallback fonctionnel ;
+- [x] caméra sélectionnable sans quitter Placement ;
+- [x] retour vers le dernier objet sans perte de draft ;
+- [x] Position/Rotation communes ;
+- [x] outils affichés selon capabilities ;
+- [x] Taille uniquement pour les objets autorisés.
 
 ### Physique
 
-- [ ] collisions actives pendant manipulation ;
-- [ ] translation bornée avant pénétration ;
-- [ ] rotation bornée avant pénétration ;
-- [ ] scale borné avant pénétration lorsque applicable ;
-- [ ] aucun effet flottant visible dû à des colliders surdimensionnés ;
-- [ ] sol infranchissable ;
-- [ ] gestes rapides sans tunneling bloquant ;
-- [ ] stratégie collider adaptée aux formes actuelles ;
-- [ ] debug collider disponible en développement si utile et absent de l'UX normale.
+- [x] collisions actives pendant manipulation ;
+- [x] translation bornée avant pénétration ;
+- [x] rotation bornée avant pénétration ;
+- [x] scale borné avant pénétration lorsque applicable ;
+- [x] aucun effet flottant visible dû à des colliders surdimensionnés ;
+- [x] sol infranchissable ;
+- [x] gestes rapides sans tunneling bloquant ;
+- [x] stratégie collider adaptée aux formes actuelles ;
+- [x] debug collider disponible en développement si utile et absent de l'UX normale.
 
 ### Session / persistance
 
-- [ ] Annuler restaure tout le snapshot ;
-- [ ] objet -> caméra -> autre objet ne perd aucun draft ;
-- [ ] Terminer stabilise puis persiste ;
-- [ ] anciens placements chargent sans perte ;
-- [ ] offline/reconnexion cohérents.
+- [x] Annuler restaure tout le snapshot ;
+- [x] objet -> caméra -> autre objet ne perd aucun draft ;
+- [x] Terminer stabilise puis persiste ;
+- [x] anciens placements chargent sans perte ;
+- [x] offline/reconnexion cohérents.
 
 ### Qualité
 
-- [ ] `ShowroomScene` n'est plus le même nœud de responsabilités ;
-- [ ] coûts physiques/queries mesurés ;
-- [ ] mesures 1 / 4 / 8 objets réalisées ;
-- [ ] CI verte ;
-- [ ] Browser regression verte ;
-- [ ] Preview finale validée si utilisée ;
-- [ ] production vérifiée après merge.
+- [x] `ShowroomScene` n'est plus le même nœud de responsabilités ;
+- [x] coûts physiques/queries mesurés ;
+- [x] mesures 1 / 4 / 8 objets réalisées ;
+- [x] CI verte ;
+- [x] Browser regression verte ;
+- [x] Preview finale validée si utilisée ;
+- [x] production vérifiée après merge.
 
 ## 19. Interdictions anti-scope-creep
 
@@ -812,37 +814,175 @@ Ne pas :
 
 ## 20. État / compte rendu d'exécution
 
-**Statut : À exécuter.**
+**Statut : ✅ Terminée le 4 septembre 2026.**
 
-### Discipline de compte rendu par lot
+### Références de livraison
 
-Après chaque lot, compléter temporairement ou commenter dans la PR :
+- branche d'exécution : `feat/v2-01-placement-2-0` ;
+- PR principale : `#43` — fusionnée après validation manuelle de la Preview ;
+- SHA candidat final validé : `60ad5988e20aa24f43fb346ecbee13235c9428d7` ;
+- SHA de merge `main` : `86e223102315a70c2abbf16fa2055be7200f0622` ;
+- CI finale : `33888904763` — **success** ;
+- Browser regression finale : `33888904713` — **success** ;
+- Preview finale : `dpl_9Fw7FoAq7jktXARCi8kvRJQvRWA1`, alias `caillou-git-preview-v2-01-final-christo5.vercel.app` — **READY**, HTTP 200, validée manuellement par le propriétaire ;
+- production : `dpl_TBETKBSmqtbAGFQtVVfsCYPN2wNK`, commit `86e2231`, cible `production` — **READY** ;
+- alias production contrôlés : `caillou-sigma.vercel.app`, `caillou-christo5.vercel.app`, `caillou-git-main-christo5.vercel.app` ;
+- smoke test production : HTTP 200 ; aucun runtime error Vercel détecté sur la fenêtre de contrôle.
 
-- lot terminé ;
-- fichiers/contrats principaux touchés ;
-- comportement validé ;
-- tests/CI pertinents ;
-- dette ou risque reporté ;
-- confirmation explicite que le lot suivant n'a pas commencé.
+### Architecture finale de scène
 
-### Compte rendu final à compléter en fin d'étape
+`ShowroomScene` est devenu un assembleur de responsabilités séparées :
 
-- date ;
-- branche / PR ;
-- SHA candidat et SHA merge ;
-- architecture finale de scène ;
-- contrats `PlacementObject` / capabilities / behavior retenus ;
-- fichiers créés/supprimés/remplacés ;
-- stratégie de sélection ;
-- stratégie collider retenue par famille d'objet ;
-- stratégie de résolution translation/rotation/scale ;
-- préparation réelle laissée pour les futurs objets adhésifs ;
-- mesures téléphone/tablette/desktop ;
-- mesures 1 / 4 / 8 objets ;
-- migrations Supabase éventuelles et justification ;
-- résultats `CI` / `Browser regression` ;
-- Preview Vercel éventuelle et raison ;
-- état production ;
-- dettes reportées vers V2-02/V2-03.
+```text
+ShowroomScene
+├── SceneCameraController
+├── PlacementInteractionController
+├── PlacementPhysicsWorld
+├── RockSceneObject
+├── AccessorySceneObjects
+└── usePlacementSettlementCoordinator
+```
 
-**Ne pas démarrer V2-02 dans cette PR.**
+La scène n'interprète plus la nature métier `rock` / `accessory` comme moteur d'interaction. Les objets actuels passent par un contrat de cible et des profils explicites.
+
+### Contrats Placement retenus
+
+Les contrats introduits et utilisés comprennent notamment :
+
+- `PlacementObject` / identité stable ;
+- `PlacementCapabilities` ;
+- `PlacementBehavior` avec `free` pour les objets actuels ;
+- `CollisionProfile` ;
+- `PhysicsProfile` ;
+- `PlacementControlTarget` distinguant `camera` et `object` ;
+- `PlacementTarget` portant le profil réellement consommé par le contrôleur.
+
+Les capacités Position / Orientation / Taille sont lues depuis le profil ; aucune logique de manipulation n'est codée par identifiant catalogue.
+
+### Sélection et caméra
+
+- sélection directe du caillou et des accessoires par raycast ;
+- fallback par sélecteur/listing conservé ;
+- `SelectionGeometry` tactile séparée de `CollisionGeometry` ;
+- cible `Caméra` intégrée à la session sans provoquer de persistance ni perdre le draft ;
+- conservation du dernier objet manipulé lors des allers-retours objet ↔ caméra.
+
+### Collisions et résolution cinématique
+
+Le pipeline livré est :
+
+```text
+geste
+  -> transform souhaité
+  -> contrainte du Socle
+  -> requêtes Rapier
+  -> transform maximal valide
+  -> draft
+```
+
+- translation : `castShape` pour arrêter les mouvements rapides avant pénétration et limiter le tunneling ;
+- rotation : progression bornée puis raffinement binaire vers le plus grand angle valide ;
+- scale : progression bornée puis raffinement vers le plus grand scale valide ;
+- réduction de scale laissée libre pour sortir d'un contact hérité ;
+- collisions actuelles dérivées d'une primitive adaptée lorsque possible ou d'une convex hull issue de la géométrie ;
+- séparation sélection/collision maintenue ;
+- floor logique du Socle traité par les contraintes géométriques et exclu des requêtes Rapier redondantes ;
+- debug collider disponible uniquement en développement via `?placementCollisionDebug=1`.
+
+Les stratégies compound/proxy restent préparées par le contrat et seront industrialisées dans V2-03 pour les formes qui l'exigeront.
+
+### Session, annulation et persistance
+
+- snapshot canonique complet à l'entrée en Placement ;
+- draft local multi-cibles ;
+- ajout/retrait d'accessoires purement local pendant la session ;
+- `Annuler` restaure exactement le snapshot initial ;
+- `Terminer` déclenche settlement Rapier puis une seule confirmation canonique serveur ;
+- double-submit protégé ;
+- `event_key` unique conservée pour idempotence et réconciliation ;
+- échec de persistance : aucun état non confirmé n'est présenté comme canonique.
+
+L'exigence d'atomicité de la finalisation a démontré un besoin serveur réel pendant le Lot E. Une migration Supabase a donc été ajoutée malgré l'absence de migration attendue par défaut dans la spécification initiale :
+
+- `20260904132640_v2_01_placement_session_commit` ;
+- RPC `commit_placement_session` atomique et idempotente ;
+- validation des droits, identité des instances, limites de scale, Permis lorsqu'applicable, créations, suppressions et transforms avant publication ;
+- implémentation privilégiée confinée, contrôle `auth.uid()` / propriété et grants explicites ;
+- aucune table/colonne `attachments` créée.
+
+### Mesures Lot F
+
+Banc réel Browser ajouté au workflow existant, sans télémétrie de production.
+
+Tablette 1024×768 :
+
+| Objets | Raycast | Geste diagnostic runner | Settlement |
+|---:|---:|---:|---:|
+| 1 | 12.2 ms | 167.3 ms | 3681.9 ms |
+| 4 | 14.0 ms | 216.8 ms | 4220.8 ms |
+| 8 | 22.1 ms | 347.4 ms | 4261.5 ms |
+
+Croissance `1 → 8` sous charge :
+
+- frame moyenne : `1.82×` ;
+- publication du geste : `2.08×` ;
+- main-thread `TaskDuration` : `1.48×` ;
+- `ScriptDuration` : `1.30×`.
+
+Requêtes collision à 8 objets :
+
+- translation : `0.4 ms p95` ;
+- rotation : `0.9 ms p95` ;
+- scale : `0.2 ms p95`.
+
+Autres appareils simulés :
+
+- téléphone 390×844, 8 objets : raycast `17.3 ms`, settlement `3785.0 ms` ;
+- desktop 1440×900, 8 objets : raycast `20.4 ms`, settlement `5035.4 ms`.
+
+Les valeurs absolues de cadence `requestAnimationFrame` et de publication du geste sur GitHub Actions sont conservées comme diagnostics, car ANGLE/SwiftShader présente une variance importante entre runners. Les gates automatiques utilisent donc la croissance relative `1 / 4 / 8`, tandis que les coûts collision, sélection et settlement conservent leurs contrôles adaptés.
+
+### GPU / bundle
+
+- showroom mémoire : **PASS**, 3 tours × 20 cailloux ;
+- résidu final observé : `geometries=0`, `textures=1` ;
+- chunk 3D/physique final : `1 019.26 kB gzip`, sans augmentation durable du Lot F ;
+- le banc de performance reste hors bundle de production.
+
+### Supabase final
+
+- projet `CAILLOU-` : `ACTIVE_HEALTHY` ;
+- dernière migration V2-01 : `20260904132640_v2_01_placement_session_commit` ;
+- aucune migration Lot F ;
+- aucune relaxation RLS ;
+- aucune donnée ou structure spéculative pour les futurs adhésifs.
+
+### Validation finale
+
+Le Browser final confirme :
+
+- `placement-unified` PASS ;
+- `placement-collision` PASS ;
+- `placement-cancel` PASS ;
+- `placement-performance` PASS ;
+- showroom mémoire/UI PASS ;
+- adoption, caresse, nettoyage, accessoires, physique, mouvement du caillou et Bio/Jeter PASS.
+
+La Preview finale a ensuite été validée manuellement par le propriétaire avant autorisation explicite de merge et mise en production.
+
+### Préparation laissée aux étapes suivantes
+
+V2-01 prépare sans les implémenter :
+
+- `surfaceAttached`, `constrained`, `fixedToHost` ;
+- distinction durable `RenderGeometry` / `SelectionGeometry` / `CollisionGeometry` ;
+- familles de colliders `primitive` / `convex` / `compound` / `proxy` ;
+- futurs anchors/attachments sans schéma serveur anticipé.
+
+Dettes volontairement reportées :
+
+- **V2-02** : socle canonique V2, économie/entitlements par caillou, migration métier du Permis et règle d'unicité des biens ;
+- **V2-03** : industrialisation des colliders/proxies par famille d'accessoire, pipeline d'assets/provenance et décision sur le plafond futur d'objets à partir des mesures V2-01 ;
+- **V2-10** : optimisation globale bundles/PWA et plafond final après le reste des features V2.
+
+**V2-01 est gelée. V2-02 est désormais l'étape suivante autorisée.**
