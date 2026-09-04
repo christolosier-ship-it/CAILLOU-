@@ -1,4 +1,4 @@
-
+import { placementToolAllowed } from './placementObject'
 import type { PlacementTarget, PlacementTool } from './placementTypes'
 
 export type PlacementGestureAction =
@@ -14,10 +14,12 @@ export function resolvePlacementGesture(
   tool: PlacementTool,
   pointerCount: number,
 ): PlacementGestureAction {
+  if (!placementToolAllowed(target.profile.capabilities, tool)) return null
+
   if (pointerCount >= 2) {
     if (tool === 'position') return 'depth-position'
     if (tool === 'orientation') return 'twist-orientation'
-    return target.kind === 'accessory' ? 'uniform-scale' : null
+    return 'uniform-scale'
   }
   if (pointerCount === 1) {
     if (tool === 'position') return 'surface-position'
