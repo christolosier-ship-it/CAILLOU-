@@ -423,42 +423,6 @@ export type Database = {
           },
         ]
       }
-      user_feature_unlocks: {
-        Row: {
-          feature_id: string
-          price_paid: number
-          unlocked_at: string
-          user_id: string
-        }
-        Insert: {
-          feature_id: string
-          price_paid: number
-          unlocked_at?: string
-          user_id: string
-        }
-        Update: {
-          feature_id?: string
-          price_paid?: number
-          unlocked_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_feature_unlocks_feature_id_fkey"
-            columns: ["feature_id"]
-            isOneToOne: false
-            referencedRelation: "feature_catalog"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_feature_unlocks_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_rocks: {
         Row: {
           adopted_at: string
@@ -553,7 +517,30 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_feature_unlocks: {
+        Row: {
+          feature_id: string | null
+          price_paid: number | null
+          unlocked_at: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rock_feature_unlocks_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "feature_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_rocks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       adopt_rock: {
@@ -629,6 +616,20 @@ export type Database = {
           feature_id: string
           price_paid: number
           unlocked_at: string
+        }[]
+      }
+      purchase_rock_feature_unlock: {
+        Args: {
+          p_event_key: string
+          p_feature_id: string
+          p_user_rock_id: string
+        }
+        Returns: {
+          balance: number
+          feature_id: string
+          price_paid: number
+          unlocked_at: string
+          user_rock_id: string
         }[]
       }
       register_caress: {
