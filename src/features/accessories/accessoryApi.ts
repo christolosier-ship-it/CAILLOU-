@@ -70,6 +70,8 @@ function mapAccessory(
     scale_min: number
     scale_max: number
     physics: AccessoryCatalogItem['physics']
+    collision: AccessoryCatalogItem['collision']
+    budget: AccessoryCatalogItem['budget']
     provenance: AccessoryCatalogItem['provenance']
   },
   purchasedAt: string | null,
@@ -92,6 +94,8 @@ function mapAccessory(
     scaleMin: row.scale_min,
     scaleMax: row.scale_max,
     physics: row.physics,
+    collision: row.collision,
+    budget: row.budget,
     provenance: row.provenance,
     purchasedAt,
   }
@@ -101,7 +105,7 @@ export async function loadAccessoryShop(): Promise<AccessoryShopSnapshot> {
   const [catalogResult, ownershipResult] = await Promise.all([
     supabase
       .from('accessories')
-      .select('id, name, description, price_lithons, asset_path, preview_path, slot, sort_order, triangle_count, dimensions, scale_min, scale_max, physics, provenance')
+      .select('id, name, description, price_lithons, asset_path, preview_path, slot, sort_order, triangle_count, dimensions, scale_min, scale_max, physics, collision, budget, provenance')
       .order('sort_order')
       .order('id'),
     supabase.from('user_accessories').select('accessory_id, purchased_at'),

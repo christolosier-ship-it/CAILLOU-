@@ -18,6 +18,8 @@ export type Database = {
         Row: {
           active: boolean
           asset_path: string | null
+          budget: Json
+          collision: Json
           created_at: string
           description: string | null
           dimensions: Json | null
@@ -37,6 +39,8 @@ export type Database = {
         Insert: {
           active?: boolean
           asset_path?: string | null
+          budget: Json
+          collision: Json
           created_at?: string
           description?: string | null
           dimensions?: Json | null
@@ -56,6 +60,8 @@ export type Database = {
         Update: {
           active?: boolean
           asset_path?: string | null
+          budget?: Json
+          collision?: Json
           created_at?: string
           description?: string | null
           dimensions?: Json | null

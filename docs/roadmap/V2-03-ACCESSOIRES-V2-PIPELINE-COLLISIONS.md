@@ -1,6 +1,6 @@
 # V2-03 — Accessoires V2 & pipeline collisions
 
-> **Statut : en cours — Lot A terminé le 4 septembre 2026.**
+> **Statut : en cours — Lots A et B terminés le 4 septembre 2026.**
 >
 > **Date : 4 septembre 2026.**
 >
@@ -66,7 +66,7 @@ Rejeter ou supprimer les assets manifestement corrompus, hors catégorie ou non 
 
 Compte rendu détaillé : `docs/roadmap/V2-03-LOT-A-AUDIT.md`.
 
-### Lot B — Contrat d'un asset accessoire V2
+### Lot B — Contrat d'un asset accessoire V2 ✅ TERMINÉ
 
 Chaque entrée doit disposer au minimum de :
 
@@ -86,6 +86,10 @@ budget metadata utile
 ```
 
 Réutiliser les colonnes existantes lorsqu'elles suffisent. Une migration n'est ajoutée que pour un besoin immédiat démontré.
+
+Le Lot B a démontré le besoin immédiat de deux champs dédiés, `collision` et `budget`, afin de ne pas mélanger la géométrie de collision avec les réglages physiques Rapier et de stocker des mesures runtime non dérivables du catalogue V1.
+
+Compte rendu détaillé : `docs/roadmap/V2-03-LOT-B-CONTRAT-ASSET.md`.
 
 ### Lot C — Pipeline collider
 
@@ -192,17 +196,24 @@ Le runtime ne doit pas recalculer à chaque session une décomposition coûteuse
 
 Le catalogue `accessories` reste la source commerciale serveur.
 
-Si une colonne collision/proxy est nécessaire, migration additive + validation JSON/format raisonnable. Ne pas mettre de binaire dans Postgres.
+Le Lot B ajoute deux colonnes JSONB non nulles :
+
+- `collision` pour la stratégie et, si nécessaire, le chemin d'un proxy préparé hors ligne ;
+- `budget` pour les mesures runtime, avec `runtimeModelBytes` obligatoire sur toute entrée active.
+
+Les chemins de proxy sont validés côté base et aucun binaire n'est stocké dans Postgres. Le champ legacy `provenance` reste présent pour compatibilité V1 mais ne conditionne plus l'activation d'un accessoire.
 
 Les possessions restent celles de V2-02.
 
 ## 10. Migration / backfill / compatibilité V1
 
 - les quatre accessoires V1 restent valides ;
-- compléter leurs metadata collision si nécessaire ;
+- leurs metadata collision et poids runtime sont backfillées ;
 - ne pas changer leurs IDs ;
 - aucune perte de possession ;
 - anciens placements doivent continuer à charger.
+
+Migration Lot B : `20260904213106_v2_03_accessory_asset_contract.sql`.
 
 ## 11. RLS / RPC / idempotence / sécurité
 
@@ -244,6 +255,8 @@ Tester les objets petits, fins, concaves, proches les uns des autres et le séle
 - règles disponibilité possédé/placé ;
 - budgets.
 
+Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Les règles physiques effectives restent au Lot C.
+
 ## 16. Browser regression
 
 Ajouter aux scénarios existants : chargement nouveaux objets, achat unique, placement, contact réel, retrait/replacement, reload, plusieurs objets jusqu'au plafond retenu, cycles ajout/retrait sans fuite visible.
@@ -271,7 +284,7 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 
 ## 20. État / compte rendu d'exécution
 
-**Statut global : en cours. Lot A terminé. Lots B à G non démarrés.**
+**Statut global : en cours. Lots A et B terminés. Lots C à G non démarrés.**
 
 ### Lot A — checkpoint du 4 septembre 2026
 
@@ -288,6 +301,22 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 - licences/notices/provenance explicitement exclues de V2-03 ;
 - rapport complet : `docs/roadmap/V2-03-LOT-A-AUDIT.md`.
 
-À compléter dans les lots suivants : assets intégrés, poids/triangles/textures finaux, stratégie collider finale par asset, migrations éventuelles, plafond retenu et mesures, tests, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
+### Lot B — checkpoint du 4 septembre 2026
+
+- migration Supabase additive `20260904213106_v2_03_accessory_asset_contract` appliquée ;
+- colonnes `collision jsonb not null` et `budget jsonb not null` ajoutées ;
+- contraintes de stratégie collision, chemin proxy et budgets ajoutées ;
+- `runtimeModelBytes` obligatoire pour toute entrée active ;
+- quatre accessoires V1 backfillés sans changer leurs IDs, prix, possessions, placements, échelles ou physique ;
+- ancien champ `provenance` conservé mais retiré du contrat d'activation ;
+- types Supabase régénérés ;
+- Boutique raccordée à `collision` et `budget` sans modifier encore le comportement Rapier ;
+- parseurs TypeScript collision/budget et tests unitaires ajoutés ;
+- test SQL transactionnel des contraintes et du backfill ajouté ;
+- aucun nouvel objet de `Ressource/` publié ;
+- aucune Preview Vercel manuelle déclenchée ;
+- rapport complet : `docs/roadmap/V2-03-LOT-B-CONTRAT-ASSET.md`.
+
+À compléter dans les lots suivants : assets intégrés, poids/triangles/textures finaux, stratégie collider finale par asset, plafond retenu et mesures, tests Browser finaux, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
 
 **Ne pas démarrer V2-04 dans cette PR.**
