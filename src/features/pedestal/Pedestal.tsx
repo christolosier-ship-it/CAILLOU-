@@ -121,8 +121,7 @@ export function Pedestal({
     if (placement.placementMode) {
       if (!capabilities.canExitPlacement) return
       care.prepareExternalTransition()
-      placement.resetDraft()
-      dispatchPedestal({ type: 'return-to-orbit' })
+      placement.handlePlacementCancel()
       return
     }
     if (!capabilities.canEnterPlacement) return
@@ -324,6 +323,7 @@ export function Pedestal({
               onToolChange={placement.handlePlacementTool}
               onAddOwned={placement.handlePlacementAdd}
               onRemove={placement.handleAccessoryRemove}
+              onCancel={placement.handlePlacementCancel}
               onDone={placement.handlePlacementDone}
             />
           ) : null}
