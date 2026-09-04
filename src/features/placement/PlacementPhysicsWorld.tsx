@@ -20,6 +20,7 @@ function PedestalFloor() {
       position={[0, PEDESTAL_FLOOR_CENTER_Y, 0]}
       friction={PEDESTAL_FLOOR_FRICTION}
       restitution={PEDESTAL_FLOOR_RESTITUTION}
+      userData={{ placementBoundary: 'pedestal-floor' }}
     >
       <CuboidCollider args={PEDESTAL_FLOOR_HALF_EXTENTS} />
       <mesh name="CAILLOU_PEDESTAL_FLOOR" receiveShadow>
@@ -36,12 +37,17 @@ interface PlacementPhysicsWorldProps {
 }
 
 export function PlacementPhysicsWorld({ paused, children }: PlacementPhysicsWorldProps) {
+  const debugColliders = import.meta.env.DEV
+    && typeof window !== 'undefined'
+    && new URLSearchParams(window.location.search).get('placementCollisionDebug') === '1'
+
   return (
     <Physics
       gravity={[ACCESSORY_WORLD_GRAVITY[0], ACCESSORY_WORLD_GRAVITY[1], ACCESSORY_WORLD_GRAVITY[2]]}
       colliders={false}
       updateLoop="independent"
       paused={paused}
+      debug={debugColliders}
     >
       <PedestalFloor />
       {children}
