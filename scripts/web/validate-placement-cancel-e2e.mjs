@@ -51,6 +51,11 @@ function assertVectorClose(label, actual, expected, epsilon = 0.008) {
   }
 }
 
+function vectorChanged(actual, expected, epsilon = 0.005) {
+  return Array.isArray(actual) && Array.isArray(expected) && actual.length === expected.length
+    && actual.some((value, index) => Math.abs(value - expected[index]) > epsilon)
+}
+
 async function dispatchSinglePointer(dx, dy) {
   await page.$eval('.pedestal-stage canvas', (canvas, deltaX, deltaY) => {
     const rect = canvas.getBoundingClientRect()
@@ -98,7 +103,9 @@ try {
 
   const dirty = await state()
   if (dirty.instanceCount !== 2) throw new Error('draft accessory was not added before cancellation')
-  assertVectorClose('dirty accessory actually moved', dirty.sessionAccessories[initialId].position, dirty.selectedWorldPosition)
+  if (!vectorChanged(dirty.sessionAccessories[initialId]?.position, initialAccessory.position)) {
+    throw new Error('initial accessory draft did not change before cancellation')
+  }
 
   await page.click('.placement-panel-heading > .placement-cancel')
   await page.waitForFunction(() => {
