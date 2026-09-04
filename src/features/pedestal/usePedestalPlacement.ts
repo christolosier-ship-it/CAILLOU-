@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AccessoryCatalogItem } from '../accessories/accessoryTypes'
 import { useAccessoryPlacements } from '../accessories/useAccessoryPlacements'
 import type { ActiveRock } from '../adoption/adoptionTypes'
+import {
+  accessoryPlacementTarget,
+  placementToolAllowed,
+  rockPlacementTarget,
+} from '../placement/placementObject'
 import { persistAccessoryWorldTransform, persistRockCompositionWorld } from '../placement/placementPersistence'
 import type { SettledWorldComposition } from '../placement/placementPersistence'
 import {
@@ -119,16 +124,18 @@ export function usePedestalPlacement({
     setAccessoryRenderError(null)
     setPlacementSession((current) => current ? addPlacementSessionAccessory(current, created) : current)
     setSelectedAccessoryId(created.id)
-    setPlacementTarget({ kind: 'accessory', instanceId: created.id })
+    setPlacementTarget(accessoryPlacementTarget(created))
     setPlacementTool('position')
   }, [placeAccessory])
 
   const handleAccessorySelect = useCallback((instanceId: string) => {
     if (mutationPending || mode !== 'placement') return
+    const instance = accessoryInstances.find((candidate) => candidate.id === instanceId)
+    if (!instance) return
     setSelectedAccessoryId(instanceId)
-    setPlacementTarget({ kind: 'accessory', instanceId })
+    setPlacementTarget(accessoryPlacementTarget(instance))
     setPlacementTool('position')
-  }, [mode, mutationPending])
+  }, [accessoryInstances, mode, mutationPending])
 
   const handleAccessoryRemove = useCallback((instanceId: string) => {
     if (mutationPending || mode !== 'placement') return
@@ -145,7 +152,7 @@ export function usePedestalPlacement({
     if (mutationPending) return 'blocked'
     if (!rockPermit.unlocked) return 'permit-required'
     setSelectedAccessoryId(null)
-    setPlacementTarget({ kind: 'rock' })
+    setPlacementTarget(rockPlacementTarget())
     setPlacementTool('position')
     setRockMovementError(null)
     return 'selected'
@@ -153,7 +160,7 @@ export function usePedestalPlacement({
 
   const handlePlacementTool = useCallback((tool: PlacementTool) => {
     if (!placementTarget || mutationPending) return
-    if (placementTarget.kind === 'rock' && tool === 'size') return
+    if (!placementToolAllowed(placementTarget.profile.capabilities, tool)) return
     setPlacementTool(tool)
   }, [mutationPending, placementTarget])
 
