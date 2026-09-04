@@ -16,9 +16,7 @@ const ROTATION_SAMPLE_RADIANS = MathUtils.degToRad(2.5)
 const MAX_ROTATION_STEPS = 64
 const MAX_SCALE_STEPS = 32
 const COLLISION_REFINEMENT_STEPS = 9
-const LEGACY_PENETRATION_EPSILON = 0.0005
-const LEGACY_RECOVERY_TOLERANCE = 0.00025
-const LEGACY_TRANSLATION_STEPS = 32
+const LEGACY_PENETRATION_EPSILON = 0.000001
 
 function placementTargetId(target: PlacementTarget) {
   return target.kind === 'rock' ? 'rock' : `accessory:${target.instanceId}`
@@ -85,7 +83,7 @@ export function usePlacementCollisionResolver(
     const activeObjectId = placementTargetId(target)
     type FilterPredicate = NonNullable<Parameters<typeof world.castShape>[11]>
     type ColliderDescriptor = ReturnType<typeof rapier.ColliderDesc.cuboid>
-    type WorldCollider = Parameters<Parameters<typeof world.intersectionsWithShape>[3]>[0]
+    type WorldCollider = Parameters<Parameters<typeof world.forEachCollider>[0]>[0]
 
     const baseFilter: FilterPredicate = (collider) => {
       if (collider.isSensor()) return false
@@ -147,79 +145,33 @@ export function usePlacementCollisionResolver(
     }
 
     const currentQuery = createQueryShape(current)
-    const legacyPenetrations: Array<{ collider: WorldCollider; distance: number }> = []
-    world.intersectionsWithShape(
-      currentQuery.position,
-      currentQuery.rotation,
-      currentQuery.shape,
-      (collider) => {
-        const contact = collider.contactShape(
-          currentQuery.shape,
-          currentQuery.position,
-          currentQuery.rotation,
-          0,
-        )
-        if (contact && contact.distance < -LEGACY_PENETRATION_EPSILON) {
-          legacyPenetrations.push({ collider, distance: contact.distance })
-        }
-        return true
-      },
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      baseFilter,
-    )
+    const legacyPenetrations: WorldCollider[] = []
 
-    const isLegacyCollider = (collider: WorldCollider) => legacyPenetrations
-      .some((entry) => entry.collider.handle === collider.handle)
+    world.forEachCollider((collider) => {
+      if (!baseFilter(collider)) return
+      const contact = collider.contactShape(
+        currentQuery.shape,
+        currentQuery.position,
+        currentQuery.rotation,
+        0,
+      )
+      if (contact && contact.distance < -LEGACY_PENETRATION_EPSILON) {
+        legacyPenetrations.push(collider)
+      }
+    })
 
-    const regularFilter: FilterPredicate = (collider) => baseFilter(collider) && !isLegacyCollider(collider)
-
-    const recoveryDoesNotWorsen = (query: ReturnType<typeof createQueryShape>) => legacyPenetrations
-      .every((entry) => {
-        const contact = entry.collider.contactShape(query.shape, query.position, query.rotation, 0)
-        return !contact || contact.distance >= entry.distance - LEGACY_RECOVERY_TOLERANCE
-      })
-
-    const intersectsNewObstacle = (query: ReturnType<typeof createQueryShape>) => world.intersectionWithShape(
-      query.position,
-      query.rotation,
-      query.shape,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      regularFilter,
-    ) !== null
+    const regularFilter: FilterPredicate = (collider) => baseFilter(collider)
+      && !legacyPenetrations.some((entry) => entry.handle === collider.handle)
 
     const constrainedDesired = constrainTransformToPedestal(desired, geometry)
 
     if (motion === 'translation') {
-      let translationTarget = constrainedDesired
-      if (legacyPenetrations.length > 0) {
-        const recoveryFraction = maximalValidPlacementFraction(
-          (fraction) => {
-            const candidate = interpolatePlacementCollisionTransform(current, constrainedDesired, 'translation', fraction)
-            return recoveryDoesNotWorsen(createQueryShape(candidate))
-          },
-          LEGACY_TRANSLATION_STEPS,
-          COLLISION_REFINEMENT_STEPS,
-        )
-        translationTarget = interpolatePlacementCollisionTransform(
-          current,
-          constrainedDesired,
-          'translation',
-          recoveryFraction,
-        )
-      }
-
       const velocity = {
-        x: translationTarget.position[0] - current.position[0],
-        y: translationTarget.position[1] - current.position[1],
-        z: translationTarget.position[2] - current.position[2],
+        x: constrainedDesired.position[0] - current.position[0],
+        y: constrainedDesired.position[1] - current.position[1],
+        z: constrainedDesired.position[2] - current.position[2],
       }
-      if (Math.hypot(velocity.x, velocity.y, velocity.z) <= 0.000001) return translationTarget
+      if (Math.hypot(velocity.x, velocity.y, velocity.z) <= 0.000001) return constrainedDesired
 
       const hit = world.castShape(
         currentQuery.position,
@@ -236,8 +188,8 @@ export function usePlacementCollisionResolver(
         regularFilter,
       )
       const time = shapeCastTime(hit)
-      if (time === null || time >= 1) return translationTarget
-      return interpolatePlacementCollisionTransform(current, translationTarget, 'translation', time)
+      if (time === null || time >= 1) return constrainedDesired
+      return interpolatePlacementCollisionTransform(current, constrainedDesired, 'translation', time)
     }
 
     if (motion === 'scale' && constrainedDesired.scale <= current.scale) {
@@ -248,7 +200,16 @@ export function usePlacementCollisionResolver(
       const interpolated = interpolatePlacementCollisionTransform(current, constrainedDesired, motion, fraction)
       const candidate = constrainTransformToPedestal(interpolated, geometry)
       const query = createQueryShape(candidate)
-      return recoveryDoesNotWorsen(query) && !intersectsNewObstacle(query)
+      return world.intersectionWithShape(
+        query.position,
+        query.rotation,
+        query.shape,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        regularFilter,
+      ) === null
     }
 
     const coarseSteps = motion === 'rotation'
