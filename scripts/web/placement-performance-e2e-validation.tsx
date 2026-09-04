@@ -348,7 +348,9 @@ function Fixture() {
         <button id="finish-placement" type="button" onClick={handleDone}>Terminer</button>
       </div>
 
-      <CollisionBenchmarkWorld objectCount={objectCount} onResult={setCollisionBenchmark} />
+      {collisionBenchmark === null ? (
+        <CollisionBenchmarkWorld objectCount={objectCount} onResult={setCollisionBenchmark} />
+      ) : null}
 
       <output
         id="placement-performance-e2e-state"
