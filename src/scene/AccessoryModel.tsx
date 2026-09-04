@@ -235,28 +235,46 @@ export function AccessoryModel({
 
   if (!object || !placementGeometry) return null
 
+  const selectionScale = selectionRadius * renderScale
+
   return (
-    <PlacementBody
-      bodyKey={`accessory:${instance.id}`}
-      state={bodyState}
-      transform={bodyTransform}
-      geometry={placementGeometry}
-      physics={bodyPhysics}
-      onSettled={handleBodySettled}
-    >
-      <primitive object={object} onClick={onSelect ? handleSelect : undefined} />
+    <>
+      <PlacementBody
+        bodyKey={`accessory:${instance.id}`}
+        state={bodyState}
+        transform={bodyTransform}
+        geometry={placementGeometry}
+        physics={bodyPhysics}
+        onSettled={handleBodySettled}
+      >
+        <primitive object={object} onClick={onSelect ? handleSelect : undefined} />
+      </PlacementBody>
+
       {onSelect ? (
-        <mesh scale={selectionRadius * 1.04} onClick={handleSelect} renderOrder={19}>
+        <mesh
+          position={bodyTransform.position}
+          quaternion={bodyTransform.rotation}
+          scale={selectionScale * 1.04}
+          onClick={handleSelect}
+          renderOrder={19}
+        >
           <sphereGeometry args={[1, 16, 12]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
         </mesh>
       ) : null}
-      {selected ? (
-        <mesh scale={selectionRadius * 1.08} raycast={() => undefined} renderOrder={20}>
+
+      {selected && onSelect ? (
+        <mesh
+          position={bodyTransform.position}
+          quaternion={bodyTransform.rotation}
+          scale={selectionScale * 1.08}
+          raycast={() => undefined}
+          renderOrder={20}
+        >
           <sphereGeometry args={[1, 20, 14]} />
           <meshBasicMaterial wireframe transparent opacity={0.2} depthTest={false} />
         </mesh>
       ) : null}
-    </PlacementBody>
+    </>
   )
 }
