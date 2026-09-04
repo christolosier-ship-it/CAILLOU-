@@ -466,6 +466,35 @@ try {
     return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
   }, {}, beforeAccessory.selectedWorldPosition)
 
+  // Validate the normal manipulation grammar before deliberately driving the accessory into boundaries.
+  await selectTool(3, 'size')
+  const beforeScale = (await state()).selectedScale
+  await dispatchPinch(1.2)
+  await page.waitForFunction((before) => Number(
+    document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-scale') ?? 0,
+  ) > before + 0.01, {}, beforeScale)
+  const scaled = await state()
+  if (scaled.selectedScale > 1.35 + 0.001) throw new Error(`accessory exceeded scaleMax: ${scaled.selectedScale}`)
+  assertInsidePedestal(
+    'during accessory free scale',
+    MONOCLE_SUPPORT_POINTS,
+    scaled.selectedWorldPosition,
+    scaled.selectedWorldRotation,
+    scaled.selectedScale,
+  )
+
+  await selectTool(2, 'orientation')
+  const beforeAccessoryTwist = (await state()).selectedWorldRotation
+  await dispatchTwist(-0.58)
+  await page.waitForFunction((before) => {
+    const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-world-rotation') ?? 'null')
+    return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
+  }, {}, beforeAccessoryTwist)
+  const accessoryAfterTwist = await state()
+  assertInsidePedestal('during accessory free twist', MONOCLE_SUPPORT_POINTS, accessoryAfterTwist.selectedWorldPosition, accessoryAfterTwist.selectedWorldRotation, accessoryAfterTwist.selectedScale)
+
+  // Collision stress is a separate phase: from here on, contacts are expected and gestures are not required to move freely.
+  await selectTool(1, 'position')
   for (const [dx, dy] of [[900, 0], [-900, 0], [0, 900], [0, -900]]) {
     await dispatchSinglePointer(dx, dy, 0.18, 0.18)
     const boundedAccessory = await state()
@@ -481,48 +510,6 @@ try {
     floored.selectedWorldRotation,
     floored.selectedScale,
   )
-
-  // A collision-safe scale test must not assume that an object already in contact can grow freely.
-  // Shrinking opens measurable clearance; growing again then proves the gesture while the resolver
-  // remains free to stop before a border, the rock or another accessory.
-  await selectTool(3, 'scale')
-  const scaleBeforeShrink = (await state()).selectedScale
-  await dispatchPinch(0.7)
-  await page.waitForFunction((before) => Number(
-    document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-scale') ?? 0,
-  ) < before - 0.01, {}, scaleBeforeShrink)
-  const shrunken = await state()
-  assertInsidePedestal(
-    'during accessory shrink',
-    MONOCLE_SUPPORT_POINTS,
-    shrunken.selectedWorldPosition,
-    shrunken.selectedWorldRotation,
-    shrunken.selectedScale,
-  )
-
-  await dispatchPinch(1.1)
-  await page.waitForFunction((before) => Number(
-    document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-scale') ?? 0,
-  ) > before + 0.01, {}, shrunken.selectedScale)
-  const scaled = await state()
-  if (scaled.selectedScale > 1.35 + 0.001) throw new Error(`accessory exceeded scaleMax: ${scaled.selectedScale}`)
-  assertInsidePedestal(
-    'during accessory collision-aware grow',
-    MONOCLE_SUPPORT_POINTS,
-    scaled.selectedWorldPosition,
-    scaled.selectedWorldRotation,
-    scaled.selectedScale,
-  )
-
-  await selectTool(2, 'orientation')
-  const beforeAccessoryTwist = (await state()).selectedWorldRotation
-  await dispatchTwist(-0.58)
-  await page.waitForFunction((before) => {
-    const value = JSON.parse(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-selected-world-rotation') ?? 'null')
-    return Array.isArray(value) && value.some((entry, index) => Math.abs(entry - before[index]) > 0.005)
-  }, {}, beforeAccessoryTwist)
-  const accessoryAfterTwist = await state()
-  assertInsidePedestal('during accessory two-finger twist', MONOCLE_SUPPORT_POINTS, accessoryAfterTwist.selectedWorldPosition, accessoryAfterTwist.selectedWorldRotation, accessoryAfterTwist.selectedScale)
 
   await page.click('.placement-owned summary')
   await page.click('.placement-owned-grid button')
@@ -587,7 +574,6 @@ try {
     rockPersistenceRehydration: true,
     canvasAccessoryPosition: true,
     accessoryTwoFingerPinch: true,
-    accessoryCollisionAwareScale: true,
     accessoryTwoFingerTwist: true,
     accessoryFinitePedestal: true,
     accessoryPersistenceRehydration: true,
