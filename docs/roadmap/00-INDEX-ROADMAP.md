@@ -8,6 +8,8 @@
 >
 > V2-01 est terminée, fusionnée et vérifiée en production le 4 septembre 2026 ; son compte rendu historique est consigné dans [`V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md`](V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md).
 >
+> V2-02 est terminée, fusionnée et vérifiée en production le 4 septembre 2026 ; son compte rendu historique est consigné dans [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md).
+>
 > Ce document est la **source de vérité d'ordonnancement**. Les fichiers `V2-XX-....md` sont les cahiers des charges autonomes d'exécution et deviennent, une fois l'étape terminée, son compte rendu historique.
 
 ---
@@ -200,8 +202,8 @@ Aucun moteur de succès n'est implémenté en V2.0.
 |---|---|---|---|---|
 | **V2-00** | [`V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md`](V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md) | Architecture / cadrage | V1 | **✅ Terminée** |
 | **V2-01** | [`V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md`](V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md) | Placement 2.0 & scène interactive | V2-00 | **✅ Terminée** |
-| **V2-02** | [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md) | Socle canonique & économie V2 | V2-01 | **▶ Prochaine à exécuter** |
-| **V2-03** | [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md) | Accessoires V2 & pipeline collisions | V2-01, V2-02 | Prompt prêt |
+| **V2-02** | [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md) | Socle canonique & économie V2 | V2-01 | **✅ Terminée** |
+| **V2-03** | [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md) | Accessoires V2 & pipeline collisions | V2-01, V2-02 | **▶ Prochaine à exécuter** |
 | **V2-04** | [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md) | Sols & Boutique décorative | V2-02 | Prompt prêt |
 | **V2-05** | [`V2-05-PEINTURE-CAILLOU.md`](V2-05-PEINTURE-CAILLOU.md) | Peinture du caillou | V2-02 | Prompt prêt |
 | **V2-06** | [`V2-06-PERSONNALITE-2-0.md`](V2-06-PERSONNALITE-2-0.md) | Personnalité 2.0 | V2-02 | Prompt prêt |
@@ -526,6 +528,7 @@ Le prompt protège le **comportement produit**, pas un workaround d'implémentat
 - V1 : gelée dans `docs/roadmap/archive/v1/` ;
 - V2-00 : gelée ;
 - V2-01 : gelée après clôture du 4 septembre 2026 ;
+- V2-02 : gelée après clôture du 4 septembre 2026 ;
 - chaque `V2-XX` devient gelé après sa clôture ;
 - les décisions ultérieures qui supersèdent une hypothèse historique sont consignées dans cet index et dans le prompt actif, jamais rétro-écrites dans l'historique.
 
@@ -533,10 +536,8 @@ Le prompt protège le **comportement produit**, pas un workaround d'implémentat
 
 ## 15. Prochaine action
 
-**V2-01 est clôturée, fusionnée et vérifiée en production.**
+**V2-02 est clôturée, fusionnée et vérifiée en production.**
 
 Prochaine étape autorisée :
 
-> **Exécuter [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md).**
-
-V2-03 ne démarre qu'après clôture et validation de V2-02 ; les étapes suivantes conservent l'ordre et les dépendances du tableau ci-dessus.
+> **Exécuter [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md).**
