@@ -185,6 +185,7 @@ export function PlacementBody({
       additionalSolverIterations={state === 'settling'
         ? physics.settlingSolverIterations
         : physics.baseSolverIterations}
+      userData={{ placementObjectId: bodyKey }}
       {...(state === 'settling' ? { onSleep: reportSettled } : {})}
     >
       {children}
