@@ -2,7 +2,7 @@ import { useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { MathUtils, PerspectiveCamera, Quaternion, Vector3 } from 'three'
 
-import { constrainTransformToPedestal } from './placementConstraints'
+import type { PlacementCollisionMotion } from './placementCollisionSolver'
 import type { PlacementGeometry } from './placementGeometry'
 import { resolvePlacementGesture } from './placementGesturePolicy'
 import type {
@@ -12,6 +12,7 @@ import type {
   PlacementTransform,
 } from './placementTypes'
 import { normalizePlacementTransform } from './placementTransform'
+import { usePlacementCollisionResolver } from './usePlacementCollisionResolver'
 
 interface GesturePoint {
   x: number
@@ -40,6 +41,7 @@ export function PlacementInteractionController({
   const camera = useThree((state) => state.camera)
   const gl = useThree((state) => state.gl)
   const invalidate = useThree((state) => state.invalidate)
+  const resolveCollision = usePlacementCollisionResolver(target, geometry)
   const pointersRef = useRef(new Map<number, GesturePoint>())
   const previousSingleRef = useRef<GesturePoint | null>(null)
   const baselineRef = useRef<{ distance: number; angle: number; transform: PlacementTransform } | null>(null)
@@ -65,10 +67,10 @@ export function PlacementInteractionController({
       if (!(camera instanceof PerspectiveCamera)) return cameraDistance / Math.max(320, canvas.clientHeight)
       return 2 * cameraDistance * Math.tan(MathUtils.degToRad(camera.fov) / 2) / Math.max(1, canvas.clientHeight)
     }
-    const publish = (next: PlacementTransform) => {
+    const publish = (next: PlacementTransform, motion: PlacementCollisionMotion) => {
       const current = stateRef.current
-      let safe = normalizePlacementTransform(next, current.scaleLimits)
-      if (current.geometry) safe = constrainTransformToPedestal(safe, current.geometry)
+      const desired = normalizePlacementTransform(next, current.scaleLimits)
+      const safe = resolveCollision(transformRef.current, desired, motion)
       transformRef.current = safe
       onTransformChange(safe)
       invalidate()
@@ -115,17 +117,17 @@ export function PlacementInteractionController({
           const delta = distance(items) - baseline.distance
           const view = camera.getWorldDirection(new Vector3()).normalize()
           const base = new Vector3(...baseline.transform.position).addScaledVector(view, -delta * scalePerPixel * 1.35)
-          publish({ ...baseline.transform, position: [base.x, base.y, base.z] })
+          publish({ ...baseline.transform, position: [base.x, base.y, base.z] }, 'translation')
         } else if (action === 'twist-orientation') {
           const twist = angle(items) - baseline.angle
           const axis = camera.getWorldDirection(new Vector3()).normalize()
           const nextRotation = new Quaternion().setFromAxisAngle(axis, twist)
             .multiply(new Quaternion(...baseline.transform.rotation))
             .normalize()
-          publish({ ...baseline.transform, rotation: [nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w] })
+          publish({ ...baseline.transform, rotation: [nextRotation.x, nextRotation.y, nextRotation.z, nextRotation.w] }, 'rotation')
         } else if (action === 'uniform-scale') {
           const ratio = Math.max(0.2, distance(items) / baseline.distance)
-          publish({ ...baseline.transform, scale: baseline.transform.scale * ratio })
+          publish({ ...baseline.transform, scale: baseline.transform.scale * ratio }, 'scale')
         }
         return
       }
@@ -146,14 +148,14 @@ export function PlacementInteractionController({
         const next = new Vector3(...active.position)
           .addScaledVector(right, dx * scalePerPixel)
           .addScaledVector(up, -dy * scalePerPixel)
-        publish({ ...active, position: [next.x, next.y, next.z] })
+        publish({ ...active, position: [next.x, next.y, next.z] }, 'translation')
       } else if (action === 'free-orientation') {
         const cameraUp = new Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize()
         const cameraRight = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize()
         const yaw = new Quaternion().setFromAxisAngle(cameraUp, dx * 0.008)
         const pitch = new Quaternion().setFromAxisAngle(cameraRight, dy * 0.008)
         const next = yaw.multiply(pitch).multiply(new Quaternion(...active.rotation)).normalize()
-        publish({ ...active, rotation: [next.x, next.y, next.z, next.w] })
+        publish({ ...active, rotation: [next.x, next.y, next.z, next.w] }, 'rotation')
       }
     }
     const onPointerEnd = (event: PointerEvent) => {
@@ -176,7 +178,7 @@ export function PlacementInteractionController({
       canvas.removeEventListener('pointerup', onPointerEnd)
       canvas.removeEventListener('pointercancel', onPointerEnd)
     }
-  }, [camera, gl, invalidate, onTransformChange, onTransformEnd])
+  }, [camera, gl, invalidate, onTransformChange, onTransformEnd, resolveCollision])
 
   return null
 }
