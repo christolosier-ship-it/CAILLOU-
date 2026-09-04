@@ -8,15 +8,20 @@ export interface PlacementSessionAccessorySource extends AccessoryTransform {
 }
 
 export interface PlacementSessionState {
+  initialRock: PlacementTransform
+  initialAccessories: Record<string, PlacementTransform>
   rock: PlacementTransform
   accessories: Record<string, PlacementTransform>
   dirtyRock: boolean
   dirtyAccessoryIds: string[]
+  addedAccessoryIds: string[]
+  removedAccessoryIds: string[]
 }
 
 export interface PlacementSettlementPlan {
   rock: boolean
   accessoryIds: string[]
+  membershipChanged: boolean
 }
 
 function copyTransform(transform: PlacementTransform): PlacementTransform {
@@ -25,6 +30,10 @@ function copyTransform(transform: PlacementTransform): PlacementTransform {
     rotation: [...transform.rotation],
     scale: transform.scale,
   }
+}
+
+function copyTransforms(transforms: Record<string, PlacementTransform>) {
+  return Object.fromEntries(Object.entries(transforms).map(([id, transform]) => [id, copyTransform(transform)]))
 }
 
 function rockTransform(pose: RockPose): PlacementTransform {
@@ -58,11 +67,19 @@ export function createPlacementSession(
   pose: RockPose,
   accessories: readonly PlacementSessionAccessorySource[],
 ): PlacementSessionState {
+  const initialRock = rockTransform(pose)
+  const initialAccessories = Object.fromEntries(
+    accessories.map((instance) => [instance.id, accessoryTransform(instance, pose)]),
+  )
   return {
-    rock: rockTransform(pose),
-    accessories: Object.fromEntries(accessories.map((instance) => [instance.id, accessoryTransform(instance, pose)])),
+    initialRock: copyTransform(initialRock),
+    initialAccessories: copyTransforms(initialAccessories),
+    rock: copyTransform(initialRock),
+    accessories: copyTransforms(initialAccessories),
     dirtyRock: false,
     dirtyAccessoryIds: [],
+    addedAccessoryIds: [],
+    removedAccessoryIds: [],
   }
 }
 
@@ -79,6 +96,7 @@ export function updatePlacementSession(
     }
   }
 
+  if (!session.accessories[target.instanceId]) return session
   const dirtyAccessoryIds = session.dirtyAccessoryIds.includes(target.instanceId)
     ? session.dirtyAccessoryIds
     : [...session.dirtyAccessoryIds, target.instanceId]
@@ -96,12 +114,17 @@ export function addPlacementSessionAccessory(
   session: PlacementSessionState,
   instance: PlacementSessionAccessorySource,
 ): PlacementSessionState {
+  const initiallyPresent = Boolean(session.initialAccessories[instance.id])
   return {
     ...session,
     accessories: {
       ...session.accessories,
       [instance.id]: accessoryTransform(instance, sessionRockPose(session)),
     },
+    addedAccessoryIds: initiallyPresent || session.addedAccessoryIds.includes(instance.id)
+      ? session.addedAccessoryIds
+      : [...session.addedAccessoryIds, instance.id],
+    removedAccessoryIds: session.removedAccessoryIds.filter((candidate) => candidate !== instance.id),
   }
 }
 
@@ -109,12 +132,19 @@ export function removePlacementSessionAccessory(
   session: PlacementSessionState,
   instanceId: string,
 ): PlacementSessionState {
+  if (!session.accessories[instanceId]) return session
   const accessories = { ...session.accessories }
   delete accessories[instanceId]
+  const wasAddedDuringSession = session.addedAccessoryIds.includes(instanceId)
+  const initiallyPresent = Boolean(session.initialAccessories[instanceId])
   return {
     ...session,
     accessories,
     dirtyAccessoryIds: session.dirtyAccessoryIds.filter((candidate) => candidate !== instanceId),
+    addedAccessoryIds: session.addedAccessoryIds.filter((candidate) => candidate !== instanceId),
+    removedAccessoryIds: initiallyPresent && !wasAddedDuringSession && !session.removedAccessoryIds.includes(instanceId)
+      ? [...session.removedAccessoryIds, instanceId]
+      : session.removedAccessoryIds,
   }
 }
 
@@ -133,11 +163,18 @@ export function placementSessionTransform(
 export function buildPlacementSettlementPlan(
   session: PlacementSessionState | null,
 ): PlacementSettlementPlan | null {
-  if (!session || (!session.dirtyRock && session.dirtyAccessoryIds.length === 0)) return null
+  if (!session) return null
+  const membershipChanged = session.addedAccessoryIds.length > 0 || session.removedAccessoryIds.length > 0
+  if (!session.dirtyRock && session.dirtyAccessoryIds.length === 0 && !membershipChanged) return null
+
+  const physicalAccessoryIds = session.dirtyRock
+    ? Object.keys(session.accessories)
+    : [...new Set([...session.dirtyAccessoryIds, ...session.addedAccessoryIds])]
+      .filter((instanceId) => Boolean(session.accessories[instanceId]))
+
   return {
     rock: session.dirtyRock,
-    accessoryIds: session.dirtyRock
-      ? Object.keys(session.accessories)
-      : [...session.dirtyAccessoryIds],
+    accessoryIds: physicalAccessoryIds,
+    membershipChanged,
   }
 }
