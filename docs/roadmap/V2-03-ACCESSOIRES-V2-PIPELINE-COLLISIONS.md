@@ -1,26 +1,28 @@
 # V2-03 — Accessoires V2 & pipeline collisions
 
-> **Statut : spécifiée — prête à exécuter après V2-01 et V2-02.**
+> **Statut : en cours — Lot A terminé le 4 septembre 2026.**
 >
 > **Date : 4 septembre 2026.**
 >
 > **Dépendances : V2-01 Placement 2.0, V2-02 économie/possessions V2.**
+>
+> **Décision propriétaire : licences, notices et historisation de provenance des objets sont hors périmètre de V2-03.**
 
-Ce fichier est le prompt autonome d'exécution de V2-03 et deviendra son historique après réalisation.
+Ce fichier est le prompt autonome d'exécution de V2-03 et devient son historique au fil des lots.
 
 ## 1. Prompt d'exécution
 
-Lis l'index, ce fichier, les comptes rendus finaux V2-01/V2-02, `WORKFLOW-3D-BLENDER-GITHUB.md`, `THIRD-PARTY-NOTICES.md`, le catalogue accessoires réel, `AccessoryModel`, le moteur Placement/colliders et les scripts/pipelines 3D encore actifs.
+Lis l'index, ce fichier, les comptes rendus finaux V2-01/V2-02, `WORKFLOW-3D-BLENDER-GITHUB.md`, le catalogue accessoires réel, `AccessoryModel`, le moteur Placement/colliders et les scripts/pipelines 3D encore actifs.
 
-Inspecte aussi `Ressource/` : utiliser uniquement des assets réellement présents, fournis ou sélectionnés avec provenance/licence démontrable. Ne pas inventer de nouveaux binaires.
+Inspecte aussi `Ressource/` : utiliser uniquement des assets réellement présents ou fournis. Ne pas inventer de nouveaux binaires. Les sources manifestement hors catégorie, corrompues ou non traitables peuvent être supprimées.
 
-GitHub obligatoire. Supabase obligatoire pour le catalogue et les contrats de possession. Vercel utile uniquement pour une validation finale distante.
+GitHub obligatoire. Supabase obligatoire pour le catalogue et les contrats de possession. Vercel utile uniquement pour une validation finale distante lorsque des fichiers runtime le justifient.
 
 ## 2. Contexte réel
 
-La V1 a quatre accessoires. Le schéma `accessories` contient déjà identité, nom, prix, asset/preview, catégorie/slot, triangle count, dimensions, scale min/max, physique et provenance.
+La V1 a quatre accessoires. Le schéma `accessories` contient déjà identité, nom, prix, asset/preview, catégorie/slot, triangle count, dimensions, scale min/max, physique et un ancien champ de provenance qui n'est plus un contrat de V2-03.
 
-V2-01 doit avoir établi une manipulation commune et une stratégie de collision crédible. V2-02 impose qu'une référence catalogue représente **un objet unique**, achetable une seule fois et plaçable une seule fois simultanément.
+V2-01 a établi une manipulation commune et une stratégie de collision crédible. V2-02 impose qu'une référence catalogue représente **un objet unique**, achetable une seule fois et plaçable une seule fois simultanément.
 
 ## 3. Décisions métier actées
 
@@ -30,7 +32,7 @@ V2-01 doit avoir établi une manipulation commune et une stratégie de collision
 - un objet placé est indisponible jusqu'à retrait ;
 - le plafond de huit objets est provisoire ;
 - la collision doit suivre la géométrie visible, sans effet flottant ;
-- provenance/licence obligatoire ;
+- licences/notices/provenance hors périmètre ;
 - accessoires animés/interactifs hors V2.0.
 
 ## 4. Objectif utilisateur
@@ -42,16 +44,15 @@ Enrichir la Boutique avec un catalogue d'objets plus intéressant, tout en garan
 - se sélectionne/manipule correctement ;
 - entre réellement en contact avec caillou/objets/sol ;
 - ne dégrade pas la fluidité mobile ;
-- reste traçable juridiquement et techniquement.
+- reste techniquement reproductible par le pipeline 3D.
 
 ## 5. Périmètre précis
 
-### Lot A — Audit pipeline
+### Lot A — Audit pipeline ✅ TERMINÉ
 
 Inventorier :
 
 - assets disponibles ;
-- licences ;
 - formats ;
 - poids ;
 - triangles ;
@@ -61,7 +62,9 @@ Inventorier :
 - matériau ;
 - collider actuel/proxy possible.
 
-Rejeter ou mettre en quarantaine tout asset dont licence/provenance est douteuse ou dont le coût est manifestement incompatible avec les budgets.
+Rejeter ou supprimer les assets manifestement corrompus, hors catégorie ou non traitables. Les assets lourds mais optimisables restent candidats et doivent être classés avec leur dette de préparation.
+
+Compte rendu détaillé : `docs/roadmap/V2-03-LOT-A-AUDIT.md`.
 
 ### Lot B — Contrat d'un asset accessoire V2
 
@@ -79,7 +82,6 @@ dimensions
 scale_min / scale_max
 physics metadata
 collision metadata ou stratégie dérivable
-provenance/licence
 budget metadata utile
 ```
 
@@ -113,7 +115,6 @@ Standardiser :
 - nommage fichiers ;
 - chemins publics ;
 - catalog update ;
-- notices tierces ;
 - validation automatique des chemins et budgets.
 
 ### Lot E — Chargement et disposal
@@ -159,14 +160,15 @@ Fixer un plafond final uniquement si les données permettent de le justifier. Si
 - collections V2.1 ;
 - succès ;
 - duplication d'un accessoire ;
-- changement du modèle d'entitlement V2-02.
+- changement du modèle d'entitlement V2-02 ;
+- licences, notices tierces et historisation de provenance.
 
 ## 7. Architecture cible
 
 Le pipeline doit séparer :
 
 ```text
-source/provenance
+source
   -> préparation asset
   -> GLB runtime
   -> preview
@@ -197,7 +199,7 @@ Les possessions restent celles de V2-02.
 ## 10. Migration / backfill / compatibilité V1
 
 - les quatre accessoires V1 restent valides ;
-- compléter leurs metadata collision/provenance si nécessaire ;
+- compléter leurs metadata collision si nécessaire ;
 - ne pas changer leurs IDs ;
 - aucune perte de possession ;
 - anciens placements doivent continuer à charger.
@@ -209,8 +211,7 @@ Les possessions restent celles de V2-02.
 - achat unique ;
 - placement uniquement si possédé ;
 - impossible de placer deux fois ;
-- aucun chemin asset arbitraire injecté par client ;
-- provenance non modifiable par client.
+- aucun chemin asset arbitraire injecté par client.
 
 ## 12. Offline / PWA / réconciliation
 
@@ -241,8 +242,7 @@ Tester les objets petits, fins, concaves, proches les uns des autres et le séle
 - scale limits ;
 - parsing collision descriptor ;
 - règles disponibilité possédé/placé ;
-- budgets ;
-- provenance requise.
+- budgets.
 
 ## 16. Browser regression
 
@@ -254,7 +254,7 @@ Une branche/PR principale. Supabase uniquement si metadata réellement nécessai
 
 ## 18. Critères d'acceptation
 
-- [ ] catalogue enrichi avec uniquement des assets licites/provenancés ;
+- [ ] catalogue enrichi avec uniquement des assets techniquement validés ;
 - [ ] chaque asset possède preview et collider crédible ;
 - [ ] pas d'effet flottant perceptible ;
 - [ ] objets uniques respectés ;
@@ -271,8 +271,23 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 
 ## 20. État / compte rendu d'exécution
 
-**Statut : À exécuter.**
+**Statut global : en cours. Lot A terminé. Lots B à G non démarrés.**
 
-À compléter : assets intégrés, licences, poids/triangles/textures, stratégie collider par asset, migrations éventuelles, plafond retenu et mesures, tests, Preview, production, dettes vers V2-10/V2.3.
+### Lot A — checkpoint du 4 septembre 2026
+
+- audit Blender 4.5.13 LTS automatisé et reproductible ;
+- 11 modèles 3D importables conservés ;
+- `chicken_1.fbx`, `model.fbx` et `poo_scan.glb` classés optimisation obligatoire ;
+- pivots, textures, matériaux et familles de collider identifiés ;
+- `sketchfab.zbrush` supprimé car vide/inutilisable ;
+- `tex_u1_v1_diffuse.jpeg` supprimé car doublon exact de la variante `.jpg` effectivement référencée ;
+- `public.accessories` et le catalogue runtime V1 audités sans mutation ;
+- aucune migration Supabase ;
+- aucun fichier runtime modifié ;
+- aucune Preview Vercel requise ;
+- licences/notices/provenance explicitement exclues de V2-03 ;
+- rapport complet : `docs/roadmap/V2-03-LOT-A-AUDIT.md`.
+
+À compléter dans les lots suivants : assets intégrés, poids/triangles/textures finaux, stratégie collider finale par asset, migrations éventuelles, plafond retenu et mesures, tests, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
 
 **Ne pas démarrer V2-04 dans cette PR.**
