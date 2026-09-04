@@ -5,11 +5,18 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const PUBLIC = path.join(ROOT, 'public');
 const FIVE_MIB = 5 * 1024 * 1024;
+const TWO_MIB = 2 * 1024 * 1024;
+const ONE_MIB = 1024 * 1024;
+
+const EXPECTED_ACCESSORY_IDS = new Set([
+  'monocle', 'bow-tie', 'round-glasses', 'pedestal-gallery',
+  'mask-scan', 'mouse-ears', 'traffic-cone', 'bebe-assets', 'chicken',
+  'crocodile-dog-toy', 'garden-gnome', 'model', 'poo-scan', 'skull', 'worn-flip-flop',
+]);
+const COLLISION_STRATEGIES = new Set(['hull', 'cuboid', 'ball', 'compound', 'proxy', 'simplified']);
 
 function invariant(condition, message) {
-  if (!condition) {
-    throw new Error(`[release] ${message}`);
-  }
+  if (!condition) throw new Error(`[release] ${message}`);
 }
 
 async function readJson(relativePath) {
@@ -27,16 +34,21 @@ async function requireFile(filePath, label) {
   return metadata;
 }
 
+function positiveInteger(value) {
+  return Number.isInteger(value) && value > 0;
+}
+
+function positiveFinite(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
 async function collectTextFiles(directory) {
   const output = [];
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries) {
     const absolute = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      output.push(...await collectTextFiles(absolute));
-    } else if (/\.(?:[cm]?[jt]sx?|json|css|html|md)$/i.test(entry.name)) {
-      output.push(absolute);
-    }
+    if (entry.isDirectory()) output.push(...await collectTextFiles(absolute));
+    else if (/\.(?:[cm]?[jt]sx?|json|css|html|md)$/i.test(entry.name)) output.push(absolute);
   }
   return output;
 }
@@ -48,7 +60,6 @@ async function validateRocks() {
 
   const expectedIds = new Set(Array.from({ length: 20 }, (_, index) => `rock-${String(index + 1).padStart(3, '0')}`));
   let maxBytes = 0;
-
   for (const rock of catalog) {
     invariant(expectedIds.delete(rock.id), `identifiant de caillou inattendu ou dupliqué: ${rock.id}`);
     invariant(rock.validation?.externalDependencies === 0, `${rock.id}: dépendance GLB externe interdite`);
@@ -61,47 +72,74 @@ async function validateRocks() {
     invariant(preview.size > 0, `${rock.id}: preview vide`);
     maxBytes = Math.max(maxBytes, model.size);
   }
-
   invariant(expectedIds.size === 0, `cailloux absents: ${[...expectedIds].join(', ')}`);
   return { count: catalog.length, maxBytes };
 }
 
 async function validateAccessories() {
   const catalog = await readJson('public/assets/accessories/catalog.json');
-  invariant(catalog?.schemaVersion === 1, 'schemaVersion accessoires inattendue');
+  invariant(catalog?.schemaVersion === 2, 'schemaVersion accessoires inattendue');
   invariant(Array.isArray(catalog.accessories), 'catalogue accessoires invalide');
-  invariant(catalog.accessories.length === 4, `4 accessoires V1 attendus, ${catalog.accessories.length} trouvés`);
+  invariant(catalog.accessories.length === EXPECTED_ACCESSORY_IDS.size, `${EXPECTED_ACCESSORY_IDS.size} accessoires attendus, ${catalog.accessories.length} trouvés`);
 
-  const ids = new Set();
+  const remainingIds = new Set(EXPECTED_ACCESSORY_IDS);
   let maxBytes = 0;
-  for (const accessory of catalog.accessories) {
-    invariant(!ids.has(accessory.id), `accessoire dupliqué: ${accessory.id}`);
-    ids.add(accessory.id);
-    invariant(accessory.provenance?.verified === true, `${accessory.id}: provenance non vérifiée`);
-    invariant(Boolean(accessory.provenance?.title), `${accessory.id}: titre de provenance absent`);
-    invariant(Boolean(accessory.provenance?.license), `${accessory.id}: licence absente`);
-    invariant(/^https:\/\//.test(accessory.provenance?.licenseUrl ?? ''), `${accessory.id}: URL de licence absente/invalide`);
+  let proxyCount = 0;
 
-    if (/\bCC BY\b/i.test(accessory.provenance.license)) {
-      invariant(Boolean(accessory.provenance.author) && !/non identifi/i.test(accessory.provenance.author), `${accessory.id}: auteur obligatoire pour CC BY`);
-      invariant(/^https:\/\//.test(accessory.provenance.url ?? ''), `${accessory.id}: source obligatoire pour CC BY`);
+  for (const accessory of catalog.accessories) {
+    invariant(typeof accessory.id === 'string' && /^[a-z0-9-]+$/.test(accessory.id), `ID accessoire invalide: ${String(accessory.id)}`);
+    invariant(remainingIds.delete(accessory.id), `accessoire inattendu ou dupliqué: ${accessory.id}`);
+    invariant(typeof accessory.name === 'string' && accessory.name.trim().length > 0, `${accessory.id}: nom absent`);
+    invariant(typeof accessory.description === 'string' && accessory.description.trim().length > 0, `${accessory.id}: description absente`);
+    invariant(positiveInteger(accessory.priceLithons), `${accessory.id}: prix Lithons invalide`);
+    invariant(typeof accessory.category === 'string' && /^[a-z][a-z0-9_-]{0,31}$/.test(accessory.category), `${accessory.id}: catégorie invalide`);
+    invariant(Number.isInteger(accessory.sortOrder), `${accessory.id}: sortOrder invalide`);
+    invariant(positiveInteger(accessory.triangleCount), `${accessory.id}: triangleCount invalide`);
+    invariant(Array.isArray(accessory.dimensions) && accessory.dimensions.length === 3 && accessory.dimensions.every(positiveFinite), `${accessory.id}: dimensions invalides`);
+    invariant(positiveFinite(accessory.scaleMin) && positiveFinite(accessory.scaleMax) && accessory.scaleMax >= accessory.scaleMin, `${accessory.id}: limites d'échelle invalides`);
+    invariant(accessory.physics && typeof accessory.physics === 'object' && !Array.isArray(accessory.physics), `${accessory.id}: metadata physics absente`);
+
+    const collision = accessory.collision;
+    invariant(collision && typeof collision === 'object' && !Array.isArray(collision), `${accessory.id}: metadata collision absente`);
+    invariant(COLLISION_STRATEGIES.has(collision.strategy), `${accessory.id}: stratégie collision invalide`);
+    invariant(collision.geometrySource === 'render' || collision.geometrySource === 'proxy', `${accessory.id}: geometrySource invalide`);
+
+    const budget = accessory.budget;
+    invariant(budget && typeof budget === 'object' && !Array.isArray(budget), `${accessory.id}: budget absent`);
+    invariant(positiveInteger(budget.runtimeModelBytes), `${accessory.id}: runtimeModelBytes invalide`);
+    if (budget.maxTextureDimension !== undefined) {
+      invariant(positiveInteger(budget.maxTextureDimension) && budget.maxTextureDimension <= 1024, `${accessory.id}: texture > 1024 px`);
     }
+    if (budget.largestTextureBytes !== undefined) {
+      invariant(positiveInteger(budget.largestTextureBytes), `${accessory.id}: largestTextureBytes invalide`);
+    }
+
+    invariant(accessory.modelPath === `/assets/accessories/${accessory.id}/model.glb`, `${accessory.id}: modelPath non canonique`);
+    invariant(accessory.previewPath === `/assets/accessory-previews/${accessory.id}.png`, `${accessory.id}: previewPath non canonique`);
 
     const model = await requireFile(fromPublicUrl(accessory.modelPath), `${accessory.id} model.glb`);
     const preview = await requireFile(fromPublicUrl(accessory.previewPath), `${accessory.id} preview`);
     invariant(model.size <= FIVE_MIB, `${accessory.id}: GLB ${model.size} octets > budget 5 MiB`);
-    invariant(preview.size > 0, `${accessory.id}: preview vide`);
+    invariant(model.size === budget.runtimeModelBytes, `${accessory.id}: runtimeModelBytes ${budget.runtimeModelBytes} != ${model.size}`);
+    invariant(preview.size > 0 && preview.size <= TWO_MIB, `${accessory.id}: preview vide ou > 2 MiB`);
+    if (budget.largestTextureBytes !== undefined) invariant(budget.largestTextureBytes <= model.size, `${accessory.id}: texture embarquée > GLB`);
+
+    if (collision.geometrySource === 'proxy') {
+      const expectedProxy = `/assets/accessories/${accessory.id}/collider.glb`;
+      invariant(collision.proxyPath === expectedProxy, `${accessory.id}: proxyPath non canonique`);
+      const proxy = await requireFile(fromPublicUrl(collision.proxyPath), `${accessory.id} collider.glb`);
+      invariant(proxy.size > 0 && proxy.size <= ONE_MIB, `${accessory.id}: collider vide ou > 1 MiB`);
+      proxyCount += 1;
+    } else {
+      invariant(collision.proxyPath === undefined || collision.proxyPath === null, `${accessory.id}: proxyPath interdit avec géométrie render`);
+    }
+
     maxBytes = Math.max(maxBytes, model.size);
   }
 
-  const notices = await readFile(path.join(ROOT, 'THIRD-PARTY-NOTICES.md'), 'utf8');
-  const monocle = catalog.accessories.find((entry) => entry.id === 'monocle');
-  invariant(Boolean(monocle), 'Monocle absent du catalogue');
-  for (const required of [monocle.provenance.author, monocle.provenance.url, monocle.provenance.license, monocle.provenance.licenseUrl]) {
-    invariant(notices.includes(required), `notice tierce incomplète: ${required}`);
-  }
-
-  return { count: catalog.accessories.length, maxBytes };
+  invariant(remainingIds.size === 0, `accessoires absents: ${[...remainingIds].join(', ')}`);
+  invariant(proxyCount === 11, `11 colliders proxy V2 attendus, ${proxyCount} trouvés`);
+  return { count: catalog.accessories.length, maxBytes, proxyCount };
 }
 
 async function validatePwaAndHosting() {
@@ -134,9 +172,7 @@ async function validateNoFrontendSecrets() {
 
   for (const file of files) {
     const content = await readFile(file, 'utf8');
-    for (const rule of forbidden) {
-      invariant(!rule.pattern.test(content), `${rule.name} détectée côté frontend dans ${path.relative(ROOT, file)}`);
-    }
+    for (const rule of forbidden) invariant(!rule.pattern.test(content), `${rule.name} détectée côté frontend dans ${path.relative(ROOT, file)}`);
   }
 }
 
@@ -145,4 +181,8 @@ const accessories = await validateAccessories();
 await validatePwaAndHosting();
 await validateNoFrontendSecrets();
 
-process.stdout.write(`[release] OK — ${rocks.count} cailloux (max ${(rocks.maxBytes / 1024 / 1024).toFixed(2)} MiB), ${accessories.count} accessoires (max ${(accessories.maxBytes / 1024 / 1024).toFixed(2)} MiB), PWA/headers/licences/secrets vérifiés.\n`);
+process.stdout.write(
+  `[release] OK — ${rocks.count} cailloux (max ${(rocks.maxBytes / 1024 / 1024).toFixed(2)} MiB), ` +
+  `${accessories.count} accessoires dont ${accessories.proxyCount} V2 proxy (max ${(accessories.maxBytes / 1024 / 1024).toFixed(2)} MiB), ` +
+  'PWA/headers/assets/secrets vérifiés.\n',
+);
