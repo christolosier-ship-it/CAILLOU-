@@ -23,6 +23,7 @@ interface PlacementPanelProps {
   onToolChange: (tool: PlacementTool) => void
   onAddOwned: (item: AccessoryCatalogItem) => Promise<void>
   onRemove: (instanceId: string) => void
+  onCancel: () => void
   onDone: () => void
   loadShop?: () => Promise<AccessoryShopSnapshot>
 }
@@ -55,6 +56,7 @@ export function PlacementPanel({
   onToolChange,
   onAddOwned,
   onRemove,
+  onCancel,
   onDone,
   loadShop = loadAccessoryShop,
 }: PlacementPanelProps) {
@@ -98,7 +100,7 @@ export function PlacementPanel({
     try {
       await onAddOwned(item)
     } catch (error) {
-      setCatalogError(error instanceof Error ? error.message : 'L’instance n’a pas pu être créée.')
+      setCatalogError(error instanceof Error ? error.message : 'L’instance n’a pas pu être ajoutée au draft.')
     } finally {
       setAddingId(null)
     }
@@ -110,9 +112,12 @@ export function PlacementPanel({
         <div>
           <p className="eyebrow">Placement</p>
           <h2>{cameraSelected ? 'Caméra sélectionnée' : selectedTarget ? 'Cible sélectionnée' : 'Choisir une cible'}</h2>
-          <p>{instances.length}/{maxInstances} accessoires placés</p>
+          <p>{instances.length}/{maxInstances} accessoires dans le draft</p>
         </div>
-        <button type="button" onClick={onDone} disabled={busy || addingId !== null}>Terminer</button>
+        <div className="placement-panel-session-actions">
+          <button type="button" onClick={onCancel} disabled={busy || addingId !== null}>Annuler</button>
+          <button type="button" onClick={onDone} disabled={busy || addingId !== null}>Terminer</button>
+        </div>
       </header>
 
       <div className="placement-targets" aria-label="Objets disponibles">
@@ -204,7 +209,7 @@ export function PlacementPanel({
           : !selectedTarget
             ? 'Touchez directement un objet dans la scène ou choisissez-le dans la liste. Ensuite, tout le canvas devient sa surface de contrôle.'
             : tool === 'position'
-              ? 'Un doigt déplace dans le plan de vue. Deux doigts agissent sur la profondeur. Le carré gris reste infranchissable.'
+              ? 'Un doigt déplace dans le plan de vue. Deux doigts agissent sur la profondeur. Les collisions restent actives.'
               : tool === 'orientation'
                 ? 'Un doigt oriente librement. Tournez deux doigts pour pivoter autour de la vue.'
                 : 'Pincez à deux doigts pour redimensionner dans les limites homologuées.'}
@@ -225,7 +230,7 @@ export function PlacementPanel({
               >
                 <img src={item.previewPath} alt="" aria-hidden="true" />
                 <span>{item.name}</span>
-                <small>{addingId === item.id ? 'Création…' : instances.length >= maxInstances ? 'Limite atteinte' : 'Ajouter'}</small>
+                <small>{addingId === item.id ? 'Ajout au draft…' : instances.length >= maxInstances ? 'Limite atteinte' : 'Ajouter au draft'}</small>
               </button>
             ))}
           </div>
@@ -238,7 +243,7 @@ export function PlacementPanel({
           className="placement-remove"
           disabled={busy}
           onClick={() => onRemove(selectedAccessory.id)}
-        >Retirer {selectedAccessory.name} du caillou</button>
+        >Retirer {selectedAccessory.name} du draft</button>
       ) : null}
 
       {message ? <p className="placement-message" role="status">{message}</p> : null}
