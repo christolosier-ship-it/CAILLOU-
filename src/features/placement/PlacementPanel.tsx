@@ -77,6 +77,7 @@ export function PlacementPanel({
   const selectedAccessory = selectedTarget?.kind === 'accessory'
     ? instances.find((instance) => instance.id === selectedTarget.instanceId) ?? null
     : null
+  const capabilities = selectedTarget?.profile.capabilities ?? null
   const canAdd = instances.length < maxInstances && !busy && addingId === null
 
   const addOwned = async (item: AccessoryCatalogItem) => {
@@ -136,23 +137,27 @@ export function PlacementPanel({
         ))}
       </div>
 
-      {selectedTarget ? (
+      {selectedTarget && capabilities ? (
         <div className="placement-tools" role="group" aria-label="Type de manipulation">
-          <button
-            type="button"
-            className={tool === 'position' ? 'is-active' : undefined}
-            aria-pressed={tool === 'position'}
-            disabled={busy}
-            onClick={() => onToolChange('position')}
-          >Position</button>
-          <button
-            type="button"
-            className={tool === 'orientation' ? 'is-active' : undefined}
-            aria-pressed={tool === 'orientation'}
-            disabled={busy}
-            onClick={() => onToolChange('orientation')}
-          >Orientation</button>
-          {selectedAccessory ? (
+          {capabilities.canPosition ? (
+            <button
+              type="button"
+              className={tool === 'position' ? 'is-active' : undefined}
+              aria-pressed={tool === 'position'}
+              disabled={busy}
+              onClick={() => onToolChange('position')}
+            >Position</button>
+          ) : null}
+          {capabilities.canRotate ? (
+            <button
+              type="button"
+              className={tool === 'orientation' ? 'is-active' : undefined}
+              aria-pressed={tool === 'orientation'}
+              disabled={busy}
+              onClick={() => onToolChange('orientation')}
+            >Orientation</button>
+          ) : null}
+          {capabilities.canScale ? (
             <button
               type="button"
               className={tool === 'size' ? 'is-active' : undefined}
