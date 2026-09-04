@@ -8,6 +8,7 @@ on:
       - 'scripts/3d/accessory-collider-plan.json'
       - 'scripts/3d/build_accessory_colliders.py'
       - 'scripts/3d/accessory-runtime-plan.json'
+      - 'scripts/3d/build_accessory-runtime.py'
       - 'scripts/3d/build_accessory_runtime.py'
       - '.github/workflows/v2-03-runtime-assets.yml'
   workflow_dispatch:
@@ -60,8 +61,9 @@ jobs:
       - name: Build normalized runtime GLBs and previews
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           mkdir -p build/v2-03/runtime-assets build/v2-03/accessory-previews
+          set +e
           xvfb-run -a blender --background --factory-startup --python scripts/3d/build_accessory_runtime.py -- \
             --resource Ressource \
             --plan scripts/3d/accessory-runtime-plan.json \
@@ -71,8 +73,15 @@ jobs:
             --previews build/v2-03/accessory-previews \
             --report-json build/v2-03/runtime-report.json \
             --report-md build/v2-03/runtime-report.md
-          cat build/v2-03/runtime-report.md >> "$GITHUB_STEP_SUMMARY"
+          status=$?
+          set -e
+          if [[ -f build/v2-03/runtime-report.md ]]; then
+            cat build/v2-03/runtime-report.md
+            cat build/v2-03/runtime-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: v2-03-runtime-assets
           path: |
