@@ -43,7 +43,8 @@
     {
       "id": "crocodile-dog-toy",
       "source": "crocodile_dog_toy_3d_scan.glb",
-      "targetTriangles": 12000
+      "targetTriangles": 12000,
+      "maxTextureDimension": 512
     },
     {
       "id": "garden-gnome",
