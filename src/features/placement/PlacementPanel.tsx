@@ -23,7 +23,7 @@ interface PlacementPanelProps {
   onToolChange: (tool: PlacementTool) => void
   onAddOwned: (item: AccessoryCatalogItem) => Promise<void>
   onRemove: (instanceId: string) => void
-  onCancel?: () => void
+  onCancel: () => void
   onDone: () => void
   loadShop?: () => Promise<AccessoryShopSnapshot>
 }
@@ -56,7 +56,7 @@ export function PlacementPanel({
   onToolChange,
   onAddOwned,
   onRemove,
-  onCancel = () => undefined,
+  onCancel,
   onDone,
   loadShop = loadAccessoryShop,
 }: PlacementPanelProps) {
