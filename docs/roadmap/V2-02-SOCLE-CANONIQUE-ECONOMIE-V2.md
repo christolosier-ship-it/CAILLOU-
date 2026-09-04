@@ -1,6 +1,6 @@
 # V2-02 — Socle canonique & économie V2
 
-> **Statut : spécifiée — prête à exécuter après V2-01.**
+> **Statut : ✅ terminée — fusionnée et vérifiée en production le 4 septembre 2026.**
 >
 > **Date de spécification : 4 septembre 2026.**
 >
@@ -393,22 +393,22 @@ Preview finale uniquement si nécessaire pour valider l'upgrade PWA/UX. Après m
 
 ## 18. Critères d'acceptation
 
-- [ ] aucun système de compositions multiples créé ;
-- [ ] accessoire catalogue achetable une seule fois ;
-- [ ] une seule instance plaçable par référence ;
-- [ ] possession accessoire survit au changement de caillou ;
-- [ ] entitlements fonctionnalités liés au caillou ;
-- [ ] nouveau caillou sans feature héritée ;
-- [ ] Permis V1 non transféré ;
-- [ ] historique de dépense V1 conservé ;
-- [ ] nouveau Permis achetable pour le caillou ;
-- [ ] modèle compatible futur `grant` sans moteur de succès ;
-- [ ] wallet/ledger cohérents ;
-- [ ] vieux client ne contourne pas les règles ;
-- [ ] RLS et RPC validés ;
-- [ ] advisors sans nouvelle alerte critique ;
-- [ ] CI + Browser regression vertes ;
-- [ ] production contrôlée.
+- [x] aucun système de compositions multiples créé ;
+- [x] accessoire catalogue achetable une seule fois ;
+- [x] une seule instance plaçable par référence ;
+- [x] possession accessoire survit au changement de caillou ;
+- [x] entitlements fonctionnalités liés au caillou ;
+- [x] nouveau caillou sans feature héritée ;
+- [x] Permis V1 non transféré ;
+- [x] historique de dépense V1 conservé ;
+- [x] nouveau Permis achetable pour le caillou ;
+- [x] modèle compatible futur `grant` sans moteur de succès ;
+- [x] wallet/ledger cohérents ;
+- [x] vieux client ne contourne pas les règles ;
+- [x] RLS et RPC validés ;
+- [x] advisors sans nouvelle alerte critique ;
+- [x] CI + Browser regression vertes ;
+- [x] production contrôlée.
 
 ## 19. Interdictions anti-scope-creep
 
@@ -425,8 +425,75 @@ Ne pas :
 
 ## 20. État / compte rendu d'exécution
 
-**Statut : À exécuter.**
+**Statut : ✅ terminée le 4 septembre 2026.**
 
-À compléter : date, PR, SHA, migrations, schéma final, stratégie legacy `user_feature_unlocks`, RPC final d'achat par caillou, traitement du Permis V1, règle accessoires unitaires, compatibilité vieux client/PWA, tests SQL, advisors, CI, Browser regression, Preview éventuelle, production et dettes reportées.
+### Livraison
 
-**Ne pas démarrer V2-03 dans cette PR.**
+- PR principale : `#44` — `V2-02 — Socle canonique & économie V2` ;
+- branche : `feat/v2-02-socle-economie` ;
+- dernier HEAD validé avant fusion : `b82f91fc501457294f9ea71b7a9e6b8877af0565` ;
+- merge sur `main` : `5c0175d554b298073312b3b6efa857aa02259605`.
+
+### Schéma et économie finaux
+
+- aucune table de compositions multiples créée ; le Socle normalisé existant reste canonique ;
+- `rock_feature_unlocks(user_rock_id, feature_id, acquired_at, acquisition_source, price_paid)` porte les entitlements par caillou ;
+- `acquisition_source` accepte `purchase` ou `grant`, sans moteur de succès ajouté ;
+- l'ancienne table account-scoped est archivée en `private.user_feature_unlocks_legacy` et ne confère plus aucun droit V2 ;
+- `public.user_feature_unlocks` subsiste comme vue `security_invoker` de compatibilité pour le caillou actif ;
+- `purchase_rock_feature_unlock` est le RPC canonique d'achat par caillou ; le RPC V1 route les nouvelles opérations vers le même modèle sans casser le replay d'un ancien reçu ;
+- `equipped_accessories` impose l'unicité `(user_rock_id, accessory_id)` ; la possession reste dans `user_accessories` au niveau compte ;
+- `lithon_ledger` conserve tout l'historique et possède désormais `item_kind/item_id` pour les futures familles de biens sans multiplication de FK spécialisées.
+
+### Migrations V2-02 appliquées
+
+- `20260904170509_v2_02_rock_feature_unlocks` ;
+- `20260904172619_v2_02_rock_feature_purchase_compatibility` ;
+- `20260904174924_v2_02_unique_accessory_placement` ;
+- `20260904174953_v2_02_generic_ledger_items` ;
+- `20260904180532_v2_02_unique_accessory_acl_hardening`.
+
+### Traitement V1 et compatibilité PWA
+
+- le Permis V1 payé n'a pas été transféré : 1 entitlement V1 reste archivé et 0 entitlement V2 gratuit a été créé ;
+- la dépense historique reste dans le ledger ; aucun remboursement ni backfill mensonger ;
+- le frontend H lit directement `rock_feature_unlocks` pour le `user_rock_id` actif ;
+- le cache Permis est cloisonné par caillou ; l'ancien cache account-scoped n'est jamais autoritaire ;
+- changement de caillou = entitlement feature invalidé, possessions accessoires et wallet conservés ;
+- les mutations retryables réutilisent leur `event_key`.
+
+### Validation Supabase
+
+- projet `zibhzhpvtiplbkhioqco` : `ACTIVE_HEALTHY`, PostgreSQL `17.6.1.166` ;
+- état final observé : 1 placement, 0 doublon `(user_rock_id, accessory_id)`, 0 entitlement V2 gratuit, 1 entitlement V1 archivé, 319 lignes ledger ;
+- RLS et ACL contrôlés : lecture `rock_feature_unlocks` réservée aux rows possédées par `authenticated`, `anon` interdit ;
+- `purchase_rock_feature_unlock` public reste invoker avec `search_path=''`, `anon` sans EXECUTE ;
+- helper privé `execute_rock_feature_purchase` est `SECURITY DEFINER`, `search_path=''`, sans EXECUTE direct pour les rôles API ;
+- tests SQL transactionnels V2-02 exécutés avec rollback propre ;
+- advisor sécurité : aucune nouvelle alerte V2-02 ; seul WARN préexistant `auth_leaked_password_protection` ;
+- advisor performance : uniquement INFO d'index inutilisés, dont l'index de feature encore sans trafic V2.
+
+### Validation GitHub / Browser
+
+- CI final #405 / run `33909933274` : **SUCCESS** — release invariants, lint, typecheck, unit tests, build production ;
+- Browser final #88 / run `33909933311` : **SUCCESS** ;
+- `v2-02-economy` : achat accessoire unique, possession compte après changement de caillou, Permis non hérité, achat du nouveau Permis, remount/reconnexion : **PASS** ;
+- non-régression V2-01/V1 : Placement unified/collision/cancel/performance, mémoire GPU, showroom UI, adoption, caresse, nettoyage, accessory placement/physics, rock movement et Bio/Jeter : **PASS** ;
+- performance : 1/4/8 objets + téléphone/tablette/desktop PASS, croissance frames tablette 4/1=`1.28x`, 8/1=`1.68x` ; la mesure gesture scheduler-dépendante reste diagnostic et n'est plus un faux hard gate ;
+- artefact Browser : `caillou-browser-regression-33909933311`, ID `9951189778`, SHA256 `0aafac41a4bb2b5f757bb863c012a881e4137aa37e7f10eec0e9ec9661c5c304`.
+
+### Vercel / production
+
+- aucune Preview V2-02 consommée : les validations locales/CI/Browser/Supabase étaient suffisantes ;
+- déploiement production du merge : `dpl_J8v83ykMgj3YRXqJSHSZDZ4gHmZP` ;
+- commit déployé : `5c0175d554b298073312b3b6efa857aa02259605` ;
+- état : `READY`, alias `caillou-sigma.vercel.app`, `caillou-christo5.vercel.app` et `caillou-git-main-christo5.vercel.app` actifs ;
+- smoke HTTP sur `caillou-sigma.vercel.app/` : `200 OK`, headers de sécurité présents.
+
+### Dettes explicitement reportées
+
+- le warning Supabase Auth `auth_leaked_password_protection` est préexistant et hors périmètre V2-02 ;
+- les INFO d'index inutilisés seront réévaluées avec du trafic réel plutôt que supprimées prématurément ;
+- l'harmonisation visuelle globale de la Boutique reste volontairement prévue en V2-09.
+
+**V2-02 est close. V2-03 devient la prochaine étape de la roadmap, mais n'a pas été démarrée dans cette PR.**
