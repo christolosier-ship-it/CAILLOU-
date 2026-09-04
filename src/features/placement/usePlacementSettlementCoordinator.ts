@@ -28,31 +28,6 @@ export function usePlacementSettlementCoordinator({
   const finalAccessoriesRef = useRef(new Map<string, WorldAccessoryTransform>())
   const compositionReportedRef = useRef(false)
 
-  useEffect(() => {
-    if (!settling || !settlementPlan || !placementSession) return
-
-    finalRockRef.current = settlementPlan.rock
-      ? null
-      : {
-          position: [...placementSession.rock.position],
-          rotation: [...placementSession.rock.rotation],
-        }
-
-    finalAccessoriesRef.current = new Map()
-    for (const instance of accessories) {
-      if (settlementPlan.accessoryIds.includes(instance.id)) continue
-      const transform = placementSession.accessories[instance.id]
-      if (!transform) continue
-      finalAccessoriesRef.current.set(instance.id, {
-        instanceId: instance.id,
-        worldPosition: [...transform.position],
-        worldRotation: [...transform.rotation],
-        uniformScale: transform.scale,
-      })
-    }
-    compositionReportedRef.current = false
-  }, [accessories, placementSession, settlementPlan, settling])
-
   const tryReportComposition = useCallback(() => {
     const finalRock = finalRockRef.current
     if (!settling || !settlementPlan || !finalRock || compositionReportedRef.current) return
@@ -79,6 +54,35 @@ export function usePlacementSettlementCoordinator({
       }),
     })
   }, [accessories, onCompositionSettled, settlementPlan, settling])
+
+  useEffect(() => {
+    if (!settling || !settlementPlan || !placementSession) return
+
+    finalRockRef.current = settlementPlan.rock
+      ? null
+      : {
+          position: [...placementSession.rock.position],
+          rotation: [...placementSession.rock.rotation],
+        }
+
+    finalAccessoriesRef.current = new Map()
+    for (const instance of accessories) {
+      if (settlementPlan.accessoryIds.includes(instance.id)) continue
+      const transform = placementSession.accessories[instance.id]
+      if (!transform) continue
+      finalAccessoriesRef.current.set(instance.id, {
+        instanceId: instance.id,
+        worldPosition: [...transform.position],
+        worldRotation: [...transform.rotation],
+        uniformScale: transform.scale,
+      })
+    }
+    compositionReportedRef.current = false
+
+    // A membership-only session (for example a removal) may have no physical body
+    // to settle. The canonical composition is already fully known in that case.
+    queueMicrotask(tryReportComposition)
+  }, [accessories, placementSession, settlementPlan, settling, tryReportComposition])
 
   const handleRockBodySettled = useCallback((transform: PlacementTransform) => {
     finalRockRef.current = normalizeRockPose({
