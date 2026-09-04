@@ -222,14 +222,16 @@ const report = {
   environment: {
     renderer: 'GitHub Actions headless Chrome / ANGLE SwiftShader',
     frameCadencePolicy: 'diagnostic absolute values; regression gate uses tablet 1→4→8 relative growth',
+    gestureLatencyPolicy: 'diagnostic absolute values; regression gate uses tablet 1→4→8 relative growth because React commit latency is runner/render-scheduler dependent',
   },
   thresholds: {
     collisionP95Ms: 25,
     selectionMs: 500,
-    gestureMs: 300,
     settlementMs: 6_000,
     tablet4FrameGrowthRatio: 2,
     tablet8FrameGrowthRatio: 2.5,
+    tablet4GestureGrowthRatio: 2,
+    tablet8GestureGrowthRatio: 2.5,
     tablet8TaskGrowthRatio: 3.5,
     tablet8ScriptGrowthRatio: 3.5,
   },
@@ -298,7 +300,6 @@ try {
       assertFinite(`${scenario.label} gesture`, gestureMs)
       assertFinite(`${scenario.label} settlement`, settlementMs)
       if (selectionMs > report.thresholds.selectionMs) throw new Error(`${scenario.label}: raycast selection ${selectionMs.toFixed(1)}ms too slow`)
-      if (gestureMs > report.thresholds.gestureMs) throw new Error(`${scenario.label}: gesture publish ${gestureMs.toFixed(1)}ms too slow`)
       if (settlementMs > report.thresholds.settlementMs) throw new Error(`${scenario.label}: settlement ${settlementMs.toFixed(1)}ms too slow`)
 
       const metrics = {
@@ -318,7 +319,7 @@ try {
       }
       report.scenarios.push(metrics)
       await writeFile(`${outputDir}/${scenario.label}.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-      console.log(`[CAILLOU] Lot F ${scenario.label} PASS: raycast=${selectionMs.toFixed(1)}ms gesture=${gestureMs.toFixed(1)}ms frame-p95=${frame.p95Ms.toFixed(1)}ms (SwiftShader diagnostic) settlement=${settlementMs.toFixed(1)}ms`)
+      console.log(`[CAILLOU] Lot F ${scenario.label} PASS: raycast=${selectionMs.toFixed(1)}ms gesture=${gestureMs.toFixed(1)}ms (runner diagnostic) frame-p95=${frame.p95Ms.toFixed(1)}ms (SwiftShader diagnostic) settlement=${settlementMs.toFixed(1)}ms`)
     } finally {
       await page.close()
     }
@@ -327,6 +328,8 @@ try {
   const tablet = Object.fromEntries(report.scenarios.filter((entry) => entry.label.startsWith('tablet-')).map((entry) => [entry.objectCount, entry]))
   const frameGrowth4 = ratio(tablet[4].interactiveFrames.averageMs, tablet[1].interactiveFrames.averageMs)
   const frameGrowth8 = ratio(tablet[8].interactiveFrames.averageMs, tablet[1].interactiveFrames.averageMs)
+  const gestureGrowth4 = ratio(tablet[4].gesturePublishMs, tablet[1].gesturePublishMs)
+  const gestureGrowth8 = ratio(tablet[8].gesturePublishMs, tablet[1].gesturePublishMs)
   const taskGrowth8 = ratio(tablet[8].mainThreadTaskMs, tablet[1].mainThreadTaskMs)
   const scriptGrowth8 = ratio(tablet[8].scriptDurationMs, tablet[1].scriptDurationMs)
 
@@ -349,6 +352,8 @@ try {
     relativeGrowth: {
       frame4Over1: frameGrowth4,
       frame8Over1: frameGrowth8,
+      gesture4Over1: gestureGrowth4,
+      gesture8Over1: gestureGrowth8,
       mainThreadTask8Over1: taskGrowth8,
       script8Over1: scriptGrowth8,
     },
@@ -360,6 +365,12 @@ try {
   if (frameGrowth8 > report.thresholds.tablet8FrameGrowthRatio) {
     throw new Error(`tablet 1→8 frame growth ${frameGrowth8.toFixed(2)}x exceeds ${report.thresholds.tablet8FrameGrowthRatio}x`)
   }
+  if (gestureGrowth4 > report.thresholds.tablet4GestureGrowthRatio) {
+    throw new Error(`tablet 1→4 gesture growth ${gestureGrowth4.toFixed(2)}x exceeds ${report.thresholds.tablet4GestureGrowthRatio}x`)
+  }
+  if (gestureGrowth8 > report.thresholds.tablet8GestureGrowthRatio) {
+    throw new Error(`tablet 1→8 gesture growth ${gestureGrowth8.toFixed(2)}x exceeds ${report.thresholds.tablet8GestureGrowthRatio}x`)
+  }
   if (taskGrowth8 > report.thresholds.tablet8TaskGrowthRatio) {
     throw new Error(`tablet 1→8 main-thread task growth ${taskGrowth8.toFixed(2)}x exceeds ${report.thresholds.tablet8TaskGrowthRatio}x`)
   }
@@ -368,7 +379,7 @@ try {
   }
 
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
-  console.log(`[CAILLOU] Placement Lot F performance PASS: 1 / 4 / 8 objects + phone/tablet/desktop; frame growth 4/1=${frameGrowth4.toFixed(2)}x 8/1=${frameGrowth8.toFixed(2)}x`)
+  console.log(`[CAILLOU] Placement Lot F performance PASS: 1 / 4 / 8 objects + phone/tablet/desktop; frame growth 4/1=${frameGrowth4.toFixed(2)}x 8/1=${frameGrowth8.toFixed(2)}x; gesture growth 4/1=${gestureGrowth4.toFixed(2)}x 8/1=${gestureGrowth8.toFixed(2)}x`)
 } catch (error) {
   report.status = 'fail'
   report.error = error instanceof Error ? error.stack : String(error)
