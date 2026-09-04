@@ -34,10 +34,11 @@
 .placement-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
 .placement-panel-heading h2 { margin: 2px 0 0; font-size: 1.35rem; font-weight: 560; letter-spacing: -.025em; }
 .placement-panel-heading p:last-child { margin: 4px 0 0; color: var(--color-graphite); font-size: .68rem; }
-.placement-panel-heading > button,
+.placement-panel-session-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.placement-panel-session-actions button,
 .placement-tools button,
 .placement-remove { min-height: 44px; border: 1px solid rgb(52 51 48 / 14%); border-radius: 12px; color: var(--color-basalt); background: rgb(255 255 255 / 48%); cursor: pointer; }
-.placement-panel-heading > button { padding: 0 var(--space-3); border-radius: 999px; font-size: .75rem; }
+.placement-panel-session-actions button { padding: 0 var(--space-3); border-radius: 999px; font-size: .75rem; }
 .placement-panel button:disabled { cursor: default; opacity: .45; }
 
 .placement-targets { display: grid; gap: 7px; }
