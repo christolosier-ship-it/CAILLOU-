@@ -42,7 +42,7 @@ export function RockMovementPermitDialog({
         </div>
 
         <p>{snapshot?.description ?? 'Autorise la manutention réglementaire du caillou dans les six degrés de liberté.'}</p>
-        <p className="rock-permit-note">Achat permanent au compte. Les déplacements suivants ne sont pas refacturés.</p>
+        <p className="rock-permit-note">Achat lié à ce caillou uniquement. Il ne sera pas transféré au suivant. Les déplacements ultérieurs de ce caillou ne sont pas refacturés.</p>
 
         <div className="rock-permit-price">
           <span>Tarif réglementaire</span>
@@ -57,7 +57,7 @@ export function RockMovementPermitDialog({
           disabled={loading || pending || !snapshot || !canAfford}
           onClick={onPurchase}
         >
-          {pending ? 'Enregistrement…' : canAfford ? 'Acheter le permis' : `Il manque ${Math.max(0, price - balance)} Lithons`}
+          {pending ? 'Enregistrement…' : canAfford ? 'Acheter pour ce caillou' : `Il manque ${Math.max(0, price - balance)} Lithons`}
         </button>
       </section>
     </div>

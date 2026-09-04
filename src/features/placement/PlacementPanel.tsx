@@ -122,7 +122,7 @@ export function PlacementPanel({
             <strong>{rockName}</strong>
             <small>Caillou</small>
           </span>
-          <em>{permitLoading ? 'Vérification…' : permitUnlocked ? 'Disponible' : 'Permis requis · Boutique'}</em>
+          <em>{permitLoading ? 'Vérification…' : permitUnlocked ? 'Disponible' : 'Permis requis pour ce caillou · Boutique'}</em>
         </button>
 
         {instances.map((instance) => (
@@ -137,7 +137,7 @@ export function PlacementPanel({
             <img src={instance.previewPath} alt="" aria-hidden="true" />
             <span>
               <strong>{instance.name}</strong>
-              <small>{instance.category}</small>
+              <small>{instance.category} · Placée</small>
             </span>
           </button>
         ))}
@@ -222,7 +222,7 @@ export function PlacementPanel({
               >
                 <img src={item.previewPath} alt="" aria-hidden="true" />
                 <span>{item.name}</span>
-                <small>{addingId === item.id ? 'Ajout au draft…' : instances.length >= maxInstances ? 'Limite atteinte' : 'Ajouter au draft'}</small>
+                <small>{addingId === item.id ? 'Ajout au draft…' : instances.length >= maxInstances ? 'Limite atteinte' : 'Disponible · ajouter au draft'}</small>
               </button>
             ))}
           </div>

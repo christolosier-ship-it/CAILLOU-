@@ -137,12 +137,22 @@ export function readCachedAccessories(userRockId: string) {
   return getResilienceValue<EquippedAccessoryInstance[]>(`accessories:${userRockId}`)
 }
 
-export function writeCachedPermit(userId: string, permit: RockMovementPermitSnapshot) {
-  return putResilienceValue(`permit:${userId}`, permit)
+export function permitCacheKey(userId: string, userRockId: string) {
+  return `permit:${userId}:${userRockId}`
 }
 
-export function readCachedPermit(userId: string) {
-  return getResilienceValue<RockMovementPermitSnapshot>(`permit:${userId}`)
+export async function writeCachedPermit(
+  userId: string,
+  userRockId: string,
+  permit: RockMovementPermitSnapshot,
+) {
+  // The V1 account-scoped cache must never be interpreted as a V2 rock entitlement.
+  await deleteResilienceValue(`permit:${userId}`)
+  await putResilienceValue(permitCacheKey(userId, userRockId), permit)
+}
+
+export function readCachedPermit(userId: string, userRockId: string) {
+  return getResilienceValue<RockMovementPermitSnapshot>(permitCacheKey(userId, userRockId))
 }
 
 export async function clearResilienceState() {

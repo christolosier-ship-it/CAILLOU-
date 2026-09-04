@@ -110,7 +110,7 @@ export function AccessoryShop({
         ? { ...item, purchasedAt: result.purchasedAt }
         : item))
       setRetryInput(null)
-      setPurchaseFeedback('Acquisition enregistrée. L’accessoire appartient désormais à votre compte et peut être instancié depuis Placement.')
+      setPurchaseFeedback('Acquisition enregistrée. L’accessoire est possédé par votre compte et restera disponible pour vos futurs cailloux via Placement.')
       onBalanceChanged(result.balance)
       onPurchased(result)
       navigator.vibrate?.(14)
@@ -132,7 +132,7 @@ export function AccessoryShop({
     setPurchaseFeedback(null)
     const success = await onPermitPurchase()
     if (success) {
-      setPurchaseFeedback('Permis de manutention minérale délivré. Le caillou est désormais disponible dans Placement.')
+      setPurchaseFeedback('Permis de manutention minérale délivré pour ce caillou. Son déplacement est désormais disponible dans Placement.')
       navigator.vibrate?.(16)
     }
   }, [mutationBlocked, onPermitPurchase, permit, permitLoading])
@@ -153,7 +153,7 @@ export function AccessoryShop({
           <div>
             <p className="eyebrow">Registre des acquisitions</p>
             <h2 id="accessory-shop-title">Boutique</h2>
-            <p>Accessoires et autorisations permanentes. Ici on acquiert. Le déplacement des objets reste exclusivement dans Placement.</p>
+            <p>Accessoires permanents au compte et autorisations propres au caillou actif. Ici on acquiert. Le déplacement des objets reste exclusivement dans Placement.</p>
           </div>
           <button
             type="button"
@@ -176,7 +176,7 @@ export function AccessoryShop({
         <section className="shop-section" aria-labelledby="shop-services-title">
           <header className="shop-section-heading">
             <p className="eyebrow">Autorisations / services</p>
-            <h3 id="shop-services-title">Fonctionnalités permanentes</h3>
+            <h3 id="shop-services-title">Fonctionnalités de ce caillou</h3>
           </header>
 
           <article className={`feature-card${highlightPermit ? ' is-highlighted' : ''}`} data-feature-id={permit?.featureId ?? 'rock_movement'}>
@@ -189,7 +189,7 @@ export function AccessoryShop({
               <p>{permit?.description ?? 'Autorise la transformation persistante de la position et de l’orientation du caillou.'}</p>
               <dl>
                 <div><dt>Prix serveur</dt><dd>{permit ? formatLithons(permit.priceLithons) : 'Vérification…'}</dd></div>
-                <div><dt>Propriété</dt><dd>Permanente au compte</dd></div>
+                <div><dt>Portée</dt><dd>Ce caillou uniquement</dd></div>
               </dl>
               <button
                 type="button"
@@ -201,12 +201,12 @@ export function AccessoryShop({
                 {permitLoading
                   ? 'Vérification…'
                   : permitOwned
-                    ? 'Acquis'
+                    ? 'Acquis pour ce caillou'
                     : permitPending
                       ? 'Confirmation…'
                       : !permitAffordable
                         ? `Solde insuffisant · ${formatLithons(permit?.priceLithons ?? 0)}`
-                        : permitRetrying ? 'Renvoyer la même opération' : `Acquérir · ${formatLithons(permit?.priceLithons ?? 0)}`}
+                        : permitRetrying ? 'Renvoyer la même opération' : `Acquérir pour ce caillou · ${formatLithons(permit?.priceLithons ?? 0)}`}
               </button>
               {permitError ? <p className="feature-card-error" role="alert">{permitError}</p> : null}
             </div>
@@ -246,7 +246,7 @@ export function AccessoryShop({
                     <div className="accessory-card-preview">
                       <img src={item.previewPath} alt={`Aperçu : ${item.name}`} />
                       {item.purchasedAt ? (
-                        <span className="accessory-card-owned"><Check size={15} aria-hidden="true" /> Acquis</span>
+                        <span className="accessory-card-owned"><Check size={15} aria-hidden="true" /> Possédé</span>
                       ) : null}
                     </div>
                     <div className="accessory-card-copy">
@@ -299,7 +299,7 @@ export function AccessoryShop({
 
         <footer className="accessory-shop-footer">
           <ShieldCheck size={19} strokeWidth={1.75} aria-hidden="true" />
-          <span>Prix et propriétés sont vérifiés côté serveur. Aucun paiement réel. Aucun placement n’est créé depuis la Boutique.</span>
+          <span>Prix, possessions et portées sont vérifiés côté serveur. Aucun paiement réel. Aucun placement n’est créé depuis la Boutique.</span>
         </footer>
       </section>
     </div>

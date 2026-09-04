@@ -9,6 +9,7 @@ export type PendingMutationOperation =
   | 'stabilize_equipped_accessory'
   | 'stabilize_rock_composition'
   | 'commit_placement_session'
+  | 'purchase_rock_feature_unlock'
 
 export interface PendingServerMutation {
   operation: PendingMutationOperation
