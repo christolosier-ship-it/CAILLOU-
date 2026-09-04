@@ -14,6 +14,7 @@ interface AccessorySceneObjectsProps {
   settlingActive: boolean
   placementSession: PlacementSessionState | null
   settlementPlan: PlacementSettlementPlan | null
+  onSelectAccessory?: ((instanceId: string) => void) | undefined
   onSettledWorld: (instanceId: string, transform: PlacementTransform) => void
   onGlobalSettled: (transform: WorldAccessoryTransform) => void
   onPlacementGeometryReady: (instanceId: string, geometry: PlacementGeometry | null) => void
@@ -33,6 +34,7 @@ export function AccessorySceneObjects({
   settlingActive,
   placementSession,
   settlementPlan,
+  onSelectAccessory,
   onSettledWorld,
   onGlobalSettled,
   onPlacementGeometryReady,
@@ -57,6 +59,7 @@ export function AccessorySceneObjects({
             compositionFrozen={placementActive || settlingActive}
             globalSettling={settlesWithRock}
             settlingRequested={settlesIndividually}
+            onSelect={placementActive && onSelectAccessory ? () => onSelectAccessory(instance.id) : undefined}
             onSettledWorld={onSettledWorld}
             onGlobalSettled={onGlobalSettled}
             placementTransform={sessionTransform}

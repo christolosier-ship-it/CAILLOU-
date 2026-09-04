@@ -46,6 +46,9 @@ interface ShowroomSceneProps {
   placementTool?: PlacementTool
   placementSession?: PlacementSessionState | null
   settlementPlan?: PlacementSettlementPlan | null
+  cameraControlActive?: boolean
+  onRockSelect?: (() => void) | undefined
+  onAccessorySelect?: ((instanceId: string) => void) | undefined
   dustAmount?: number
   dustRevision?: number
   onSurfacePointerDown?: (sample: RockSurfacePointerSample) => void
@@ -83,6 +86,9 @@ export function ShowroomScene({
   placementTool = 'position',
   placementSession = null,
   settlementPlan = null,
+  cameraControlActive = false,
+  onRockSelect,
+  onAccessorySelect,
   dustAmount = 0,
   dustRevision = 0,
   onSurfacePointerDown,
@@ -116,6 +122,7 @@ export function ShowroomScene({
   const placementRockTarget = placementMode && placementTarget?.kind === 'rock'
   const globalSettling = settlingMode && settlementPlan?.rock === true
   const orbitMode = interactionMode === 'orbit'
+  const cameraInteractionActive = orbitMode || (placementMode && cameraControlActive)
   const sessionRockTransform = placementSession?.rock ?? {
     position: [...rockPose.position],
     rotation: [...rockPose.rotation],
@@ -174,9 +181,9 @@ export function ShowroomScene({
   return (
     <div
       className="showroom-canvas"
-      onPointerDown={() => { if (orbitMode) onInteractionChange(true) }}
-      onPointerUp={() => { if (orbitMode) onInteractionChange(false) }}
-      onPointerCancel={() => { if (orbitMode) onInteractionChange(false) }}
+      onPointerDown={() => { if (cameraInteractionActive) onInteractionChange(true) }}
+      onPointerUp={() => { if (cameraInteractionActive) onInteractionChange(false) }}
+      onPointerCancel={() => { if (cameraInteractionActive) onInteractionChange(false) }}
       onContextMenu={(event) => event.preventDefault()}
     >
       <Canvas
@@ -204,10 +211,12 @@ export function ShowroomScene({
               dustRevision={dustRevision}
               cleaningActive={cleaningMode}
               surfaceInteractionActive={surfaceMode}
+              selectionActive={placementMode}
               onLoadStateChange={onLoadStateChange}
               onObjectReady={setObject}
               onPlacementGeometryReady={setRockGeometry}
               onSettled={handleRockBodySettled}
+              onSelect={onRockSelect}
               onSurfacePointerDown={onSurfacePointerDown}
               onSurfacePointerMove={onSurfacePointerMove}
               onSurfacePointerUp={onSurfacePointerUp}
@@ -222,6 +231,7 @@ export function ShowroomScene({
               settlingActive={settlingMode}
               placementSession={placementSession}
               settlementPlan={settlementPlan}
+              onSelectAccessory={onAccessorySelect}
               onSettledWorld={handleAccessoryModelSettled}
               onGlobalSettled={handleAccessoryGlobalSettled}
               onPlacementGeometryReady={handleAccessoryGeometryReady}
@@ -257,7 +267,7 @@ export function ShowroomScene({
 
         <SceneCameraController
           object={object}
-          enabled={orbitMode}
+          enabled={cameraInteractionActive}
           reducedMotion={reducedMotion}
         />
       </Canvas>

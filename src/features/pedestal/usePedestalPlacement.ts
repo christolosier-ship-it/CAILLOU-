@@ -19,7 +19,12 @@ import {
   updatePlacementSession,
 } from '../placement/placementSession'
 import type { PlacementSessionState, PlacementSettlementPlan } from '../placement/placementSession'
-import type { PlacementTarget, PlacementTool, PlacementTransform } from '../placement/placementTypes'
+import type {
+  PlacementControlTarget,
+  PlacementTarget,
+  PlacementTool,
+  PlacementTransform,
+} from '../placement/placementTypes'
 import type { RockPose } from '../rockMovement/rockMovementTypes'
 import { useRockMovementPermit } from '../rockMovement/useRockMovementPermit'
 import type { PedestalAction, PedestalInteractionMode } from './pedestalState'
@@ -44,7 +49,8 @@ export function usePedestalPlacement({
   onBalanceChanged,
 }: UsePedestalPlacementInput) {
   const [selectedAccessoryId, setSelectedAccessoryId] = useState<string | null>(null)
-  const [placementTarget, setPlacementTarget] = useState<PlacementTarget | null>(null)
+  const [placementControlTarget, setPlacementControlTarget] = useState<PlacementControlTarget | null>(null)
+  const [lastObjectTarget, setLastObjectTarget] = useState<PlacementTarget | null>(null)
   const [placementTool, setPlacementTool] = useState<PlacementTool>('position')
   const [placementSession, setPlacementSession] = useState<PlacementSessionState | null>(null)
   const [settlementPlan, setSettlementPlan] = useState<PlacementSettlementPlan | null>(null)
@@ -75,6 +81,10 @@ export function usePedestalPlacement({
 
   const placementMode = mode === 'placement'
   const settlingMode = mode === 'settling'
+  const placementTarget = placementControlTarget?.kind === 'object'
+    ? placementControlTarget.target
+    : null
+  const cameraSelected = placementControlTarget?.kind === 'camera'
   const accessorySettling = settlingMode && settlementPlan !== null && !settlementPlan.rock
   const globalSettling = settlingMode && settlementPlan?.rock === true
   const placementMutationPending = accessoryPendingId !== null
@@ -102,7 +112,8 @@ export function usePedestalPlacement({
 
   const resetDraft = useCallback(() => {
     setSelectedAccessoryId(null)
-    setPlacementTarget(null)
+    setPlacementControlTarget(null)
+    setLastObjectTarget(null)
     setPlacementTool('position')
     setRockMovementError(null)
     setSettlementPlan(null)
@@ -112,30 +123,37 @@ export function usePedestalPlacement({
 
   const beginPlacement = useCallback(() => {
     setSelectedAccessoryId(null)
-    setPlacementTarget(null)
+    setPlacementControlTarget(null)
+    setLastObjectTarget(null)
     setPlacementTool('position')
     setRockMovementError(null)
     setSettlementPlan(null)
     setPlacementSession(createPlacementSession(rockPose, accessoryInstances))
   }, [accessoryInstances, rockPose])
 
+  const activateObjectTarget = useCallback((target: PlacementTarget) => {
+    setPlacementControlTarget({ kind: 'object', target })
+    setLastObjectTarget(target)
+    setPlacementTool('position')
+    setRockMovementError(null)
+  }, [])
+
   const handlePlacementAdd = useCallback(async (item: AccessoryCatalogItem) => {
     const created = await placeAccessory(item)
+    const target = accessoryPlacementTarget(created)
     setAccessoryRenderError(null)
     setPlacementSession((current) => current ? addPlacementSessionAccessory(current, created) : current)
     setSelectedAccessoryId(created.id)
-    setPlacementTarget(accessoryPlacementTarget(created))
-    setPlacementTool('position')
-  }, [placeAccessory])
+    activateObjectTarget(target)
+  }, [activateObjectTarget, placeAccessory])
 
   const handleAccessorySelect = useCallback((instanceId: string) => {
     if (mutationPending || mode !== 'placement') return
     const instance = accessoryInstances.find((candidate) => candidate.id === instanceId)
     if (!instance) return
     setSelectedAccessoryId(instanceId)
-    setPlacementTarget(accessoryPlacementTarget(instance))
-    setPlacementTool('position')
-  }, [accessoryInstances, mode, mutationPending])
+    activateObjectTarget(accessoryPlacementTarget(instance))
+  }, [accessoryInstances, activateObjectTarget, mode, mutationPending])
 
   const handleAccessoryRemove = useCallback((instanceId: string) => {
     if (mutationPending || mode !== 'placement') return
@@ -143,20 +161,52 @@ export function usePedestalPlacement({
       if (!removed) return
       setPlacementSession((current) => current ? removePlacementSessionAccessory(current, instanceId) : current)
       setSelectedAccessoryId(null)
-      setPlacementTarget(null)
+      setPlacementControlTarget((current) => current?.kind === 'object'
+        && current.target.kind === 'accessory'
+        && current.target.instanceId === instanceId
+        ? null
+        : current)
+      setLastObjectTarget((current) => current?.kind === 'accessory' && current.instanceId === instanceId
+        ? null
+        : current)
       setPlacementTool('position')
     })
   }, [mode, mutationPending, removeAccessory])
 
   const selectRockForPlacement = useCallback((): RockPlacementSelectionResult => {
-    if (mutationPending) return 'blocked'
+    if (mutationPending || mode !== 'placement') return 'blocked'
     if (!rockPermit.unlocked) return 'permit-required'
     setSelectedAccessoryId(null)
-    setPlacementTarget(rockPlacementTarget())
-    setPlacementTool('position')
-    setRockMovementError(null)
+    activateObjectTarget(rockPlacementTarget())
     return 'selected'
-  }, [mutationPending, rockPermit.unlocked])
+  }, [activateObjectTarget, mode, mutationPending, rockPermit.unlocked])
+
+  const selectCameraForPlacement = useCallback(() => {
+    if (mutationPending || mode !== 'placement') return
+    setSelectedAccessoryId(null)
+    setPlacementControlTarget({ kind: 'camera' })
+    setRockMovementError(null)
+  }, [mode, mutationPending])
+
+  const resumeLastObjectTarget = useCallback(() => {
+    if (!lastObjectTarget || mutationPending || mode !== 'placement') return false
+    if (lastObjectTarget.kind === 'rock') return selectRockForPlacement() === 'selected'
+    const instance = accessoryInstances.find((candidate) => candidate.id === lastObjectTarget.instanceId)
+    if (!instance) {
+      setLastObjectTarget(null)
+      return false
+    }
+    setSelectedAccessoryId(instance.id)
+    activateObjectTarget(accessoryPlacementTarget(instance))
+    return true
+  }, [
+    accessoryInstances,
+    activateObjectTarget,
+    lastObjectTarget,
+    mode,
+    mutationPending,
+    selectRockForPlacement,
+  ])
 
   const handlePlacementTool = useCallback((tool: PlacementTool) => {
     if (!placementTarget || mutationPending) return
@@ -184,7 +234,8 @@ export function usePedestalPlacement({
     const plan = buildPlacementSettlementPlan(placementSession)
     if (!plan) {
       setPlacementSession(null)
-      setPlacementTarget(null)
+      setPlacementControlTarget(null)
+      setLastObjectTarget(null)
       setSelectedAccessoryId(null)
       dispatchPedestal({ type: 'return-to-orbit' })
       return
@@ -247,7 +298,8 @@ export function usePedestalPlacement({
       canonicalRockPoseRef.current = rockPoseResult
       setPlacementSession(null)
       setSettlementPlan(null)
-      setPlacementTarget(null)
+      setPlacementControlTarget(null)
+      setLastObjectTarget(null)
       setSelectedAccessoryId(null)
       setPlacementTool('position')
       dispatchPedestal({ type: 'return-to-orbit' })
@@ -262,7 +314,8 @@ export function usePedestalPlacement({
       setRockPose(canonicalRockPoseRef.current)
       setPlacementSession(null)
       setSettlementPlan(null)
-      setPlacementTarget(null)
+      setPlacementControlTarget(null)
+      setLastObjectTarget(null)
       setSelectedAccessoryId(null)
       setPlacementTool('position')
       try {
@@ -335,17 +388,19 @@ export function usePedestalPlacement({
         : globalSettling
           ? 'Rapier arbitre la composition : gravité et collisions sont de nouveau actives…'
           : placementMode
-            ? placementTarget?.kind === 'rock'
-              ? placementTool === 'position'
-                ? 'Placement du caillou : le canvas entier contrôle sa position. Le sol gris reste infranchissable.'
-                : 'Placement du caillou : le canvas entier contrôle son orientation.'
-              : placementTarget?.kind === 'accessory'
+            ? cameraSelected
+              ? 'Placement caméra : glissez pour orbiter, pincez pour zoomer. Le draft des objets reste intact.'
+              : placementTarget?.kind === 'rock'
                 ? placementTool === 'position'
-                  ? 'Placement accessoire : position libre, intersections autorisées, sol gris infranchissable.'
-                  : placementTool === 'orientation'
-                    ? 'Placement accessoire : orientation libre depuis tout le canvas.'
-                    : 'Placement accessoire : pincez pour ajuster la taille.'
-                : 'Placement : choisissez d’abord une cible.'
+                  ? 'Placement du caillou : le canvas entier contrôle sa position. Le sol gris reste infranchissable.'
+                  : 'Placement du caillou : le canvas entier contrôle son orientation.'
+                : placementTarget?.kind === 'accessory'
+                  ? placementTool === 'position'
+                    ? 'Placement accessoire : position libre, intersections autorisées, sol gris infranchissable.'
+                    : placementTool === 'orientation'
+                      ? 'Placement accessoire : orientation libre depuis tout le canvas.'
+                      : 'Placement accessoire : pincez pour ajuster la taille.'
+                  : 'Placement : touchez un objet dans la scène ou choisissez-le dans la liste.'
             : accessoryPendingId
               ? 'Enregistrement du placement…'
               : accessoryPlacementsLoading
@@ -360,7 +415,10 @@ export function usePedestalPlacement({
     accessoryPlacementError,
     maxInstances,
     selectedAccessoryId,
+    placementControlTarget,
     placementTarget,
+    lastObjectTarget,
+    cameraSelected,
     placementTool,
     placementSession,
     settlementPlan,
@@ -378,6 +436,8 @@ export function usePedestalPlacement({
     handleAccessorySelect,
     handleAccessoryRemove,
     selectRockForPlacement,
+    selectCameraForPlacement,
+    resumeLastObjectTarget,
     handlePlacementTool,
     handleRockPlacementDraft,
     handleAccessoryPlacementDraft,

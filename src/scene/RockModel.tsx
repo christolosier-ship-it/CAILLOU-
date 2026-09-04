@@ -34,6 +34,7 @@ interface RockModelProps {
   onLoadStateChange?: ((state: RockLoadState, message?: string) => void) | undefined
   onObjectReady?: ((object: Object3D | null) => void) | undefined
   onPlacementGeometryReady?: ((geometry: PlacementGeometry | null) => void) | undefined
+  onSelect?: (() => void) | undefined
   onSurfacePointerDown?: ((sample: RockSurfacePointerSample) => void) | undefined
   onSurfacePointerMove?: ((sample: RockSurfacePointerSample) => void) | undefined
   onSurfacePointerUp?: ((sample: RockSurfacePointerSample) => void) | undefined
@@ -133,6 +134,7 @@ export function RockModel({
   onLoadStateChange,
   onObjectReady,
   onPlacementGeometryReady,
+  onSelect,
   onSurfacePointerDown,
   onSurfacePointerMove,
   onSurfacePointerUp,
@@ -265,6 +267,10 @@ export function RockModel({
   return (
     <primitive
       object={object}
+      onClick={onSelect ? (event: ThreeEvent<MouseEvent>) => {
+        event.stopPropagation()
+        onSelect()
+      } : undefined}
       onPointerDown={onSurfacePointerDown ? (event: ThreeEvent<PointerEvent>) => {
         event.stopPropagation()
         const sample = toSurfaceSample(event)

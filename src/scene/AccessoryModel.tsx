@@ -1,4 +1,5 @@
 import { useThree } from '@react-three/fiber'
+import type { ThreeEvent } from '@react-three/fiber'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box3, Sphere } from 'three'
 import type { Object3D } from 'three'
@@ -31,6 +32,7 @@ interface AccessoryModelProps {
   compositionFrozen?: boolean
   globalSettling?: boolean
   settlingRequested?: boolean
+  onSelect?: (() => void) | undefined
   onSettledWorld?: ((instanceId: string, transform: PlacementTransform) => void) | undefined
   onGlobalSettled?: (transform: WorldAccessoryTransform) => void
   placementTransform?: PlacementTransform | null
@@ -54,6 +56,7 @@ export function AccessoryModel({
   compositionFrozen = false,
   globalSettling = false,
   settlingRequested = false,
+  onSelect,
   onSettledWorld,
   onGlobalSettled,
   placementTransform = null,
@@ -224,6 +227,12 @@ export function AccessoryModel({
     onSettledWorld?.(instance.id, transform)
   }, [dynamicRecovery, globalSettling, instance.id, onGlobalSettled, onSettledWorld, settlingRequested])
 
+  const handleSelect = useCallback((event: ThreeEvent<MouseEvent>) => {
+    if (!onSelect) return
+    event.stopPropagation()
+    onSelect()
+  }, [onSelect])
+
   if (!object || !placementGeometry) return null
 
   return (
@@ -235,7 +244,13 @@ export function AccessoryModel({
       physics={bodyPhysics}
       onSettled={handleBodySettled}
     >
-      <primitive object={object} />
+      <primitive object={object} onClick={onSelect ? handleSelect : undefined} />
+      {onSelect ? (
+        <mesh scale={selectionRadius * 1.04} onClick={handleSelect} renderOrder={19}>
+          <sphereGeometry args={[1, 16, 12]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+        </mesh>
+      ) : null}
       {selected ? (
         <mesh scale={selectionRadius * 1.08} raycast={() => undefined} renderOrder={20}>
           <sphereGeometry args={[1, 20, 14]} />

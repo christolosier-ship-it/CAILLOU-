@@ -36,10 +36,12 @@ interface RockSceneObjectProps {
   dustRevision: number
   cleaningActive: boolean
   surfaceInteractionActive: boolean
+  selectionActive?: boolean
   onLoadStateChange: (state: RockLoadState, message?: string) => void
   onObjectReady: (object: Object3D | null) => void
   onPlacementGeometryReady: (geometry: PlacementGeometry | null) => void
   onSettled: (transform: PlacementTransform) => void
+  onSelect?: (() => void) | undefined
   onSurfacePointerDown?: ((sample: RockSurfacePointerSample) => void) | undefined
   onSurfacePointerMove?: ((sample: RockSurfacePointerSample) => void) | undefined
   onSurfacePointerUp?: ((sample: RockSurfacePointerSample) => void) | undefined
@@ -55,10 +57,12 @@ export function RockSceneObject({
   dustRevision,
   cleaningActive,
   surfaceInteractionActive,
+  selectionActive = false,
   onLoadStateChange,
   onObjectReady,
   onPlacementGeometryReady,
   onSettled,
+  onSelect,
   onSurfacePointerDown,
   onSurfacePointerMove,
   onSurfacePointerUp,
@@ -106,6 +110,7 @@ export function RockSceneObject({
           onLoadStateChange={onLoadStateChange}
           onObjectReady={handleObjectReady}
           onPlacementGeometryReady={handleGeometryReady}
+          onSelect={selectionActive ? onSelect : undefined}
           onSurfacePointerDown={surfaceInteractionActive ? onSurfacePointerDown : undefined}
           onSurfacePointerMove={surfaceInteractionActive ? onSurfacePointerMove : undefined}
           onSurfacePointerUp={surfaceInteractionActive ? onSurfacePointerUp : undefined}

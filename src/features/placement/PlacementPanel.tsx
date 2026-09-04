@@ -10,11 +10,14 @@ interface PlacementPanelProps {
   permitLoading: boolean
   instances: EquippedAccessoryInstance[]
   selectedTarget: PlacementTarget | null
+  cameraSelected?: boolean
+  lastObjectTarget?: PlacementTarget | null
   tool: PlacementTool
   busy: boolean
   message: string | null
   maxInstances: number
   onSelectRock: () => void
+  onSelectCamera?: () => void
   onOpenPermitShop: () => void
   onSelectAccessory: (instanceId: string) => void
   onToolChange: (tool: PlacementTool) => void
@@ -39,11 +42,14 @@ export function PlacementPanel({
   permitLoading,
   instances,
   selectedTarget,
+  cameraSelected = false,
+  lastObjectTarget = null,
   tool,
   busy,
   message,
   maxInstances,
   onSelectRock,
+  onSelectCamera,
   onOpenPermitShop,
   onSelectAccessory,
   onToolChange,
@@ -79,6 +85,11 @@ export function PlacementPanel({
     : null
   const capabilities = selectedTarget?.profile.capabilities ?? null
   const canAdd = instances.length < maxInstances && !busy && addingId === null
+  const lastObjectLabel = lastObjectTarget?.kind === 'rock'
+    ? rockName
+    : lastObjectTarget?.kind === 'accessory'
+      ? instances.find((instance) => instance.id === lastObjectTarget.instanceId)?.name ?? 'accessoire'
+      : null
 
   const addOwned = async (item: AccessoryCatalogItem) => {
     if (!canAdd) return
@@ -98,13 +109,13 @@ export function PlacementPanel({
       <header className="placement-panel-heading">
         <div>
           <p className="eyebrow">Placement</p>
-          <h2>{selectedTarget ? 'Cible sélectionnée' : 'Choisir une cible'}</h2>
+          <h2>{cameraSelected ? 'Caméra sélectionnée' : selectedTarget ? 'Cible sélectionnée' : 'Choisir une cible'}</h2>
           <p>{instances.length}/{maxInstances} accessoires placés</p>
         </div>
         <button type="button" onClick={onDone} disabled={busy || addingId !== null}>Terminer</button>
       </header>
 
-      <div className="placement-targets" aria-label="Cibles disponibles">
+      <div className="placement-targets" aria-label="Objets disponibles">
         <button
           type="button"
           className={selectedTarget?.kind === 'rock' ? 'is-selected' : undefined}
@@ -136,6 +147,24 @@ export function PlacementPanel({
           </button>
         ))}
       </div>
+
+      {onSelectCamera ? (
+        <div className="placement-targets" aria-label="Point de vue">
+          <button
+            type="button"
+            className={cameraSelected ? 'is-selected' : undefined}
+            aria-pressed={cameraSelected}
+            disabled={busy}
+            onClick={onSelectCamera}
+          >
+            <span>
+              <strong>Caméra</strong>
+              <small>Point de vue</small>
+            </span>
+            <em>Orbite · zoom</em>
+          </button>
+        </div>
+      ) : null}
 
       {selectedTarget && capabilities ? (
         <div className="placement-tools" role="group" aria-label="Type de manipulation">
@@ -170,13 +199,15 @@ export function PlacementPanel({
       ) : null}
 
       <p className="placement-hint">
-        {!selectedTarget
-          ? 'Sélectionnez d’abord le caillou ou une instance. Ensuite, tout le canvas devient la surface de contrôle.'
-          : tool === 'position'
-            ? 'Un doigt déplace dans le plan de vue. Deux doigts agissent sur la profondeur. Le carré gris reste infranchissable.'
-            : tool === 'orientation'
-              ? 'Un doigt oriente librement. Tournez deux doigts pour pivoter autour de la vue.'
-              : 'Pincez à deux doigts pour redimensionner dans les limites homologuées.'}
+        {cameraSelected
+          ? `Caméra active : glissez pour tourner autour de la scène et pincez pour zoomer.${lastObjectLabel ? ` Dernière cible : ${lastObjectLabel}. Touchez-la dans la scène ou la liste pour reprendre.` : ''}`
+          : !selectedTarget
+            ? 'Touchez directement un objet dans la scène ou choisissez-le dans la liste. Ensuite, tout le canvas devient sa surface de contrôle.'
+            : tool === 'position'
+              ? 'Un doigt déplace dans le plan de vue. Deux doigts agissent sur la profondeur. Le carré gris reste infranchissable.'
+              : tool === 'orientation'
+                ? 'Un doigt oriente librement. Tournez deux doigts pour pivoter autour de la vue.'
+                : 'Pincez à deux doigts pour redimensionner dans les limites homologuées.'}
       </p>
 
       <details className="placement-owned">
