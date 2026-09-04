@@ -1,5 +1,5 @@
-import { Matrix4, Vector3 } from 'three'
-import type { BufferAttribute, Mesh, Object3D } from 'three'
+import { Vector3 } from 'three'
+import type { BufferAttribute, Matrix4, Mesh, Object3D } from 'three'
 
 export const MAX_ACCESSORY_COLLIDER_PARTS = 12
 export const MAX_ACCESSORY_COLLIDER_VERTICES_PER_PART = 4096
