@@ -1,0 +1,59 @@
+name: V2-03 collider pipeline
+
+on:
+  push:
+    branches: [feat/v2-03-accessories-v2]
+    paths:
+      - 'Ressource/**'
+      - 'scripts/3d/accessory-collider-plan.json'
+      - 'scripts/3d/build_accessory_colliders.py'
+      - '.github/workflows/v2-03-collider-pipeline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-03-collider-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-colliders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BLENDER_VERSION: 4.5.13
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://download.blender.org/release/Blender4.5"
+          archive="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          curl -fsSLO "$base/$archive"
+          curl -fsSLO "$base/blender-${BLENDER_VERSION}.sha256"
+          grep " $archive$" "blender-${BLENDER_VERSION}.sha256" | sha256sum -c -
+          tar -xf "$archive"
+          echo "$PWD/blender-${BLENDER_VERSION}-linux-x64" >> "$GITHUB_PATH"
+      - name: Build deterministic collider proxies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/v2-03/colliders
+          blender --background --factory-startup --python scripts/3d/build_accessory_colliders.py -- \
+            --resource Ressource \
+            --plan scripts/3d/accessory-collider-plan.json \
+            --output build/v2-03/colliders \
+            --report-json build/v2-03/collider-report.json \
+            --report-md build/v2-03/collider-report.md
+          cat build/v2-03/collider-report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v2-03-collider-proxies
+          path: |
+            build/v2-03/colliders/
+            build/v2-03/collider-report.json
+            build/v2-03/collider-report.md
+          if-no-files-found: error
+          retention-days: 7

@@ -14,7 +14,7 @@ import type { PlacementBodyState } from './placementBodyState'
 export type PlacementBodyCollider = 'hull' | 'cuboid' | 'ball'
 
 export interface PlacementBodyPhysicsConfig {
-  collider: PlacementBodyCollider
+  collider: PlacementBodyCollider | false
   mass: number
   friction: number
   restitution: number

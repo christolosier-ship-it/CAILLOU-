@@ -26,7 +26,7 @@ export interface AccessoryBudgetMetadata {
 
 const COLLIDER_PATH = /^\/assets\/accessories\/[a-z0-9-]+\/collider\.glb$/
 
-function isRecord(value: Json | null): value is { [key: string]: Json | undefined } {
+function isRecord(value: Json | null | undefined): value is { [key: string]: Json | undefined } {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
@@ -34,7 +34,7 @@ function isPositiveInteger(value: Json | undefined): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
-export function parseAccessoryCollision(value: Json | null): AccessoryCollisionDescriptor | null {
+export function parseAccessoryCollision(value: Json | null | undefined): AccessoryCollisionDescriptor | null {
   if (!isRecord(value)) return null
 
   const strategy = value.strategy
@@ -59,7 +59,13 @@ export function parseAccessoryCollision(value: Json | null): AccessoryCollisionD
     return null
   }
 
-  if (strategy === 'proxy' && (geometrySource !== 'proxy' || proxyPath === null)) {
+  if (geometrySource === 'proxy' && proxyPath === null) {
+    return null
+  }
+  if (geometrySource === 'render' && proxyPath !== null) {
+    return null
+  }
+  if (strategy === 'proxy' && geometrySource !== 'proxy') {
     return null
   }
 
@@ -70,7 +76,7 @@ export function parseAccessoryCollision(value: Json | null): AccessoryCollisionD
   }
 }
 
-export function parseAccessoryBudget(value: Json | null): AccessoryBudgetMetadata | null {
+export function parseAccessoryBudget(value: Json | null | undefined): AccessoryBudgetMetadata | null {
   if (!isRecord(value) || !isPositiveInteger(value.runtimeModelBytes)) return null
 
   const maxTextureDimension = value.maxTextureDimension

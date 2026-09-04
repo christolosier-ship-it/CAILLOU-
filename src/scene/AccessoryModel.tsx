@@ -1,10 +1,12 @@
 import { useThree } from '@react-three/fiber'
 import type { ThreeEvent } from '@react-three/fiber'
+import { ConvexHullCollider } from '@react-three/rapier'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box3, Sphere } from 'three'
 import type { Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
+import { resolveAccessoryCollisionRuntime } from '../features/accessories/accessoryCollisionRuntime'
 import {
   ACCESSORY_SETTLE_TIMEOUT_MS,
   parseAccessoryPhysics,
@@ -13,6 +15,7 @@ import type { EquippedAccessoryInstance } from '../features/accessories/accessor
 import { PlacementBody } from '../features/placement/PlacementBody'
 import type { PlacementBodyPhysicsConfig } from '../features/placement/PlacementBody'
 import type { PlacementBodyState } from '../features/placement/placementBodyState'
+import { createConvexColliderParts } from '../features/placement/placementColliderGeometry'
 import { constrainTransformToPedestal } from '../features/placement/placementConstraints'
 import { createPlacementGeometry } from '../features/placement/placementGeometry'
 import type { PlacementGeometry } from '../features/placement/placementGeometry'
@@ -67,11 +70,16 @@ export function AccessoryModel({
   const [object, setObject] = useState<Object3D | null>(null)
   const [selectionRadius, setSelectionRadius] = useState(0.5)
   const [placementGeometry, setPlacementGeometry] = useState<PlacementGeometry | null>(null)
+  const [manualColliderParts, setManualColliderParts] = useState<Float32Array[] | null>(null)
   const reportedRecoveryRef = useRef<string | null>(null)
   const disposedCallbackRef = useRef(onDisposed)
   const loadCallbackRef = useRef(onLoadStateChange)
   const invalidate = useThree((state) => state.invalidate)
   const physics = useMemo(() => parseAccessoryPhysics(instance.physics, instance.category), [instance.category, instance.physics])
+  const collisionPlan = useMemo(
+    () => resolveAccessoryCollisionRuntime(instance.collision, physics.enabled ? physics.collider : 'hull'),
+    [instance.collision, physics.collider, physics.enabled],
+  )
 
   useEffect(() => {
     disposedCallbackRef.current = onDisposed
@@ -88,21 +96,45 @@ export function AccessoryModel({
     let loadedObject: Object3D | null = null
 
     loadCallbackRef.current?.(instance.id, 'loading')
+    setObject(null)
     setPlacementGeometry(null)
+    setManualColliderParts(null)
     onPlacementGeometryReady?.(instance.id, null)
+
+    async function loadGltf(path: string) {
+      const response = await fetch(path, { signal: controller.signal })
+      if (!response.ok) throw new Error(`HTTP ${response.status} pour ${path}`)
+      const buffer = await response.arrayBuffer()
+      if (!active || controller.signal.aborted) return null
+      const assetUrl = new URL(path, window.location.href)
+      const resourcePath = assetUrl.href.slice(0, assetUrl.href.lastIndexOf('/') + 1)
+      const gltf = await loader.parseAsync(buffer, resourcePath)
+      return gltf.scene
+    }
 
     async function load() {
       try {
-        const response = await fetch(instance.modelPath, { signal: controller.signal })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const buffer = await response.arrayBuffer()
-        if (!active || controller.signal.aborted) return
+        loadedObject = await loadGltf(instance.modelPath)
+        if (!loadedObject) return
 
-        const assetUrl = new URL(instance.modelPath, window.location.href)
-        const resourcePath = assetUrl.href.slice(0, assetUrl.href.lastIndexOf('/') + 1)
-        const gltf = await loader.parseAsync(buffer, resourcePath)
-        loadedObject = gltf.scene
         const nextPlacementGeometry = createPlacementGeometry(loadedObject)
+        let nextManualColliderParts: Float32Array[] | null = null
+
+        if (collisionPlan.mode === 'manual') {
+          if (collisionPlan.geometrySource === 'proxy') {
+            if (!collisionPlan.proxyPath) throw new Error('Collider proxy sans chemin runtime.')
+            const proxyObject = await loadGltf(collisionPlan.proxyPath)
+            if (!proxyObject) return
+            try {
+              nextManualColliderParts = createConvexColliderParts(proxyObject)
+            } finally {
+              disposeRockObject(proxyObject)
+            }
+          } else {
+            nextManualColliderParts = createConvexColliderParts(loadedObject)
+          }
+        }
+
         const box = new Box3().setFromObject(loadedObject)
         if (!box.isEmpty()) {
           const sphere = box.getBoundingSphere(new Sphere())
@@ -118,6 +150,7 @@ export function AccessoryModel({
 
         setObject(loadedObject)
         setPlacementGeometry(nextPlacementGeometry)
+        setManualColliderParts(nextManualColliderParts)
         onPlacementGeometryReady?.(instance.id, nextPlacementGeometry)
         loadCallbackRef.current?.(instance.id, 'ready')
         invalidate()
@@ -139,7 +172,7 @@ export function AccessoryModel({
         disposedCallbackRef.current?.(instance.id, report)
       }
     }
-  }, [instance.id, instance.modelPath, invalidate, onPlacementGeometryReady])
+  }, [collisionPlan, instance.id, instance.modelPath, invalidate, onPlacementGeometryReady])
 
   const worldFromInstance = useCallback((): WorldAccessoryTransform => {
     if (placementTransform) {
@@ -171,7 +204,7 @@ export function AccessoryModel({
       ? 'editing'
       : 'fixed'
   const bodyPhysics = useMemo<PlacementBodyPhysicsConfig>(() => ({
-    collider: physics.enabled ? physics.collider : 'hull',
+    collider: collisionPlan.collider,
     mass: physics.mass,
     friction: physics.friction,
     restitution: physics.restitution,
@@ -184,7 +217,7 @@ export function AccessoryModel({
     settlingSolverIterations: 2,
     settleTimeoutMs: globalSettling ? ROCK_SETTLE_TIMEOUT_MS : ACCESSORY_SETTLE_TIMEOUT_MS,
     settleLinearVelocityY: -0.02,
-  }), [globalSettling, physics])
+  }), [collisionPlan.collider, globalSettling, physics])
 
   useEffect(() => {
     if (!recoveryRequested) {
@@ -234,6 +267,7 @@ export function AccessoryModel({
   }, [onSelect])
 
   if (!object || !placementGeometry) return null
+  if (collisionPlan.mode === 'manual' && !manualColliderParts) return null
 
   const selectionScale = selectionRadius * renderScale
 
@@ -247,6 +281,9 @@ export function AccessoryModel({
         physics={bodyPhysics}
         onSettled={handleBodySettled}
       >
+        {manualColliderParts?.map((vertices, index) => (
+          <ConvexHullCollider key={`collider:${index}`} args={[vertices]} />
+        ))}
         <primitive object={object} onClick={onSelect ? handleSelect : undefined} />
       </PlacementBody>
 

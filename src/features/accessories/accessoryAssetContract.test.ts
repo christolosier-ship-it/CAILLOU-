@@ -23,10 +23,26 @@ describe('V2-03 accessory collision contract', () => {
     })
   })
 
+  it('allows compound and simplified strategies to consume prepared proxies', () => {
+    expect(parseAccessoryCollision({
+      strategy: 'compound',
+      geometrySource: 'proxy',
+      proxyPath: '/assets/accessories/traffic-cone/collider.glb',
+    })?.geometrySource).toBe('proxy')
+    expect(parseAccessoryCollision({
+      strategy: 'simplified',
+      geometrySource: 'proxy',
+      proxyPath: '/assets/accessories/chicken/collider.glb',
+    })?.proxyPath).toBe('/assets/accessories/chicken/collider.glb')
+  })
+
   it.each([
     [{ strategy: 'mesh' }],
     [{ strategy: 'proxy', geometrySource: 'proxy' }],
+    [{ strategy: 'compound', geometrySource: 'proxy' }],
+    [{ strategy: 'simplified', geometrySource: 'proxy' }],
     [{ strategy: 'proxy', geometrySource: 'render', proxyPath: '/assets/accessories/x/collider.glb' }],
+    [{ strategy: 'hull', geometrySource: 'render', proxyPath: '/assets/accessories/x/collider.glb' }],
     [{ strategy: 'hull', proxyPath: '../collider.glb' }],
   ])('rejects an invalid collision descriptor %#', (value) => {
     expect(parseAccessoryCollision(value)).toBeNull()
