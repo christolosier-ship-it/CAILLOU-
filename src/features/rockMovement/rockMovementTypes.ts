@@ -9,15 +9,18 @@ export interface RockPose {
 }
 
 export interface RockMovementPermitSnapshot {
+  userRockId?: string
   featureId: string
   name: string
   description: string
   priceLithons: number
   unlockedAt: string | null
   pricePaid: number | null
+  acquisitionSource?: 'purchase' | 'grant' | null
 }
 
 export interface PurchaseRockMovementPermitResult {
+  userRockId: string
   featureId: string
   balance: number
   unlockedAt: string

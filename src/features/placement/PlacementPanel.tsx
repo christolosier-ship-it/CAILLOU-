@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { loadAccessoryShop } from '../accessories/accessoryApi'
+import { availableOwnedAccessories } from '../accessories/accessoryPlacementRules'
 import type { AccessoryCatalogItem, AccessoryShopSnapshot, EquippedAccessoryInstance } from '../accessories/accessoryTypes'
 import type { PlacementTarget, PlacementTool } from './placementTypes'
 
@@ -26,15 +27,6 @@ interface PlacementPanelProps {
   onCancel: () => void
   onDone: () => void
   loadShop?: () => Promise<AccessoryShopSnapshot>
-}
-
-function instanceLabels(instances: EquippedAccessoryInstance[]) {
-  const seen = new Map<string, number>()
-  return instances.map((instance) => {
-    const ordinal = (seen.get(instance.accessoryId) ?? 0) + 1
-    seen.set(instance.accessoryId, ordinal)
-    return { instance, label: `${instance.name} · instance ${ordinal}` }
-  })
 }
 
 export function PlacementPanel({
@@ -81,7 +73,7 @@ export function PlacementPanel({
     }
   }, [loadShop])
 
-  const labelledInstances = useMemo(() => instanceLabels(instances), [instances])
+  const availableOwned = useMemo(() => availableOwnedAccessories(owned, instances), [instances, owned])
   const selectedAccessory = selectedTarget?.kind === 'accessory'
     ? instances.find((instance) => instance.id === selectedTarget.instanceId) ?? null
     : null
@@ -100,7 +92,7 @@ export function PlacementPanel({
     try {
       await onAddOwned(item)
     } catch (error) {
-      setCatalogError(error instanceof Error ? error.message : 'L’instance n’a pas pu être ajoutée au draft.')
+      setCatalogError(error instanceof Error ? error.message : 'L’objet n’a pas pu être ajouté au draft.')
     } finally {
       setAddingId(null)
     }
@@ -130,10 +122,10 @@ export function PlacementPanel({
             <strong>{rockName}</strong>
             <small>Caillou</small>
           </span>
-          <em>{permitLoading ? 'Vérification…' : permitUnlocked ? 'Disponible' : 'Permis requis · Boutique'}</em>
+          <em>{permitLoading ? 'Vérification…' : permitUnlocked ? 'Disponible' : 'Permis requis pour ce caillou · Boutique'}</em>
         </button>
 
-        {labelledInstances.map(({ instance, label }) => (
+        {instances.map((instance) => (
           <button
             key={instance.id}
             type="button"
@@ -144,8 +136,8 @@ export function PlacementPanel({
           >
             <img src={instance.previewPath} alt="" aria-hidden="true" />
             <span>
-              <strong>{label}</strong>
-              <small>{instance.category}</small>
+              <strong>{instance.name}</strong>
+              <small>{instance.category} · Placée</small>
             </span>
           </button>
         ))}
@@ -217,9 +209,11 @@ export function PlacementPanel({
         <summary>Ajouter un objet possédé</summary>
         {catalogLoading ? <p>Lecture de la collection…</p> : catalogError ? <p role="alert">{catalogError}</p> : owned.length === 0 ? (
           <p>Aucun accessoire possédé à ajouter.</p>
+        ) : availableOwned.length === 0 ? (
+          <p>Tous les accessoires possédés sont déjà placés.</p>
         ) : (
           <div className="placement-owned-grid">
-            {owned.map((item) => (
+            {availableOwned.map((item) => (
               <button
                 key={item.id}
                 type="button"
@@ -228,7 +222,7 @@ export function PlacementPanel({
               >
                 <img src={item.previewPath} alt="" aria-hidden="true" />
                 <span>{item.name}</span>
-                <small>{addingId === item.id ? 'Ajout au draft…' : instances.length >= maxInstances ? 'Limite atteinte' : 'Ajouter au draft'}</small>
+                <small>{addingId === item.id ? 'Ajout au draft…' : instances.length >= maxInstances ? 'Limite atteinte' : 'Disponible · ajouter au draft'}</small>
               </button>
             ))}
           </div>

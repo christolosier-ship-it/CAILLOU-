@@ -82,7 +82,7 @@ export function usePedestalPlacement({
     rotation: [...activeRock.poseRotation],
   })
   const canonicalRockPoseRef = useRef<RockPose>(rockPose)
-  const rockPermit = useRockMovementPermit()
+  const rockPermit = useRockMovementPermit(activeRock.id)
 
   const {
     instances: accessoryInstances,

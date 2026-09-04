@@ -48,11 +48,14 @@ interface FeatureRow {
 
 interface UnlockRow {
   feature_id: string
-  unlocked_at: string
-  price_paid: number
+  user_rock_id: string
+  acquired_at: string
+  acquisition_source: string
+  price_paid: number | null
 }
 
 interface PurchaseRow {
+  user_rock_id: string
   balance: number
   feature_id: string
   unlocked_at: string
@@ -71,6 +74,8 @@ export type RockMovementErrorKind =
   | 'already-unlocked'
   | 'insufficient'
   | 'permit-required'
+  | 'rock-required'
+  | 'unavailable'
   | 'invalid-transform'
   | 'session'
   | 'in-progress'
@@ -89,14 +94,20 @@ export class RockMovementError extends Error {
 
 function toRockMovementError(error: RpcError) {
   const detail = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
+  if (detail.includes('active_owned_rock_required')) {
+    return new RockMovementError('Ce caillou n’est plus actif. Rechargez le Socle avant de poursuivre.', 'rock-required', false)
+  }
   if (detail.includes('feature_already_unlocked') || error.code === '23505') {
-    return new RockMovementError('Le permis appartient déjà à ce compte.', 'already-unlocked', false)
+    return new RockMovementError('Le permis est déjà acquis pour ce caillou.', 'already-unlocked', false)
+  }
+  if (detail.includes('feature_unavailable')) {
+    return new RockMovementError('Ce permis n’est plus proposé par le registre.', 'unavailable', false)
   }
   if (detail.includes('insufficient_lithons') || error.code === '22003') {
     return new RockMovementError('Le registre exige 1000 Lithons pour délivrer ce permis.', 'insufficient', false)
   }
   if (detail.includes('rock_movement_permit_required')) {
-    return new RockMovementError('Le permis de manutention minérale est requis.', 'permit-required', false)
+    return new RockMovementError('Le permis de manutention minérale est requis pour ce caillou.', 'permit-required', false)
   }
   if (
     detail.includes('rock_position_invalid')
@@ -112,24 +123,29 @@ function toRockMovementError(error: RpcError) {
     return new RockMovementError('Votre session doit être vérifiée avant cette manutention.', 'session', false)
   }
   if (detail.includes('mutation_in_progress') || error.code === '40001') {
-    return new RockMovementError('La même composition est encore en cours de confirmation et sera réconciliée avec sa clé d’origine.', 'in-progress', true)
+    return new RockMovementError('La même opération est encore en cours de confirmation et sera réconciliée avec sa clé d’origine.', 'in-progress', true)
   }
   return new RockMovementError(
-    'Le registre n’a pas confirmé la manutention. La composition soumise est conservée pour réconciliation sans relancer Rapier.',
+    'Le registre n’a pas confirmé la manutention. La même opération est conservée pour réconciliation avec sa clé d’origine.',
     'unknown',
     true,
   )
 }
 
-export async function loadRockMovementPermit(): Promise<RockMovementPermitSnapshot> {
+export async function loadRockMovementPermit(userRockId: string): Promise<RockMovementPermitSnapshot> {
+  if (!userRockId) {
+    throw new RockMovementError('Aucun caillou actif n’est disponible pour vérifier ce permis.', 'rock-required', false)
+  }
+
   const [featureResult, unlockResult] = await Promise.all([
     rawFrom<FeatureRow>('feature_catalog')
       .select('id, name, description, price_lithons')
       .eq('id', ROCK_MOVEMENT_FEATURE_ID)
       .eq('active', true)
       .maybeSingle(),
-    rawFrom<UnlockRow>('user_feature_unlocks')
-      .select('feature_id, unlocked_at, price_paid')
+    rawFrom<UnlockRow>('rock_feature_unlocks')
+      .select('user_rock_id, feature_id, acquired_at, acquisition_source, price_paid')
+      .eq('user_rock_id', userRockId)
       .eq('feature_id', ROCK_MOVEMENT_FEATURE_ID)
       .maybeSingle(),
   ])
@@ -138,36 +154,68 @@ export async function loadRockMovementPermit(): Promise<RockMovementPermitSnapsh
     throw new RockMovementError('Le registre des permis n’est pas disponible.', 'unknown', true)
   }
   if (unlockResult.error) {
-    throw new RockMovementError('Votre permis n’a pas pu être vérifié.', 'unknown', true)
+    throw new RockMovementError('Le permis de ce caillou n’a pas pu être vérifié.', 'unknown', true)
   }
   if (featureResult.data.price_lithons !== ROCK_MOVEMENT_PRICE_LITHONS) {
-    throw new RockMovementError('Le prix du permis ne correspond pas au contrat V1.', 'unknown', false)
+    throw new RockMovementError('Le prix du permis ne correspond pas au contrat V2.', 'unknown', false)
   }
 
+  const acquisitionSource = unlockResult.data?.acquisition_source
   return {
+    userRockId,
     featureId: featureResult.data.id,
     name: featureResult.data.name,
     description: featureResult.data.description ?? 'Autorise la manutention réglementaire du caillou.',
     priceLithons: featureResult.data.price_lithons,
-    unlockedAt: unlockResult.data?.unlocked_at ?? null,
+    unlockedAt: unlockResult.data?.acquired_at ?? null,
     pricePaid: unlockResult.data?.price_paid ?? null,
+    acquisitionSource: acquisitionSource === 'purchase' || acquisitionSource === 'grant' ? acquisitionSource : null,
   }
 }
 
-export async function purchaseRockMovementPermit(eventKey: string): Promise<PurchaseRockMovementPermitResult> {
-  const { data, error } = await rawRpc<PurchaseRow>('purchase_feature_unlock', {
+export async function purchaseRockMovementPermit(
+  userRockId: string,
+  eventKey: string,
+): Promise<PurchaseRockMovementPermitResult> {
+  const input = {
+    p_user_rock_id: userRockId,
     p_feature_id: ROCK_MOVEMENT_FEATURE_ID,
     p_event_key: eventKey,
-  }).single()
+  }
 
-  if (error) throw toRockMovementError(error)
-  if (!data) throw new RockMovementError('Le registre n’a retourné aucun permis.', 'unknown', true)
+  await rememberPendingMutation('purchase_rock_feature_unlock', eventKey, input)
+  let response = await rawRpc<PurchaseRow>('purchase_rock_feature_unlock', input).single()
+  if (response.error) {
+    const firstError = toRockMovementError(response.error)
+    if (!firstError.retryable) {
+      await forgetPendingMutation(eventKey)
+      throw firstError
+    }
+    response = await rawRpc<PurchaseRow>('purchase_rock_feature_unlock', input).single()
+  }
 
+  if (response.error) {
+    const mapped = toRockMovementError(response.error)
+    if (!mapped.retryable) await forgetPendingMutation(eventKey)
+    else schedulePendingMutationReconciliation()
+    throw mapped
+  }
+  if (!response.data) {
+    schedulePendingMutationReconciliation()
+    throw new RockMovementError('Le registre n’a retourné aucun permis.', 'unknown', true)
+  }
+  if (response.data.user_rock_id !== userRockId) {
+    await forgetPendingMutation(eventKey)
+    throw new RockMovementError('Le registre a retourné un permis pour un autre caillou.', 'unknown', false)
+  }
+
+  await forgetPendingMutation(eventKey)
   return {
-    balance: data.balance,
-    featureId: data.feature_id,
-    unlockedAt: data.unlocked_at,
-    pricePaid: data.price_paid,
+    userRockId: response.data.user_rock_id,
+    balance: response.data.balance,
+    featureId: response.data.feature_id,
+    unlockedAt: response.data.unlocked_at,
+    pricePaid: response.data.price_paid,
   }
 }
 

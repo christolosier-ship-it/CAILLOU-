@@ -58,20 +58,24 @@ const MONOCLE: AccessoryCatalogItem = {
   purchasedAt: '2026-09-02T08:00:00.000Z',
 }
 
-function makeInstance(id: string, ordinal: number): EquippedAccessoryInstance {
+function makeInstance(
+  id: string,
+  ordinal: number,
+  accessory: AccessoryCatalogItem = MONOCLE,
+): EquippedAccessoryInstance {
   return {
     id,
     userRockId: '10750000-0000-4000-8000-000000000099',
-    accessoryId: MONOCLE.id,
-    category: MONOCLE.category,
-    name: MONOCLE.name,
-    modelPath: MONOCLE.modelPath,
-    previewPath: MONOCLE.previewPath,
-    scaleMin: MONOCLE.scaleMin,
-    scaleMax: MONOCLE.scaleMax,
-    triangleCount: MONOCLE.triangleCount,
-    dimensions: MONOCLE.dimensions,
-    physics: MONOCLE.physics,
+    accessoryId: accessory.id,
+    category: accessory.category,
+    name: accessory.name,
+    modelPath: accessory.modelPath,
+    previewPath: accessory.previewPath,
+    scaleMin: accessory.scaleMin,
+    scaleMax: accessory.scaleMax,
+    triangleCount: accessory.triangleCount,
+    dimensions: accessory.dimensions,
+    physics: accessory.physics,
     equippedAt: '2026-09-02T08:00:00.000Z',
     updatedAt: '2026-09-02T08:00:00.000Z',
     stabilizedAt: '2026-09-02T08:00:00.000Z',
@@ -257,9 +261,8 @@ function Fixture() {
                 setTool('position')
               }}
               onToolChange={setTool}
-              onAddOwned={async () => {
-                const id = `10750000-0000-4000-8000-${String(instances.length + 1).padStart(12, '0')}`
-                const created = makeInstance(id, instances.length)
+              onAddOwned={async (item) => {
+                const created = makeInstance(crypto.randomUUID(), instances.length, item)
                 setInstances((current) => [...current, created])
                 setPlacementSession((current) => current ? addPlacementSessionAccessory(current, created) : current)
                 setTarget(accessoryPlacementTarget(created))
@@ -268,6 +271,8 @@ function Fixture() {
               onRemove={(instanceId) => {
                 setInstances((current) => current.filter((instance) => instance.id !== instanceId))
                 setPlacementSession((current) => current ? removePlacementSessionAccessory(current, instanceId) : current)
+                setTarget(null)
+                setTool('position')
               }}
               onCancel={handleCancel}
               onDone={handleDone}

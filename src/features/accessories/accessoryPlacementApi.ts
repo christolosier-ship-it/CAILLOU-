@@ -66,6 +66,7 @@ interface StabilizePlacementRow {
 export type AccessoryPlacementErrorKind =
   | 'limit'
   | 'not-owned'
+  | 'already-placed'
   | 'rock'
   | 'invalid-transform'
   | 'unavailable'
@@ -92,6 +93,9 @@ export function toAccessoryPlacementError(error: PlacementRpcError) {
   }
   if (detail.includes('accessory_not_owned')) {
     return new AccessoryPlacementError('Cet accessoire doit appartenir à votre collection avant placement.', 'not-owned', false)
+  }
+  if (detail.includes('accessory_already_placed')) {
+    return new AccessoryPlacementError('Cet accessoire est déjà placé sur le caillou actif.', 'already-placed', false)
   }
   if (detail.includes('active_owned_rock_required') || detail.includes('active_owned_accessory_instance_required')) {
     return new AccessoryPlacementError('Ce placement n’appartient pas au caillou actif de votre compte.', 'rock', false)

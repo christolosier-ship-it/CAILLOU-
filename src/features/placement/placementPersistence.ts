@@ -103,6 +103,9 @@ function toPlacementCommitError(error: PlacementCommitRpcError) {
   if (detail.includes('accessory_not_owned')) {
     return new PlacementSessionCommitError('Un accessoire du draft ne fait plus partie de votre collection.', false)
   }
+  if (detail.includes('accessory_already_placed')) {
+    return new PlacementSessionCommitError('Un accessoire du draft est déjà placé sur ce caillou.', false)
+  }
   if (detail.includes('rock_movement_permit_required')) {
     return new PlacementSessionCommitError('Le permis de manutention minérale est requis pour déplacer le caillou.', false)
   }
