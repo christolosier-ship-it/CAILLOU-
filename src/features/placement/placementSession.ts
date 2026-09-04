@@ -1,7 +1,7 @@
 import type { AccessoryTransform } from '../accessories/accessoryTypes'
 import { accessoryLocalToWorld } from '../rockMovement/rockMovementRules'
 import type { RockPose } from '../rockMovement/rockMovementTypes'
-import type { PlacementTarget, PlacementTransform } from './placementTypes'
+import type { PlacementObjectIdentity, PlacementTransform } from './placementTypes'
 
 export interface PlacementSessionAccessorySource extends AccessoryTransform {
   id: string
@@ -68,7 +68,7 @@ export function createPlacementSession(
 
 export function updatePlacementSession(
   session: PlacementSessionState,
-  target: PlacementTarget,
+  target: PlacementObjectIdentity,
   transform: PlacementTransform,
 ): PlacementSessionState {
   if (target.kind === 'rock') {
@@ -120,7 +120,7 @@ export function removePlacementSessionAccessory(
 
 export function placementSessionTransform(
   session: PlacementSessionState | null,
-  target: PlacementTarget | null,
+  target: PlacementObjectIdentity | null,
 ): PlacementTransform | null {
   if (!session || !target) return null
   return target.kind === 'rock'
