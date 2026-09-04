@@ -89,7 +89,11 @@ export function usePlacementCollisionResolver(
       if (collider.isSensor()) return false
       const parent = collider.parent()
       if (!parent) return true
-      const userData = parent.userData as { placementObjectId?: unknown } | undefined
+      const userData = parent.userData as {
+        placementObjectId?: unknown
+        placementBoundary?: unknown
+      } | undefined
+      if (userData?.placementBoundary === 'pedestal-floor') return false
       return userData?.placementObjectId !== activeObjectId
     }
 
