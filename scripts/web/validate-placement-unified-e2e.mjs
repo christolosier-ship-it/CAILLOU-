@@ -511,13 +511,32 @@ try {
     floored.selectedScale,
   )
 
+  // V2-02 Lot F: one catalogue reference is one placeable object.
   await page.click('.placement-owned summary')
+  const alreadyPlacedButtons = await page.$$('.placement-owned-grid button')
+  if (alreadyPlacedButtons.length !== 0) {
+    throw new Error('already placed owned accessory remained addable as a second instance')
+  }
+  const alreadyPlacedMessage = await page.$eval('.placement-owned p', (element) => element.textContent ?? '')
+  if (!alreadyPlacedMessage.includes('déjà placés')) {
+    throw new Error(`unique placement availability message missing: ${alreadyPlacedMessage}`)
+  }
+
+  await page.click('.placement-remove')
+  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-instance-count') ?? 0) === 0)
+  await page.waitForSelector('.placement-owned-grid button', { timeout: 5_000 })
+  const availableAgainLabel = await page.$eval('.placement-owned-grid button', (button) => button.textContent ?? '')
+  if (!availableAgainLabel.includes('Monocle')) {
+    throw new Error(`removed accessory did not return to available owned inventory: ${availableAgainLabel}`)
+  }
+
   await page.click('.placement-owned-grid button')
-  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-instance-count') ?? 0) === 2)
+  await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-instance-count') ?? 0) === 1)
   await page.waitForFunction(() => Number(document.querySelector('#placement-unified-e2e-state')?.getAttribute('data-accessory-ready-count') ?? 0) >= 2, { timeout: 30_000 })
-  const duplicated = await state()
-  if (duplicated.instanceCount !== 2) throw new Error('owned accessory was not instanced a second time')
-  if (duplicated.accessoryReadyCount < 2) throw new Error('second accessory GLB was not ready before manipulation')
+  const replaced = await state()
+  if (replaced.instanceCount !== 1 || !replaced.target) {
+    throw new Error('removed accessory was not re-added as exactly one new instance')
+  }
 
   await dispatchSinglePointer(42, -20, 0.88, 0.12)
   await page.click('.placement-panel-heading > button')
@@ -577,12 +596,13 @@ try {
     accessoryTwoFingerTwist: true,
     accessoryFinitePedestal: true,
     accessoryPersistenceRehydration: true,
-    duplicateOwnedInstances: final.instanceCount === 2,
+    accessoryAlreadyPlacedUnavailable: true,
+    accessoryRemoveReadd: final.instanceCount === 1,
     individualRapierSettlement: final.individualSettled >= 1,
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
-  console.log('[CAILLOU] Placement harmonisation E2E PASS: one controller + real-geometry pedestal + shared settlement')
+  console.log('[CAILLOU] Placement harmonisation E2E PASS: unique accessories + one controller + real-geometry pedestal + shared settlement')
 } catch (error) {
   await page.screenshot({ path: `${outputDir}/failure.png`, fullPage: true }).catch(() => {})
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n${error instanceof Error ? error.stack : String(error)}\n`, 'utf8').catch(() => {})
