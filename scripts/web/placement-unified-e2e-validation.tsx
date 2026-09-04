@@ -75,7 +75,7 @@ function makeInstance(id: string, ordinal: number): EquippedAccessoryInstance {
     equippedAt: '2026-09-02T08:00:00.000Z',
     updatedAt: '2026-09-02T08:00:00.000Z',
     stabilizedAt: '2026-09-02T08:00:00.000Z',
-    localPosition: [ordinal * 0.12, 0.22, 0.74],
+    localPosition: [1.45 + ordinal * 0.12, 0.22, -1.45],
     localRotation: [0, 0, 0, 1],
     uniformScale: 1,
   }
