@@ -5,6 +5,7 @@ import { getRockCatalogEntryById } from '../../src/content/rockCatalog'
 import { AccessoryShop } from '../../src/features/accessories/AccessoryShop'
 import type { AccessoryCatalogItem, AccessoryShopSnapshot, EquippedAccessoryInstance } from '../../src/features/accessories/accessoryTypes'
 import { PlacementPanel } from '../../src/features/placement/PlacementPanel'
+import { accessoryPlacementTarget, rockPlacementTarget } from '../../src/features/placement/placementObject'
 import { worldAccessoryToPersistence, worldCompositionToPersistence } from '../../src/features/placement/placementPersistence'
 import type { SettledWorldComposition } from '../../src/features/placement/placementPersistence'
 import {
@@ -126,59 +127,59 @@ function Fixture() {
     setReadyAccessories((current) => current.includes(id) ? current : [...current, id])
   }, [])
 
-const handleRockDraft = useCallback((nextPose: RockPose) => {
-  setPose(nextPose)
-  setPlacementSession((current) => current ? updatePlacementSession(current, { kind: 'rock' }, {
-    position: [...nextPose.position],
-    rotation: [...nextPose.rotation],
-    scale: 1,
-  }) : current)
-}, [])
+  const handleRockDraft = useCallback((nextPose: RockPose) => {
+    setPose(nextPose)
+    setPlacementSession((current) => current ? updatePlacementSession(current, { kind: 'rock' }, {
+      position: [...nextPose.position],
+      rotation: [...nextPose.rotation],
+      scale: 1,
+    }) : current)
+  }, [])
 
-const handleWorldDraft = useCallback((instanceId: string, transform: PlacementTransform) => {
-  setPlacementSession((current) => current
-    ? updatePlacementSession(current, { kind: 'accessory', instanceId }, transform)
-    : current)
-}, [])
+  const handleWorldDraft = useCallback((instanceId: string, transform: PlacementTransform) => {
+    setPlacementSession((current) => current
+      ? updatePlacementSession(current, { kind: 'accessory', instanceId }, transform)
+      : current)
+  }, [])
 
-const handleIndividualSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
-  setLastSettledWorld({ instanceId, transform })
-  const local = worldAccessoryToPersistence(instanceId, transform, pose)
-  setInstances((current) => current.map((instance) => instance.id === instanceId
-    ? { ...instance, ...local, stabilizedAt: '2026-09-02T08:30:00.000Z' }
-    : instance))
-  setIndividualSettled((current) => current + 1)
-}, [pose])
+  const handleIndividualSettled = useCallback((instanceId: string, transform: PlacementTransform) => {
+    setLastSettledWorld({ instanceId, transform })
+    const local = worldAccessoryToPersistence(instanceId, transform, pose)
+    setInstances((current) => current.map((instance) => instance.id === instanceId
+      ? { ...instance, ...local, stabilizedAt: '2026-09-02T08:30:00.000Z' }
+      : instance))
+    setIndividualSettled((current) => current + 1)
+  }, [pose])
 
-const handleDone = useCallback(() => {
-  const plan = buildPlacementSettlementPlan(placementSession)
-  if (!plan) {
+  const handleDone = useCallback(() => {
+    const plan = buildPlacementSettlementPlan(placementSession)
+    if (!plan) {
+      setMode('orbit')
+      return
+    }
+    setSettlementPlan(plan)
+    setMode('settling')
+  }, [placementSession])
+
+  const handleComposition = useCallback((world: SettledWorldComposition) => {
+    const draft: RockCompositionDraft = worldCompositionToPersistence(world)
+    if (settlementPlan && !settlementPlan.rock) {
+      const lastId = settlementPlan.accessoryIds.at(-1)
+      const last = world.accessories.find((candidate) => candidate.instanceId === lastId)
+      if (last) setLastSettledWorld({ instanceId: last.instanceId, transform: last.transform })
+      setIndividualSettled((current) => current + settlementPlan.accessoryIds.length)
+    }
+    setSettled(draft)
+    setPose(draft.rockPose)
+    setInstances((current) => current.map((instance) => {
+      const next = draft.accessories.find((candidate) => candidate.instanceId === instance.id)
+      return next ? { ...instance, ...next, stabilizedAt: '2026-09-02T08:31:00.000Z' } : instance
+    }))
+    setPlacementSession(null)
+    setSettlementPlan(null)
+    setTarget(null)
     setMode('orbit')
-    return
-  }
-  setSettlementPlan(plan)
-  setMode('settling')
-}, [placementSession])
-
-const handleComposition = useCallback((world: SettledWorldComposition) => {
-  const draft: RockCompositionDraft = worldCompositionToPersistence(world)
-  if (settlementPlan && !settlementPlan.rock) {
-    const lastId = settlementPlan.accessoryIds.at(-1)
-    const last = world.accessories.find((candidate) => candidate.instanceId === lastId)
-    if (last) setLastSettledWorld({ instanceId: last.instanceId, transform: last.transform })
-    setIndividualSettled((current) => current + settlementPlan.accessoryIds.length)
-  }
-  setSettled(draft)
-  setPose(draft.rockPose)
-  setInstances((current) => current.map((instance) => {
-    const next = draft.accessories.find((candidate) => candidate.instanceId === instance.id)
-    return next ? { ...instance, ...next, stabilizedAt: '2026-09-02T08:31:00.000Z' } : instance
-  }))
-  setPlacementSession(null)
-  setSettlementPlan(null)
-  setTarget(null)
-  setMode('orbit')
-}, [settlementPlan])
+  }, [settlementPlan])
 
   const reopenPlacement = useCallback(() => {
     setPlacementSession(createPlacementSession(pose, instances))
@@ -227,12 +228,14 @@ const handleComposition = useCallback((world: SettledWorldComposition) => {
               maxInstances={8}
               loadShop={loadShop}
               onSelectRock={() => {
-                setTarget({ kind: 'rock' })
+                setTarget(rockPlacementTarget())
                 setTool('position')
               }}
               onOpenPermitShop={() => setShopOpen(true)}
               onSelectAccessory={(instanceId) => {
-                setTarget({ kind: 'accessory', instanceId })
+                const instance = instances.find((candidate) => candidate.id === instanceId)
+                if (!instance) return
+                setTarget(accessoryPlacementTarget(instance))
                 setTool('position')
               }}
               onToolChange={setTool}
@@ -241,7 +244,7 @@ const handleComposition = useCallback((world: SettledWorldComposition) => {
                 const created = makeInstance(id, instances.length)
                 setInstances((current) => [...current, created])
                 setPlacementSession((current) => current ? addPlacementSessionAccessory(current, created) : current)
-                setTarget({ kind: 'accessory', instanceId: id })
+                setTarget(accessoryPlacementTarget(created))
                 setTool('position')
               }}
               onRemove={(instanceId) => {
