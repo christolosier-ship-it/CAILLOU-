@@ -17,7 +17,10 @@ describe('V2-03 prepared convex collider geometry', () => {
 
     const parts = createConvexColliderParts(root)
     expect(parts).toHaveLength(2)
-    expect(Math.max(...parts[1])).toBeGreaterThan(1)
+    const rightPart = parts[1]
+    expect(rightPart).toBeDefined()
+    if (!rightPart) throw new Error('Expected the second prepared collider part.')
+    expect(Math.max(...rightPart)).toBeGreaterThan(1)
 
     left.geometry.dispose()
     right.geometry.dispose()
