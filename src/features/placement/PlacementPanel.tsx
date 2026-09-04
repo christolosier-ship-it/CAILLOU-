@@ -23,7 +23,7 @@ interface PlacementPanelProps {
   onToolChange: (tool: PlacementTool) => void
   onAddOwned: (item: AccessoryCatalogItem) => Promise<void>
   onRemove: (instanceId: string) => void
-  onCancel: () => void
+  onCancel?: () => void
   onDone: () => void
   loadShop?: () => Promise<AccessoryShopSnapshot>
 }
@@ -56,7 +56,7 @@ export function PlacementPanel({
   onToolChange,
   onAddOwned,
   onRemove,
-  onCancel,
+  onCancel = () => undefined,
   onDone,
   loadShop = loadAccessoryShop,
 }: PlacementPanelProps) {
@@ -114,10 +114,8 @@ export function PlacementPanel({
           <h2>{cameraSelected ? 'Caméra sélectionnée' : selectedTarget ? 'Cible sélectionnée' : 'Choisir une cible'}</h2>
           <p>{instances.length}/{maxInstances} accessoires dans le draft</p>
         </div>
-        <div className="placement-panel-session-actions">
-          <button type="button" onClick={onCancel} disabled={busy || addingId !== null}>Annuler</button>
-          <button type="button" onClick={onDone} disabled={busy || addingId !== null}>Terminer</button>
-        </div>
+        <button className="placement-finish" type="button" onClick={onDone} disabled={busy || addingId !== null}>Terminer</button>
+        <button className="placement-cancel" type="button" onClick={onCancel} disabled={busy || addingId !== null}>Annuler</button>
       </header>
 
       <div className="placement-targets" aria-label="Objets disponibles">
