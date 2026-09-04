@@ -1,6 +1,6 @@
 # V2-03 — Accessoires V2 & pipeline collisions
 
-> **Statut : en cours — Lots A et B terminés le 4 septembre 2026.**
+> **Statut : en cours — Lots A à C terminés le 4 septembre 2026.**
 >
 > **Date : 4 septembre 2026.**
 >
@@ -91,7 +91,7 @@ Le Lot B a démontré le besoin immédiat de deux champs dédiés, `collision` e
 
 Compte rendu détaillé : `docs/roadmap/V2-03-LOT-B-CONTRAT-ASSET.md`.
 
-### Lot C — Pipeline collider
+### Lot C — Pipeline collider ✅ TERMINÉ
 
 Pour chaque accessoire, choisir une stratégie adaptée :
 
@@ -109,6 +109,10 @@ Le collider ne doit pas :
 - conserver la géométrie render haute définition comme collider si cela pénalise le mobile.
 
 Documenter le choix par asset ou famille.
+
+Le Lot C retient des proxies convexes préparés hors ligne pour les 11 nouvelles sources. Les accessoires V1 conservent leur génération automatique actuelle (`hull` / `cuboid`) pour compatibilité. Les nouveaux proxies sont générés de manière reproductible, mesurés et bornés avant toute publication catalogue.
+
+Compte rendu détaillé : `docs/roadmap/V2-03-LOT-C-COLLIDERS.md`.
 
 ### Lot D — Pipeline preview/catalogue
 
@@ -187,6 +191,9 @@ Le runtime ne doit pas recalculer à chaque session une décomposition coûteuse
 
 - `AccessoryModel` consomme le GLB sans mutation destructive partagée ;
 - Placement consomme une géométrie/collider stable ;
+- `AccessoryModel` sait désactiver les colliders automatiques Rapier et charger un `collider.glb` préparé ;
+- chaque mesh du proxy devient une partie `ConvexHullCollider`, sans décomposition coûteuse au runtime ;
+- garde-fou runtime : maximum 12 parties convexes et 4096 sommets par partie ;
 - scale limits serveur/catalogue conservées ;
 - contact physique crédible ;
 - CCD/sleep/friction/restitution ajustés seulement si mesurés ;
@@ -203,6 +210,8 @@ Le Lot B ajoute deux colonnes JSONB non nulles :
 
 Les chemins de proxy sont validés côté base et aucun binaire n'est stocké dans Postgres. Le champ legacy `provenance` reste présent pour compatibilité V1 mais ne conditionne plus l'activation d'un accessoire.
 
+Le Lot C durcit le contrat : toute `geometrySource = proxy` impose désormais un `proxyPath` valide, et un `proxyPath` ne peut pas être associé à une source render.
+
 Les possessions restent celles de V2-02.
 
 ## 10. Migration / backfill / compatibilité V1
@@ -214,6 +223,8 @@ Les possessions restent celles de V2-02.
 - anciens placements doivent continuer à charger.
 
 Migration Lot B : `20260904213106_v2_03_accessory_asset_contract.sql`.
+
+Migration Lot C : `20260904220112_v2_03_proxy_collision_contract.sql`.
 
 ## 11. RLS / RPC / idempotence / sécurité
 
@@ -255,7 +266,7 @@ Tester les objets petits, fins, concaves, proches les uns des autres et le séle
 - règles disponibilité possédé/placé ;
 - budgets.
 
-Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Les règles physiques effectives restent au Lot C.
+Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Le Lot C couvre la résolution runtime auto/manual, l'extraction de parties convexes, les garde-fous de complexité et le chargement des proxies préparés.
 
 ## 16. Browser regression
 
@@ -284,7 +295,7 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 
 ## 20. État / compte rendu d'exécution
 
-**Statut global : en cours. Lots A et B terminés. Lots C à G non démarrés.**
+**Statut global : en cours. Lots A à C terminés. Lots D à G non démarrés.**
 
 ### Lot A — checkpoint du 4 septembre 2026
 
@@ -317,6 +328,22 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 - aucune Preview Vercel manuelle déclenchée ;
 - rapport complet : `docs/roadmap/V2-03-LOT-B-CONTRAT-ASSET.md`.
 
-À compléter dans les lots suivants : assets intégrés, poids/triangles/textures finaux, stratégie collider finale par asset, plafond retenu et mesures, tests Browser finaux, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
+### Lot C — checkpoint du 4 septembre 2026
+
+- pipeline Blender 4.5.13 LTS déterministe ajouté pour fabriquer les proxies depuis `Ressource/` ;
+- 11/11 proxies générés avec succès, tous sous leurs budgets de triangles et de poids ;
+- stratégies figées : hull proxy pour `mask-scan`, `skull`, `worn-flip-flop` ; compound proxy pour `mouse-ears`, `traffic-cone`, `bebe-assets`, `crocodile-dog-toy`, `garden-gnome` ; simplified proxy pour `chicken`, `model`, `poo-scan` ;
+- total généré : 14 308 triangles de collision et 1 124 040 octets ; plus gros proxy `poo-scan` à 2 286 triangles / 180 480 octets ;
+- normalisation proxy fixée : centrage X/Y, base Z=0 et plus grande dimension ramenée à 1 ; le Lot D devra appliquer exactement la même normalisation au GLB render avant publication ;
+- runtime raccordé aux metadata `collision` des instances placées ;
+- colliders automatiques V1 conservés ; nouveaux proxies chargés en parties `ConvexHullCollider` ;
+- garde-fou runtime : 12 parties convexes maximum et 4096 sommets maximum par partie ;
+- `geometrySource = proxy` impose désormais un `proxyPath` côté frontend et Supabase ;
+- migration Supabase `20260904220112_v2_03_proxy_collision_contract` appliquée ; catalogue actif resté à 4 entrées ;
+- aucun nouveau modèle, collider ou preview publié dans le catalogue à ce lot ; promotion des fichiers publics réservée au Lot D ;
+- aucun déploiement Vercel consommé ;
+- rapport complet : `docs/roadmap/V2-03-LOT-C-COLLIDERS.md`.
+
+À compléter dans les lots suivants : promotion des assets/colliders/previews, poids/triangles/textures render finaux, plafond retenu et mesures, tests Browser des nouveaux objets publiés, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
 
 **Ne pas démarrer V2-04 dans cette PR.**
