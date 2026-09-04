@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -72,6 +74,27 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_rate_limits: {
+        Row: {
+          attempt_count: number
+          key_hash: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          key_hash: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          key_hash?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       equipped_accessories: {
         Row: {
           accessory_id: string
@@ -126,12 +149,43 @@ export type Database = {
           },
         ]
       }
+      feature_catalog: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price_lithons: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id: string
+          name: string
+          price_lithons: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price_lithons?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lithon_ledger: {
         Row: {
           accessory_id: string | null
           created_at: string
           delta: number
           event_key: string
+          feature_id: string | null
           id: string
           reason: string
           user_id: string
@@ -142,6 +196,7 @@ export type Database = {
           created_at?: string
           delta: number
           event_key: string
+          feature_id?: string | null
           id?: string
           reason: string
           user_id: string
@@ -152,6 +207,7 @@ export type Database = {
           created_at?: string
           delta?: number
           event_key?: string
+          feature_id?: string | null
           id?: string
           reason?: string
           user_id?: string
@@ -163,6 +219,13 @@ export type Database = {
             columns: ["accessory_id"]
             isOneToOne: false
             referencedRelation: "accessories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lithon_ledger_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "feature_catalog"
             referencedColumns: ["id"]
           },
           {
@@ -250,6 +313,45 @@ export type Database = {
         }
         Relationships: []
       }
+      rock_feature_unlocks: {
+        Row: {
+          acquired_at: string
+          acquisition_source: string
+          feature_id: string
+          price_paid: number | null
+          user_rock_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          acquisition_source: string
+          feature_id: string
+          price_paid?: number | null
+          user_rock_id: string
+        }
+        Update: {
+          acquired_at?: string
+          acquisition_source?: string
+          feature_id?: string
+          price_paid?: number | null
+          user_rock_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rock_feature_unlocks_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "feature_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rock_feature_unlocks_user_rock_id_fkey"
+            columns: ["user_rock_id"]
+            isOneToOne: false
+            referencedRelation: "user_rocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rock_progress: {
         Row: {
           caress_count: number
@@ -321,6 +423,42 @@ export type Database = {
           },
         ]
       }
+      user_feature_unlocks: {
+        Row: {
+          feature_id: string
+          price_paid: number
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          feature_id: string
+          price_paid: number
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          feature_id?: string
+          price_paid?: number
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_feature_unlocks_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "feature_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_feature_unlocks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_rocks: {
         Row: {
           adopted_at: string
@@ -329,6 +467,9 @@ export type Database = {
           id: string
           last_cleaned_at: string | null
           name: string
+          pose_position: Json
+          pose_rotation: Json
+          pose_stabilized_at: string | null
           specimen_id: string
           updated_at: string
           user_id: string
@@ -340,6 +481,9 @@ export type Database = {
           id?: string
           last_cleaned_at?: string | null
           name: string
+          pose_position?: Json
+          pose_rotation?: Json
+          pose_stabilized_at?: string | null
           specimen_id: string
           updated_at?: string
           user_id: string
@@ -351,6 +495,9 @@ export type Database = {
           id?: string
           last_cleaned_at?: string | null
           name?: string
+          pose_position?: Json
+          pose_rotation?: Json
+          pose_stabilized_at?: string | null
           specimen_id?: string
           updated_at?: string
           user_id?: string
@@ -418,6 +565,27 @@ export type Database = {
           user_rock_id: string
         }[]
       }
+      commit_placement_session: {
+        Args: {
+          p_accessories: Json
+          p_event_key: string
+          p_move_rock: boolean
+          p_rock_position: Json
+          p_rock_rotation: Json
+          p_user_rock_id: string
+        }
+        Returns: {
+          accessories: Json
+          rock_position: Json
+          rock_rotation: Json
+          stabilized_at: string
+          user_rock_id: string
+        }[]
+      }
+      consume_auth_rate_limit: {
+        Args: { p_key_hash: string; p_limit: number; p_window_seconds: number }
+        Returns: boolean
+      }
       create_equipped_accessory: {
         Args: {
           p_accessory_id: string
@@ -452,6 +620,15 @@ export type Database = {
           accessory_id: string
           balance: number
           purchased_at: string
+        }[]
+      }
+      purchase_feature_unlock: {
+        Args: { p_event_key: string; p_feature_id: string }
+        Returns: {
+          balance: number
+          feature_id: string
+          price_paid: number
+          unlocked_at: string
         }[]
       }
       register_caress: {
@@ -492,19 +669,20 @@ export type Database = {
           updated_at: string
         }[]
       }
-      update_equipped_accessory: {
+      stabilize_rock_composition: {
         Args: {
-          p_instance_id: string
-          p_local_position: Json
-          p_local_rotation: Json
-          p_uniform_scale: number
+          p_accessories: Json
+          p_event_key: string
+          p_rock_position: Json
+          p_rock_rotation: Json
+          p_user_rock_id: string
         }
         Returns: {
-          instance_id: string
-          local_position: Json
-          local_rotation: Json
-          uniform_scale: number
-          updated_at: string
+          accessories: Json
+          rock_position: Json
+          rock_rotation: Json
+          stabilized_at: string
+          user_rock_id: string
         }[]
       }
     }
@@ -518,74 +696,117 @@ export type Database = {
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends { Row: infer R }
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends { Row: infer R }
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
       ? R
       : never
     : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends { Insert: infer I }
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends { Insert: infer I }
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
       ? I
       : never
     : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends { Update: infer U }
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends { Update: infer U }
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
       ? U
       : never
     : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
