@@ -81,6 +81,7 @@ export function usePlacementCollisionResolver(
     world.propagateModifiedBodyPositionsToColliders()
     const activeObjectId = placementTargetId(target)
     type FilterPredicate = NonNullable<Parameters<typeof world.castShape>[11]>
+    type ColliderDescriptor = ReturnType<typeof rapier.ColliderDesc.cuboid>
     const filterCollider: FilterPredicate = (collider) => {
       if (collider.isSensor()) return false
       const parent = collider.parent()
@@ -93,7 +94,7 @@ export function usePlacementCollisionResolver(
       const { collision } = target.profile
       const safeScale = Math.max(0.0001, transform.scale)
       const bounds = scaledBounds(geometry, safeScale)
-      let descriptor
+      let descriptor: ColliderDescriptor
       let localCenter = new Vector3()
 
       if (collision.strategy === 'primitive' && collision.shape === 'cuboid') {
@@ -120,13 +121,17 @@ export function usePlacementCollisionResolver(
           vertices[index * 3 + 1] = point[1] * safeScale
           vertices[index * 3 + 2] = point[2] * safeScale
         })
-        descriptor = rapier.ColliderDesc.convexHull(vertices)
-          ?? rapier.ColliderDesc.cuboid(
+        const hull = rapier.ColliderDesc.convexHull(vertices)
+        if (hull) {
+          descriptor = hull
+        } else {
+          descriptor = rapier.ColliderDesc.cuboid(
             Math.max(0.0001, bounds.half.x),
             Math.max(0.0001, bounds.half.y),
             Math.max(0.0001, bounds.half.z),
           )
-        if (descriptor.shape.type === rapier.ShapeType.Cuboid) localCenter = bounds.center
+          localCenter = bounds.center
+        }
       }
 
       return {
