@@ -1,8 +1,8 @@
 # V2-03 — Accessoires V2 & pipeline collisions
 
-> **Statut : en cours — Lots A à C terminés le 4 septembre 2026.**
+> **Statut : en cours — Lots A à D terminés le 5 septembre 2026.**
 >
-> **Date : 4 septembre 2026.**
+> **Date : 5 septembre 2026.**
 >
 > **Dépendances : V2-01 Placement 2.0, V2-02 économie/possessions V2.**
 >
@@ -108,13 +108,11 @@ Le collider ne doit pas :
 - multiplier inutilement les primitives ;
 - conserver la géométrie render haute définition comme collider si cela pénalise le mobile.
 
-Documenter le choix par asset ou famille.
-
-Le Lot C retient des proxies convexes préparés hors ligne pour les 11 nouvelles sources. Les accessoires V1 conservent leur génération automatique actuelle (`hull` / `cuboid`) pour compatibilité. Les nouveaux proxies sont générés de manière reproductible, mesurés et bornés avant toute publication catalogue.
+Le Lot C retient des proxies convexes préparés hors ligne pour les 11 nouvelles sources. Les accessoires V1 conservent leur génération automatique actuelle (`hull` / `cuboid`) pour compatibilité. Les nouveaux proxies sont générés de manière reproductible, mesurés et bornés avant publication catalogue.
 
 Compte rendu détaillé : `docs/roadmap/V2-03-LOT-C-COLLIDERS.md`.
 
-### Lot D — Pipeline preview/catalogue
+### Lot D — Pipeline preview/catalogue ✅ TERMINÉ
 
 Standardiser :
 
@@ -124,6 +122,10 @@ Standardiser :
 - chemins publics ;
 - catalog update ;
 - validation automatique des chemins et budgets.
+
+Le Lot D applique au render la normalisation source définie au Lot C, simplifie uniquement le render, borne les textures, génère des previews 512x512, publie automatiquement les sorties validées et passe le manifeste technique accessoires en schemaVersion 2. Les 11 nouvelles entrées sont staged dans Supabase avec `active=false` afin de réserver l'activation commerciale au Lot G.
+
+Compte rendu détaillé : `docs/roadmap/V2-03-LOT-D-PREVIEW-CATALOGUE.md`.
 
 ### Lot E — Chargement et disposal
 
@@ -173,7 +175,7 @@ Fixer un plafond final uniquement si les données permettent de le justifier. Si
 
 ## 7. Architecture cible
 
-Le pipeline doit séparer :
+Le pipeline sépare :
 
 ```text
 source
@@ -212,7 +214,7 @@ Les chemins de proxy sont validés côté base et aucun binaire n'est stocké da
 
 Le Lot C durcit le contrat : toute `geometrySource = proxy` impose désormais un `proxyPath` valide, et un `proxyPath` ne peut pas être associé à une source render.
 
-Les possessions restent celles de V2-02.
+Le Lot D stage les 11 entrées V2 en `active=false` avec leurs chemins, triangles, dimensions, scales, physique, collision et budgets finaux. Les possessions restent celles de V2-02 et aucune référence V2 n'est activée avant le Lot G.
 
 ## 10. Migration / backfill / compatibilité V1
 
@@ -226,6 +228,8 @@ Migration Lot B : `20260904213106_v2_03_accessory_asset_contract.sql`.
 
 Migration Lot C : `20260904220112_v2_03_proxy_collision_contract.sql`.
 
+Migration Lot D : `20260904225708_v2_03_stage_accessory_catalogue.sql`.
+
 ## 11. RLS / RPC / idempotence / sécurité
 
 - catalogue lecture contrôlée ;
@@ -233,7 +237,8 @@ Migration Lot C : `20260904220112_v2_03_proxy_collision_contract.sql`.
 - achat unique ;
 - placement uniquement si possédé ;
 - impossible de placer deux fois ;
-- aucun chemin asset arbitraire injecté par client.
+- aucun chemin asset arbitraire injecté par client ;
+- les 11 références V2 restent invisibles aux clients tant que `active=false`.
 
 ## 12. Offline / PWA / réconciliation
 
@@ -244,15 +249,18 @@ Migration Lot C : `20260904220112_v2_03_proxy_collision_contract.sql`.
 
 ## 13. Performance et budgets
 
-Conserver les budgets V2-00 :
+Budgets du pipeline Lot D :
 
-- GLB sous les garde-fous existants sauf justification mesurée ;
-- textures 2048 max par défaut et viser ≤ 1 MiB ;
+- `model.glb` <= 5 MiB ;
+- texture runtime <= 1024 px par défaut ;
+- crocodile ramené à 512 px après mesure pour rester sous le budget GLB ;
+- preview PNG 512x512 et <= 2 MiB ;
+- `collider.glb` <= 1 MiB au validateur release ;
 - runtime 3D lazy ;
 - pas de croissance GPU linéaire ;
 - collider aussi simple que possible sans sacrifier le contact visuel.
 
-Ajouter un validateur automatisé pour les budgets si la chaîne actuelle n'en couvre pas les nouveaux assets.
+Le validateur release compare `runtimeModelBytes` à la taille exacte du fichier, vérifie les chemins render/preview/proxy et impose les metadata minimales du manifeste schemaVersion 2.
 
 ## 14. UX téléphone / tablette / desktop
 
@@ -266,15 +274,19 @@ Tester les objets petits, fins, concaves, proches les uns des autres et le séle
 - règles disponibilité possédé/placé ;
 - budgets.
 
-Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Le Lot C couvre la résolution runtime auto/manual, l'extraction de parties convexes, les garde-fous de complexité et le chargement des proxies préparés.
+Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Le Lot C couvre la résolution runtime auto/manual, l'extraction de parties convexes, les garde-fous de complexité et le chargement des proxies préparés. Le Lot D étend les invariants de release aux 15 manifestes techniques, chemins publics et budgets render/proxy/preview.
 
 ## 16. Browser regression
 
 Ajouter aux scénarios existants : chargement nouveaux objets, achat unique, placement, contact réel, retrait/replacement, reload, plusieurs objets jusqu'au plafond retenu, cycles ajout/retrait sans fuite visible.
 
+Les nouveaux objets restent inactifs au Lot D ; la Browser regression vérifie donc en priorité que les V1 et le runtime existant ne régressent pas. Les scénarios d'achat/placement V2 seront activés au Lot G.
+
 ## 17. Discipline plateformes
 
 Une branche/PR principale. Supabase uniquement si metadata réellement nécessaire. Une Preview Vercel finale peut être utile pour inspecter visuellement les nouveaux contacts 3D, jamais une Preview par asset.
+
+Le Lot D n'impose pas de Preview Vercel : les previews sont inspectées dans l'artefact GitHub et `vercel.json` n'autorise pas le déploiement de la branche `feat/v2-03-accessories-v2`.
 
 ## 18. Critères d'acceptation
 
@@ -295,7 +307,7 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 
 ## 20. État / compte rendu d'exécution
 
-**Statut global : en cours. Lots A à C terminés. Lots D à G non démarrés.**
+**Statut global : en cours. Lots A à D terminés. Lots E à G non démarrés.**
 
 ### Lot A — checkpoint du 4 septembre 2026
 
@@ -334,16 +346,29 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 - 11/11 proxies générés avec succès, tous sous leurs budgets de triangles et de poids ;
 - stratégies figées : hull proxy pour `mask-scan`, `skull`, `worn-flip-flop` ; compound proxy pour `mouse-ears`, `traffic-cone`, `bebe-assets`, `crocodile-dog-toy`, `garden-gnome` ; simplified proxy pour `chicken`, `model`, `poo-scan` ;
 - total généré : 14 308 triangles de collision et 1 124 040 octets ; plus gros proxy `poo-scan` à 2 286 triangles / 180 480 octets ;
-- normalisation proxy fixée : centrage X/Y, base Z=0 et plus grande dimension ramenée à 1 ; le Lot D devra appliquer exactement la même normalisation au GLB render avant publication ;
+- normalisation proxy fixée : centrage X/Y, base Z=0 et plus grande dimension ramenée à 1 ;
 - runtime raccordé aux metadata `collision` des instances placées ;
 - colliders automatiques V1 conservés ; nouveaux proxies chargés en parties `ConvexHullCollider` ;
 - garde-fou runtime : 12 parties convexes maximum et 4096 sommets maximum par partie ;
-- `geometrySource = proxy` impose désormais un `proxyPath` côté frontend et Supabase ;
 - migration Supabase `20260904220112_v2_03_proxy_collision_contract` appliquée ; catalogue actif resté à 4 entrées ;
-- aucun nouveau modèle, collider ou preview publié dans le catalogue à ce lot ; promotion des fichiers publics réservée au Lot D ;
 - aucun déploiement Vercel consommé ;
 - rapport complet : `docs/roadmap/V2-03-LOT-C-COLLIDERS.md`.
 
-À compléter dans les lots suivants : promotion des assets/colliders/previews, poids/triangles/textures render finaux, plafond retenu et mesures, tests Browser des nouveaux objets publiés, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
+### Lot D — checkpoint du 5 septembre 2026
+
+- pipeline runtime Blender 4.5.13 LTS ajouté : normalisation commune render/collider, décimation render, textures bornées, GLB autonome et preview 512x512 ;
+- workflow `V2-03 runtime asset pipeline` #4 vert et promotion automatique des 11 `model.glb`, 11 `collider.glb` et 11 previews dans `public/assets` ;
+- 107 151 triangles render V2 pour 27 069 392 octets de GLB ; plus gros modèle `skull` à 4 584 892 octets ;
+- textures V2 plafonnées à 1024 px, crocodile mesuré puis ramené à 512 px pour respecter le budget de 5 MiB ;
+- manifeste `public/assets/accessories/catalog.json` passé à schemaVersion 2, 15 références techniques au total ;
+- validateur release étendu aux chemins canoniques, tailles exactes, previews, colliders, dimensions, scales et budgets ;
+- metadata commerciales minimales centralisées dans `scripts/3d/accessory-catalog-metadata.json` ;
+- migration Supabase `20260904225708_v2_03_stage_accessory_catalogue` appliquée ; 11 références V2 staged avec `active=false` ;
+- vérification serveur : 4 actifs V1, 11 V2 inactifs, 0 possession V2, 0 placement V2, RLS catalogue inchangée ;
+- aucune nouvelle exigence licences/notices/provenance pour les V2 ;
+- aucune Preview Vercel manuelle consommée ;
+- rapport complet : `docs/roadmap/V2-03-LOT-D-PREVIEW-CATALOGUE.md`.
+
+À compléter dans les lots suivants : chargement/cache/disposal, plafond retenu et mesures, tests Browser des nouveaux objets après activation, activation Boutique/Placement, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
 
 **Ne pas démarrer V2-04 dans cette PR.**
