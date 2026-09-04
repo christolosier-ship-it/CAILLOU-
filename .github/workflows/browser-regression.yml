@@ -113,6 +113,7 @@ jobs:
           run_vite accessory-physics 4178 scripts/web/validate-accessory-physics-e2e.mjs
           run_vite rock-movement 4179 scripts/web/validate-rock-movement-e2e.mjs
           run_vite placement-unified 4181 scripts/web/validate-placement-unified-e2e.mjs
+          run_vite placement-collision 4182 scripts/web/validate-placement-collision-e2e.mjs
           run_vite bio-discard 4175 scripts/web/validate-step11-e2e.mjs
 
       - name: Upload browser diagnostics
