@@ -8,13 +8,12 @@ on:
       - 'scripts/3d/accessory-collider-plan.json'
       - 'scripts/3d/build_accessory_colliders.py'
       - 'scripts/3d/accessory-runtime-plan.json'
-      - 'scripts/3d/build_accessory-runtime.py'
       - 'scripts/3d/build_accessory_runtime.py'
       - '.github/workflows/v2-03-runtime-assets.yml'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: v2-03-runtime-assets-${{ github.ref }}
@@ -92,3 +91,20 @@ jobs:
             build/v2-03/runtime-collider-report.json
           if-no-files-found: error
           retention-days: 7
+      - name: Promote validated runtime assets
+        if: success() && github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/assets/accessories public/assets/accessory-previews
+          cp -R build/v2-03/runtime-assets/. public/assets/accessories/
+          cp build/v2-03/accessory-previews/*.png public/assets/accessory-previews/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/accessories public/assets/accessory-previews
+          if git diff --cached --quiet; then
+            echo "No runtime asset change to promote."
+            exit 0
+          fi
+          git commit -m "feat(v2-03): publier les assets runtime du Lot D"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
