@@ -47,14 +47,11 @@ export function PlacementInteractionController({
   const baselineRef = useRef<{ distance: number; angle: number; transform: PlacementTransform } | null>(null)
   const transformRef = useRef(transform)
   const stateRef = useRef({ target, tool, geometry, scaleLimits })
+  stateRef.current = { target, tool, geometry, scaleLimits }
 
   useEffect(() => {
     transformRef.current = transform
   }, [transform])
-
-  useEffect(() => {
-    stateRef.current = { target, tool, geometry, scaleLimits }
-  }, [geometry, scaleLimits, target, tool])
 
   useEffect(() => {
     const canvas = gl.domElement
