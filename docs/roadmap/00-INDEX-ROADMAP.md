@@ -1,16 +1,18 @@
 # CAILLOU™ — Roadmap long terme V2.0 → V2.4
 
-> **Statut : feuille de route active — prompts autonomes V2.0 créés le 4 septembre 2026.**
+> **Statut : feuille de route active — V2-03 terminée et vérifiée en production le 5 septembre 2026.**
 >
 > La V1 est publiée sous le tag `v1.0.0` sur `e9d926be0f2f09f9f1464cf5b4360f82dbeae2ad` et sa roadmap est gelée dans `docs/roadmap/archive/v1/`.
 >
 > V2-00 est terminée et gelée dans [`V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md`](V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md).
 >
-> V2-01 est terminée, fusionnée et vérifiée en production le 4 septembre 2026 ; son compte rendu historique est consigné dans [`V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md`](V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md).
+> V2-01 est terminée, fusionnée et vérifiée en production le 4 septembre 2026 dans [`V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md`](V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md).
 >
-> V2-02 est terminée, fusionnée et vérifiée en production le 4 septembre 2026 ; son compte rendu historique est consigné dans [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md).
+> V2-02 est terminée, fusionnée et vérifiée en production le 4 septembre 2026 dans [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md).
 >
-> Ce document est la **source de vérité d'ordonnancement**. Les fichiers `V2-XX-....md` sont les cahiers des charges autonomes d'exécution et deviennent, une fois l'étape terminée, son compte rendu historique.
+> V2-03 est terminée, fusionnée et vérifiée en production le 5 septembre 2026 dans [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md).
+>
+> Ce document est la **source de vérité d'ordonnancement**. Les fichiers `V2-XX-....md` sont les cahiers des charges autonomes d'exécution et deviennent, une fois l'étape terminée, leur compte rendu historique.
 
 ---
 
@@ -77,7 +79,7 @@ Les compositions multiples sont abandonnées.
 
 Un caillou actif possède **un seul état persistant du Socle**.
 
-Il n'existe pas de fonctionnalité utilisateur : Nouvelle composition, Dupliquer, Changer de composition ou Composition active.
+Il n'existe pas de fonctionnalité utilisateur Nouvelle composition, Dupliquer, Changer de composition ou Composition active.
 
 Le terme `composition` peut rester technique pour désigner l'état cohérent caillou + objets + environnement, sans devenir une collection de sauvegardes ni une feature payante.
 
@@ -99,7 +101,7 @@ Ergonomie :
 4. petite barre contextuelle ;
 5. sélection toujours visible.
 
-La caméra est elle aussi une **cible de contrôle** pendant la session :
+La caméra est une cible de contrôle pendant la session :
 
 ```text
 PlacementControlTarget
@@ -115,7 +117,7 @@ La règle V1 autorisant les interpénétrations volontaires pendant Placement es
 
 > **Un objet manipulé ne traverse ni le caillou, ni un accessoire, ni le sol.**
 
-Les colliders doivent suivre suffisamment finement la géométrie visible pour éviter l'effet « flottement ». Les grosses sphères/boîtes surdimensionnées ne sont pas une solution finale acceptable.
+Les colliders doivent suivre suffisamment finement la géométrie visible pour éviter l'effet flottement. Les grosses sphères/boîtes surdimensionnées ne sont pas une solution finale acceptable.
 
 ### 3.4 Accessoires uniques
 
@@ -127,7 +129,7 @@ Chaque référence catalogue représente **un objet unique** :
 - retirer l'objet le rend disponible ;
 - jeter le caillou retire ses placements mais ne retire pas les possessions.
 
-Le plafond V1 de 8 objets reste provisoire jusqu'aux mesures V2-03/V2-10.
+V2-03 a mesuré et fixé le plafond **V2.0 à 8 accessoires simultanés**. Un relèvement futur doit être justifié par V2-10 avec des mesures réelles, notamment thermiques et tactiles.
 
 ### 3.5 Boutique : biens vs fonctionnalités
 
@@ -151,7 +153,7 @@ Bio/Stats de base restent gratuits.
 
 ### 3.6 Permis V1
 
-Décision explicite : **le Permis V1 n'est pas transféré gratuitement comme Permis V2**.
+Le Permis V1 n'est pas transféré gratuitement comme Permis V2.
 
 - l'achat/dépense historique reste conservé ;
 - le caillou V2 doit acheter son propre Permis ;
@@ -161,7 +163,7 @@ Décision explicite : **le Permis V1 n'est pas transféré gratuitement comme Pe
 
 Les Lithons restent la monnaie de référence.
 
-Le modèle doit cependant permettre plus tard un entitlement issu d'un `grant`/succès sans dépense Lithon.
+Le modèle doit permettre plus tard un entitlement issu d'un `grant`/succès sans dépense Lithon.
 
 > **Possession / entitlement ≠ obligatoirement achat dans le ledger.**
 
@@ -203,8 +205,8 @@ Aucun moteur de succès n'est implémenté en V2.0.
 | **V2-00** | [`V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md`](V2-00-ARCHITECTURE-CADRAGE-MIGRATIONS.md) | Architecture / cadrage | V1 | **✅ Terminée** |
 | **V2-01** | [`V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md`](V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md) | Placement 2.0 & scène interactive | V2-00 | **✅ Terminée** |
 | **V2-02** | [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md) | Socle canonique & économie V2 | V2-01 | **✅ Terminée** |
-| **V2-03** | [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md) | Accessoires V2 & pipeline collisions | V2-01, V2-02 | **▶ Prochaine à exécuter** |
-| **V2-04** | [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md) | Sols & Boutique décorative | V2-02 | Prompt prêt |
+| **V2-03** | [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md) | Accessoires V2 & pipeline collisions | V2-01, V2-02 | **✅ Terminée** |
+| **V2-04** | [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md) | Sols & Boutique décorative | V2-02 | **▶ Prochaine à exécuter** |
 | **V2-05** | [`V2-05-PEINTURE-CAILLOU.md`](V2-05-PEINTURE-CAILLOU.md) | Peinture du caillou | V2-02 | Prompt prêt |
 | **V2-06** | [`V2-06-PERSONNALITE-2-0.md`](V2-06-PERSONNALITE-2-0.md) | Personnalité 2.0 | V2-02 | Prompt prêt |
 | **V2-07** | [`V2-07-JOURNAL-DE-VIE.md`](V2-07-JOURNAL-DE-VIE.md) | Journal de vie | V2-02, V2-06 | Prompt prêt |
@@ -221,7 +223,6 @@ Aucun moteur de succès n'est implémenté en V2.0.
 
 ### V2-01 — Placement 2.0
 
-- refactor ciblé de `ShowroomScene` ;
 - moteur objet commun ;
 - caméra sélectionnable ;
 - colliders fins ;
@@ -239,12 +240,16 @@ Aucun moteur de succès n'est implémenté en V2.0.
 
 ### V2-03 — Accessoires
 
-- assets/provenance ;
+- audit et préparation des assets runtime ;
 - previews ;
 - pipeline GLB ;
 - colliders/proxies ;
 - budgets ;
-- plafond d'objets mesuré.
+- chargement/disposal ;
+- plafond d'objets mesuré à 8 ;
+- 11 nouveaux accessoires activés en production.
+
+Les licences, notices et l'historisation de provenance V2 ont été explicitement exclues du périmètre V2-03.
 
 ### V2-04 — Sols
 
@@ -307,7 +312,7 @@ Aucun moteur de succès n'est implémenté en V2.0.
 - profiling ;
 - bundles lazy ;
 - GLB/colliders/textures ;
-- plafond final d'objets ;
+- revalidation du plafond 8 sur matériel réel si possible ;
 - cache V2 ;
 - snapshot offline ;
 - upgrade service worker V1→V2.
@@ -466,7 +471,7 @@ Aucun choix V2 ne doit être dicté par le widget avant cette étude.
 
 ## 12. Format normatif des prompts autonomes
 
-Chaque prompt V2.0 suit le modèle qui a bien fonctionné en V1, enrichi des contraintes V2 :
+Chaque prompt V2.0 suit ce modèle :
 
 1. statut/date/dépendances ;
 2. contexte réel du repo ;
@@ -507,8 +512,8 @@ Le prompt protège le **comportement produit**, pas un workaround d'implémentat
 
 - audit du schéma réel ;
 - aucun DDL spéculatif ;
-- `apply_migration` pour le DDL ;
-- RLS/grants dans la même étape ;
+- migrations versionnées ;
+- RLS/grants dans la même étape que le modèle qu'ils protègent ;
 - advisors après DDL significatif ;
 - plan Free pris en compte ;
 - pas de branche payante par réflexe.
@@ -529,6 +534,7 @@ Le prompt protège le **comportement produit**, pas un workaround d'implémentat
 - V2-00 : gelée ;
 - V2-01 : gelée après clôture du 4 septembre 2026 ;
 - V2-02 : gelée après clôture du 4 septembre 2026 ;
+- V2-03 : gelée après clôture production du 5 septembre 2026 ;
 - chaque `V2-XX` devient gelé après sa clôture ;
 - les décisions ultérieures qui supersèdent une hypothèse historique sont consignées dans cet index et dans le prompt actif, jamais rétro-écrites dans l'historique.
 
@@ -536,8 +542,16 @@ Le prompt protège le **comportement produit**, pas un workaround d'implémentat
 
 ## 15. Prochaine action
 
-**V2-02 est clôturée, fusionnée et vérifiée en production.**
+**V2-03 est clôturée, fusionnée et vérifiée en production.**
+
+État de publication V2-03 :
+
+- 11 nouveaux accessoires V2 servis par Vercel ;
+- 11/11 activés dans Supabase ;
+- 15 accessoires actifs au total ;
+- plafond V2.0 fixé à 8 ;
+- CI et Browser regression verts.
 
 Prochaine étape autorisée :
 
-> **Exécuter [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md).**
+> **Exécuter [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md).**
