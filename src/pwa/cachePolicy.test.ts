@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CODE_CACHE_MAX_ENTRIES,
+  COLLIDER_CACHE_MAX_ENTRIES,
+  COLLIDER_RUNTIME_PATTERN,
   LAZY_CODE_RUNTIME_PATTERN,
   MODEL_CACHE_MAX_ENTRIES,
   MODEL_RUNTIME_PATTERN,
@@ -14,6 +16,7 @@ describe('step 12 PWA cache policy', () => {
   it('keeps every runtime cache bounded', () => {
     expect(CODE_CACHE_MAX_ENTRIES).toBe(24)
     expect(MODEL_CACHE_MAX_ENTRIES).toBe(12)
+    expect(COLLIDER_CACHE_MAX_ENTRIES).toBe(10)
     expect(PREVIEW_CACHE_MAX_ENTRIES).toBe(48)
   })
 
@@ -22,16 +25,25 @@ describe('step 12 PWA cache policy', () => {
     expect(LAZY_CODE_RUNTIME_PATTERN.test('/assets/index-abcd.js')).toBe(false)
   })
 
-  it('caches runtime models without matching arbitrary files', () => {
+  it('caches runtime render models without swallowing collider proxies', () => {
     expect(MODEL_RUNTIME_PATTERN.test('/assets/rocks/rock-001/model.glb')).toBe(true)
     expect(MODEL_RUNTIME_PATTERN.test('/assets/accessories/round-glasses/model.glb')).toBe(true)
+    expect(MODEL_RUNTIME_PATTERN.test('/assets/accessories/skull/collider.glb')).toBe(false)
     expect(MODEL_RUNTIME_PATTERN.test('/assets/rocks/rock-001/source.blend')).toBe(false)
   })
 
-  it('separates previews from GLB models', () => {
+  it('keeps accessory collider proxies in their own bounded cache', () => {
+    expect(COLLIDER_RUNTIME_PATTERN.test('/assets/accessories/skull/collider.glb')).toBe(true)
+    expect(COLLIDER_RUNTIME_PATTERN.test('/assets/accessories/garden-gnome/collider.glb')).toBe(true)
+    expect(COLLIDER_RUNTIME_PATTERN.test('/assets/accessories/garden-gnome/model.glb')).toBe(false)
+    expect(COLLIDER_RUNTIME_PATTERN.test('/assets/rocks/rock-001/collider.glb')).toBe(false)
+  })
+
+  it('separates previews from GLB runtime assets', () => {
     expect(PREVIEW_RUNTIME_PATTERN.test('/assets/rock-previews/rock-001.png')).toBe(true)
     expect(PREVIEW_RUNTIME_PATTERN.test('/assets/accessory-previews/round-glasses.webp')).toBe(true)
     expect(PREVIEW_RUNTIME_PATTERN.test('/assets/rocks/rock-001/model.glb')).toBe(false)
+    expect(PREVIEW_RUNTIME_PATTERN.test('/assets/accessories/skull/collider.glb')).toBe(false)
   })
 
   it('warms at most the active rock plus eight equipped assets', () => {

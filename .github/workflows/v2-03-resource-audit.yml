@@ -1,0 +1,50 @@
+name: V2-03 resource audit
+
+on:
+  push:
+    branches: [feat/v2-03-accessories-v2]
+    paths:
+      - 'Ressource/**'
+      - 'scripts/3d/**'
+      - '.github/workflows/v2-03-resource-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-03-resource-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BLENDER_VERSION: 4.5.13
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://download.blender.org/release/Blender4.5"
+          archive="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          curl -fsSLO "$base/$archive"
+          curl -fsSLO "$base/blender-${BLENDER_VERSION}.sha256"
+          grep " $archive$" "blender-${BLENDER_VERSION}.sha256" | sha256sum -c -
+          tar -xf "$archive"
+          echo "$PWD/blender-${BLENDER_VERSION}-linux-x64" >> "$GITHUB_PATH"
+      - name: Audit Ressource
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/v2-03
+          blender --background --factory-startup --python scripts/3d/audit_accessory_sources.py -- --resource Ressource --output build/v2-03/resource-audit.json --markdown build/v2-03/resource-audit.md
+          cat build/v2-03/resource-audit.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v2-03-resource-audit
+          path: build/v2-03/
+          if-no-files-found: error
+          retention-days: 7

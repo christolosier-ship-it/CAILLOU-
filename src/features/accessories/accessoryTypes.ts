@@ -14,6 +14,8 @@ export interface AccessoryCatalogItem {
   scaleMin: number
   scaleMax: number
   physics: Json | null
+  collision: Json
+  budget: Json
   provenance: Json | null
   purchasedAt: string | null
 }
@@ -59,6 +61,8 @@ export interface EquippedAccessoryInstance extends AccessoryTransform {
   triangleCount: number | null
   dimensions?: Json | null
   physics?: Json | null
+  collision?: Json
+  budget?: Json
   equippedAt: string
   updatedAt: string
   stabilizedAt?: string | null

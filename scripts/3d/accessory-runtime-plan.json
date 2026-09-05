@@ -1,0 +1,81 @@
+{
+  "defaults": {
+    "maxModelBytes": 5242880,
+    "maxTextureDimension": 1024,
+    "maxPreviewBytes": 2097152,
+    "previewSize": 512
+  },
+  "accessories": [
+    {
+      "id": "mask-scan",
+      "source": "MaskScan.fbx",
+      "targetTriangles": 5000,
+      "baseColorTexture": "low_t.png",
+      "normalTexture": "low_n.png"
+    },
+    {
+      "id": "mouse-ears",
+      "source": "MouseEars.fbx",
+      "targetTriangles": 2500,
+      "baseColorTexture": "MouseEarsAlbedo.png",
+      "normalTexture": "MouseEarsNormal.png",
+      "roughnessTexture": "MouseEarsRough.png"
+    },
+    {
+      "id": "traffic-cone",
+      "source": "Traffic_Cone.obj",
+      "targetTriangles": 12000,
+      "materialPreset": "traffic-cone"
+    },
+    {
+      "id": "bebe-assets",
+      "source": "bebe assets.obj",
+      "targetTriangles": 10500,
+      "fallbackBaseColor": [0.72, 0.5, 0.38, 1.0],
+      "fallbackRoughness": 0.58
+    },
+    {
+      "id": "chicken",
+      "source": "chicken_1.fbx",
+      "targetTriangles": 12000,
+      "baseColorTexture": "LowPolyChicken1_1.png"
+    },
+    {
+      "id": "crocodile-dog-toy",
+      "source": "crocodile_dog_toy_3d_scan.glb",
+      "targetTriangles": 12000,
+      "maxTextureDimension": 512
+    },
+    {
+      "id": "garden-gnome",
+      "source": "garden_gnome_4k.blend",
+      "targetTriangles": 8000,
+      "baseColorTexture": "garden_gnome_diff_4k.jpg",
+      "normalTexture": "garden_gnome_nor_gl_4k.exr",
+      "roughnessTexture": "garden_gnome_rough_4k.exr",
+      "metallicTexture": "garden_gnome_metal_4k.exr"
+    },
+    {
+      "id": "model",
+      "source": "model.fbx",
+      "targetTriangles": 12000,
+      "baseColorTexture": "tex_u1_v1_diffuse.jpg",
+      "normalTexture": "tex_u1_v1_normal.jpg"
+    },
+    {
+      "id": "poo-scan",
+      "source": "poo_scan.glb",
+      "targetTriangles": 12000
+    },
+    {
+      "id": "skull",
+      "source": "skull.glb",
+      "targetTriangles": 12000
+    },
+    {
+      "id": "worn-flip-flop",
+      "source": "worn_flip_flop.glb",
+      "targetTriangles": 12000
+    }
+  ]
+}

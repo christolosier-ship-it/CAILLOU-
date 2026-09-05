@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "mask-scan",
+      "name": "Masque patiné",
+      "description": "Un masque scanné aux motifs usés, étrange juste comme il faut.",
+      "priceLithons": 120,
+      "category": "visage",
+      "sortOrder": 50,
+      "scaleMin": 0.5,
+      "scaleMax": 1.6,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.24, "friction": 0.72, "restitution": 0.04, "linearDamping": 1.7, "angularDamping": 2.1, "gravityScale": 0.9, "ccd": true}
+    },
+    {
+      "id": "mouse-ears",
+      "name": "Oreilles de souris",
+      "description": "Deux grandes oreilles noires pour un caillou très incognito.",
+      "priceLithons": 90,
+      "category": "tete",
+      "sortOrder": 60,
+      "scaleMin": 0.5,
+      "scaleMax": 1.5,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.2, "friction": 0.7, "restitution": 0.05, "linearDamping": 1.7, "angularDamping": 2.1, "gravityScale": 0.9, "ccd": true}
+    },
+    {
+      "id": "traffic-cone",
+      "name": "Cône de chantier",
+      "description": "Le mobilier urbain, mais en accessoire de prestige.",
+      "priceLithons": 80,
+      "category": "objet",
+      "sortOrder": 70,
+      "scaleMin": 0.45,
+      "scaleMax": 1.4,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.32, "friction": 0.82, "restitution": 0.03, "linearDamping": 1.8, "angularDamping": 2.2, "gravityScale": 0.95, "ccd": true}
+    },
+    {
+      "id": "bebe-assets",
+      "name": "Tétine",
+      "description": "Une tétine géante pour les cailloux qui assument leur côté bébé.",
+      "priceLithons": 85,
+      "category": "objet",
+      "sortOrder": 80,
+      "scaleMin": 0.4,
+      "scaleMax": 1.4,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.16, "friction": 0.7, "restitution": 0.08, "linearDamping": 1.7, "angularDamping": 2.0, "gravityScale": 0.86, "ccd": true}
+    },
+    {
+      "id": "chicken",
+      "name": "Poulet caoutchouc",
+      "description": "Un poulet rose raide comme un gag oublié dans un tiroir.",
+      "priceLithons": 110,
+      "category": "objet",
+      "sortOrder": 90,
+      "scaleMin": 0.45,
+      "scaleMax": 1.5,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.2, "friction": 0.68, "restitution": 0.1, "linearDamping": 1.65, "angularDamping": 2.0, "gravityScale": 0.9, "ccd": true}
+    },
+    {
+      "id": "crocodile-dog-toy",
+      "name": "Crocodile couineur",
+      "description": "Un crocodile-jouet vert à la tête beaucoup trop sympathique.",
+      "priceLithons": 115,
+      "category": "objet",
+      "sortOrder": 100,
+      "scaleMin": 0.45,
+      "scaleMax": 1.5,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.24, "friction": 0.72, "restitution": 0.08, "linearDamping": 1.7, "angularDamping": 2.1, "gravityScale": 0.9, "ccd": true}
+    },
+    {
+      "id": "garden-gnome",
+      "name": "Nain de jardin",
+      "description": "Gardien miniature, bonnet rouge et lanterne comprise.",
+      "priceLithons": 150,
+      "category": "objet",
+      "sortOrder": 110,
+      "scaleMin": 0.4,
+      "scaleMax": 1.4,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.38, "friction": 0.8, "restitution": 0.03, "linearDamping": 1.9, "angularDamping": 2.3, "gravityScale": 0.95, "ccd": true}
+    },
+    {
+      "id": "model",
+      "name": "Appareil photo vintage",
+      "description": "Un vieux boîtier cabossé pour documenter la géologie mondaine.",
+      "priceLithons": 145,
+      "category": "objet",
+      "sortOrder": 120,
+      "scaleMin": 0.45,
+      "scaleMax": 1.5,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.3, "friction": 0.74, "restitution": 0.03, "linearDamping": 1.8, "angularDamping": 2.2, "gravityScale": 0.92, "ccd": true}
+    },
+    {
+      "id": "poo-scan",
+      "name": "Crotte souriante",
+      "description": "La sculpture conceptuelle que personne n’avait osé commander.",
+      "priceLithons": 75,
+      "category": "objet",
+      "sortOrder": 130,
+      "scaleMin": 0.4,
+      "scaleMax": 1.4,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.22, "friction": 0.76, "restitution": 0.04, "linearDamping": 1.75, "angularDamping": 2.1, "gravityScale": 0.9, "ccd": true}
+    },
+    {
+      "id": "skull",
+      "name": "Crâne",
+      "description": "Un crâne blanchi pour donner au Socle un petit air de cabinet de curiosités.",
+      "priceLithons": 160,
+      "category": "objet",
+      "sortOrder": 140,
+      "scaleMin": 0.4,
+      "scaleMax": 1.5,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.3, "friction": 0.78, "restitution": 0.03, "linearDamping": 1.8, "angularDamping": 2.2, "gravityScale": 0.92, "ccd": true}
+    },
+    {
+      "id": "worn-flip-flop",
+      "name": "Tong usée",
+      "description": "Une tong fatiguée qui a clairement plus voyagé que son propriétaire.",
+      "priceLithons": 70,
+      "category": "objet",
+      "sortOrder": 150,
+      "scaleMin": 0.45,
+      "scaleMax": 1.5,
+      "physics": {"enabled": true, "dynamic": true, "collider": "convexHull", "mass": 0.14, "friction": 0.86, "restitution": 0.02, "linearDamping": 1.7, "angularDamping": 2.0, "gravityScale": 0.88, "ccd": true}
+    }
+  ]
+}

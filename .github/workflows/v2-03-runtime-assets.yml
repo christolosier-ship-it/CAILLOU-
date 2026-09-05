@@ -1,0 +1,110 @@
+name: V2-03 runtime asset pipeline
+
+on:
+  push:
+    branches: [feat/v2-03-accessories-v2]
+    paths:
+      - 'Ressource/**'
+      - 'scripts/3d/accessory-collider-plan.json'
+      - 'scripts/3d/build_accessory_colliders.py'
+      - 'scripts/3d/accessory-runtime-plan.json'
+      - 'scripts/3d/build_accessory_runtime.py'
+      - '.github/workflows/v2-03-runtime-assets.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v2-03-runtime-assets-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-runtime-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BLENDER_VERSION: 4.5.13
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://download.blender.org/release/Blender4.5"
+          archive="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          curl -fsSLO "$base/$archive"
+          curl -fsSLO "$base/blender-${BLENDER_VERSION}.sha256"
+          grep " $archive$" "blender-${BLENDER_VERSION}.sha256" | sha256sum -c -
+          tar -xf "$archive"
+          echo "$PWD/blender-${BLENDER_VERSION}-linux-x64" >> "$GITHUB_PATH"
+      - name: Ensure headless preview renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+      - name: Build paired collider proxies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/v2-03/runtime-colliders
+          blender --background --factory-startup --python scripts/3d/build_accessory_colliders.py -- \
+            --resource Ressource \
+            --plan scripts/3d/accessory-collider-plan.json \
+            --output build/v2-03/runtime-colliders \
+            --report-json build/v2-03/runtime-collider-report.json \
+            --report-md build/v2-03/runtime-collider-report.md
+      - name: Build normalized runtime GLBs and previews
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p build/v2-03/runtime-assets build/v2-03/accessory-previews
+          set +e
+          xvfb-run -a blender --background --factory-startup --python scripts/3d/build_accessory_runtime.py -- \
+            --resource Ressource \
+            --plan scripts/3d/accessory-runtime-plan.json \
+            --collider-output build/v2-03/runtime-colliders \
+            --collider-report-json build/v2-03/runtime-collider-report.json \
+            --output build/v2-03/runtime-assets \
+            --previews build/v2-03/accessory-previews \
+            --report-json build/v2-03/runtime-report.json \
+            --report-md build/v2-03/runtime-report.md
+          status=$?
+          set -e
+          if [[ -f build/v2-03/runtime-report.md ]]; then
+            cat build/v2-03/runtime-report.md
+            cat build/v2-03/runtime-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v2-03-runtime-assets
+          path: |
+            build/v2-03/runtime-assets/
+            build/v2-03/accessory-previews/
+            build/v2-03/runtime-report.json
+            build/v2-03/runtime-report.md
+            build/v2-03/runtime-collider-report.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Promote validated runtime assets
+        if: success() && github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/assets/accessories public/assets/accessory-previews
+          cp -R build/v2-03/runtime-assets/. public/assets/accessories/
+          cp build/v2-03/accessory-previews/*.png public/assets/accessory-previews/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/accessories public/assets/accessory-previews
+          if git diff --cached --quiet; then
+            echo "No runtime asset change to promote."
+            exit 0
+          fi
+          git commit -m "feat(v2-03): publier les assets runtime du Lot D"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

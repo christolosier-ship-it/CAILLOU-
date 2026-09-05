@@ -108,6 +108,8 @@ jobs:
           run_vite placement-collision 4182 scripts/web/validate-placement-collision-e2e.mjs
           run_vite placement-cancel 4184 scripts/web/validate-placement-cancel-e2e.mjs
           run_vite placement-performance 4185 scripts/web/validate-placement-performance-e2e.mjs
+          run_vite v2-03-capacity 4188 scripts/web/validate-v2-03-capacity.mjs
+          run_vite v2-03-commerce 4189 scripts/web/validate-v2-03-commerce-e2e.mjs
           run_vite v2-02-economy 4186 scripts/web/validate-v2-02-economy-e2e.mjs
           run_http showroom-memory 4173 scripts/web/validate-showroom-memory.mjs
           run_vite showroom-ui 4174 scripts/web/validate-showroom-ui.mjs
@@ -116,6 +118,7 @@ jobs:
           run_vite cleaning 4177 scripts/web/validate-cleaning-e2e.mjs
           run_vite accessory-placement 4178 scripts/web/validate-accessory-placement-e2e.mjs
           run_vite accessory-physics 4180 scripts/web/validate-accessory-physics-e2e.mjs
+          run_vite accessory-resources 4187 scripts/web/validate-accessory-resource-memory.mjs
           run_vite rock-movement 4179 scripts/web/validate-rock-movement-e2e.mjs
           run_vite bio-discard 4183 scripts/web/validate-step11-e2e.mjs
 

@@ -6,6 +6,10 @@ import {
   CODE_CACHE_MAX_AGE_SECONDS,
   CODE_CACHE_MAX_ENTRIES,
   CODE_RUNTIME_CACHE,
+  COLLIDER_CACHE_MAX_AGE_SECONDS,
+  COLLIDER_CACHE_MAX_ENTRIES,
+  COLLIDER_RUNTIME_CACHE,
+  COLLIDER_RUNTIME_PATTERN,
   LAZY_CODE_RUNTIME_PATTERN,
   MODEL_CACHE_MAX_AGE_SECONDS,
   MODEL_CACHE_MAX_ENTRIES,
@@ -57,6 +61,19 @@ export default defineConfig({
               expiration: {
                 maxEntries: MODEL_CACHE_MAX_ENTRIES,
                 maxAgeSeconds: MODEL_CACHE_MAX_AGE_SECONDS,
+                purgeOnQuotaError: true,
+              },
+            },
+          },
+          {
+            urlPattern: COLLIDER_RUNTIME_PATTERN,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: COLLIDER_RUNTIME_CACHE,
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: {
+                maxEntries: COLLIDER_CACHE_MAX_ENTRIES,
+                maxAgeSeconds: COLLIDER_CACHE_MAX_AGE_SECONDS,
                 purgeOnQuotaError: true,
               },
             },

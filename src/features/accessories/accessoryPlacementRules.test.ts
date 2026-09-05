@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  MAX_EQUIPPED_ACCESSORIES,
   accessoryAlreadyPlaced,
   availableOwnedAccessories,
   clampAccessoryScale,
@@ -10,6 +11,10 @@ import {
 } from './accessoryPlacementRules'
 
 describe('accessory placement persistence rules', () => {
+  it('keeps the measured V2.0 simultaneous-accessory cap at eight', () => {
+    expect(MAX_EQUIPPED_ACCESSORIES).toBe(8)
+  })
+
   it('starts visage, tenue and socle accessories in distinct local zones', () => {
     const face = defaultAccessoryTransform({ category: 'visage', scaleMin: 0.6, scaleMax: 1.5 })
     const outfit = defaultAccessoryTransform({ category: 'tenue', scaleMin: 0.6, scaleMax: 1.5 })
