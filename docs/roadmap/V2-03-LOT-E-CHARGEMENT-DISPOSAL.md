@@ -1,10 +1,10 @@
 # V2-03 — Lot E — Chargement et disposal
 
-> **Statut : implémenté — validation finale CI/Browser sur la tête de Lot E.**
+> **Statut : TERMINÉ — 5 septembre 2026.**
 >
-> **Date : 5 septembre 2026.**
+> **Tête validée : `638aa6701d7d9be54e0cdd8b6568cce54ae3a55d`.**
 >
-> Le Lot F n'est pas démarré.
+> **CI #432 et Browser regression #104 verts.**
 
 ## 1. Objectif
 
@@ -39,7 +39,7 @@ La politique runtime devient :
 
 Toutes ces règles utilisent `purgeOnQuotaError`.
 
-Les 12 renders correspondent au caillou actif, jusqu'à huit accessoires équipés et une petite marge récente. Les 10 proxies couvrent le garde-fou actuel de huit accessoires plus une marge de deux. Le plafond fonctionnel reste provisoire et sera mesuré au Lot F ; le Lot E ne le modifie pas.
+Les 12 renders correspondent au caillou actif, jusqu'à huit accessoires équipés et une petite marge récente. Les 10 proxies couvrent le garde-fou de huit accessoires plus une marge de deux. Le Lot F a ensuite confirmé et figé ce plafond à 8 pour V2.0.
 
 Le précache PWA reste limité au shell/navigation. Les GLB et previews sont appris à la première requête. Le catalogue complet n'est donc jamais préchargé en 3D.
 
@@ -87,6 +87,8 @@ L'échec venait de la mesure de complexité du crâne : le banc comptait les ent
 
 Le test a été corrigé pour appeler directement la fonction runtime et ses constantes exportées. Aucun seuil n'a été relevé et aucun collider n'a été exempté.
 
+Browser regression #104 valide ensuite la suite complète avec `accessory-resources` vert et une mémoire résiduelle stable à **0 géométrie / 1 texture**.
+
 ## 7. Supabase
 
 Aucune migration n'est nécessaire au Lot E.
@@ -107,6 +109,8 @@ Aucune Preview n'est nécessaire pour cette validation de cache/disposal. Les co
 
 ## 9. Frontière de scope
 
-Le Lot E ne mesure pas encore le plafond final d'objets. Les tests de performance 1/4/8 déjà présents dans la suite restent des garde-fous historiques, mais leur existence ne constitue pas l'exécution du Lot F.
+Le Lot E est clôturé sur `638aa6701d7d9be54e0cdd8b6568cce54ae3a55d`, avec CI #432 et Browser regression #104 verts.
 
-**Lot F et Lot G restent non démarrés. La PR #45 reste draft, ouverte et non mergée.**
+Le Lot F est documenté séparément dans `docs/roadmap/V2-03-LOT-F-PLAFOND-OBJETS.md`. Le Lot G reste hors de ce checkpoint.
+
+**La PR #45 reste draft, ouverte et non mergée.**
