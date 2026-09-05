@@ -1,6 +1,6 @@
 # V2-03 — Accessoires V2 & pipeline collisions
 
-> **Statut : en cours — Lots A à E terminés le 5 septembre 2026.**
+> **Statut : en cours — Lots A à F terminés le 5 septembre 2026.**
 >
 > **Date : 5 septembre 2026.**
 >
@@ -30,7 +30,7 @@ V2-01 a établi une manipulation commune et une stratégie de collision crédibl
 - pas de clonage multi-instance ;
 - possession durable au compte ;
 - un objet placé est indisponible jusqu'à retrait ;
-- le plafond de huit objets est provisoire ;
+- le plafond V2.0 est fixé à huit objets simultanés après mesures du Lot F ;
 - la collision doit suivre la géométrie visible, sans effet flottant ;
 - licences/notices/provenance hors périmètre ;
 - accessoires animés/interactifs hors V2.0.
@@ -139,7 +139,7 @@ Le Lot E conserve le chargement à la demande de `AccessoryModel` et l'absence v
 
 Compte rendu détaillé : `docs/roadmap/V2-03-LOT-E-CHARGEMENT-DISPOSAL.md`.
 
-### Lot F — Mesure du plafond d'objets
+### Lot F — Mesure du plafond d'objets ✅ TERMINÉ
 
 Tester progressivement plusieurs paliers réalistes en commençant par le garde-fou 8.
 
@@ -154,7 +154,9 @@ Mesurer :
 - chauffe/session prolongée si test matériel disponible ;
 - qualité tactile.
 
-Fixer un plafond final uniquement si les données permettent de le justifier. Sinon conserver 8 et documenter pourquoi.
+Le Lot F ajoute un banc V2 réel qui charge les nouveaux `model.glb` et `collider.glb` les plus lourds aux paliers 1/4/8, mesure chargement froid, cadence WebGL, stabilisation Rapier et mémoire GPU, puis conserve **8 accessoires simultanés** comme plafond final V2.0. Les données CI valident ce plafond mais ne justifient pas un relèvement au-delà de huit sans test matériel thermique et tactile.
+
+Compte rendu détaillé : `docs/roadmap/V2-03-LOT-F-PLAFOND-OBJETS.md`.
 
 ### Lot G — Boutique/Placement
 
@@ -195,6 +197,8 @@ Le runtime ne doit pas recalculer à chaque session une décomposition coûteuse
 
 Le Lot E complète cette séparation au runtime : seules les instances réellement montées sont décodées en Three.js. Le cache persistant lourd reste dans le Service Worker et non dans un cache de scènes GPU.
 
+Le Lot F conserve cette architecture et fixe le plafond V2.0 à huit instances simultanées. Aucun cache de scènes décodées n'est ajouté pour améliorer artificiellement le benchmark.
+
 ## 8. Contrats frontend / 3D / physique
 
 - `AccessoryModel` consomme le GLB sans mutation destructive partagée ;
@@ -204,6 +208,7 @@ Le Lot E complète cette séparation au runtime : seules les instances réelleme
 - garde-fou runtime : maximum 12 parties convexes et 4096 sommets par partie ;
 - les ressources render sont libérées à l'unmount/reload ;
 - la scène Three.js d'un proxy est libérée immédiatement après extraction des tableaux de sommets ;
+- maximum **8 accessoires simultanés** en V2.0 ;
 - scale limits serveur/catalogue conservées ;
 - contact physique crédible ;
 - CCD/sleep/friction/restitution ajustés seulement si mesurés ;
@@ -226,6 +231,8 @@ Le Lot D stage les 11 entrées V2 en `active=false` avec leurs chemins, triangle
 
 Le Lot E ne nécessite aucune migration : il ne change ni catalogue commercial, ni prix, ni possession, ni placement, ni RLS/RPC.
 
+Le Lot F ne nécessite aucune migration : `private.create_equipped_accessory_impl` imposait déjà le plafond serveur à huit placements, aligné avec `MAX_EQUIPPED_ACCESSORIES = 8` côté frontend.
+
 ## 10. Migration / backfill / compatibilité V1
 
 - les quatre accessoires V1 restent valides ;
@@ -242,6 +249,8 @@ Migration Lot D : `20260904225708_v2_03_stage_accessory_catalogue.sql`.
 
 Lot E : aucune migration nécessaire.
 
+Lot F : aucune migration nécessaire.
+
 ## 11. RLS / RPC / idempotence / sécurité
 
 - catalogue lecture contrôlée ;
@@ -249,6 +258,7 @@ Lot E : aucune migration nécessaire.
 - achat unique ;
 - placement uniquement si possédé ;
 - impossible de placer deux fois ;
+- maximum huit placements simultanés défendu aussi côté serveur ;
 - aucun chemin asset arbitraire injecté par client ;
 - les 11 références V2 restent invisibles aux clients tant que `active=false`.
 
@@ -283,9 +293,15 @@ Le validateur release compare `runtimeModelBytes` à la taille exacte du fichier
 
 Le Lot E ne conserve pas de scènes GLTF décodées après leur retrait. Le cache persistant des binaires est borné côté Service Worker ; les géométries, matériaux et textures Three.js restent liés au cycle de vie des objets réellement montés.
 
+Le Lot F mesure les huit V2 les plus lourds à **72 652 triangles render et 26 169 312 octets de GLB**. Sur le runner SwiftShader, le palier tablette 8 charge en 3 919 ms et se stabilise en 4 529 ms. La croissance relative tablette 1→8 est de 2,63× en idle, 2,48× pendant settlement et 2,25× au chargement froid. Le soak reste strictement stable à 9 géométries / 27 textures.
+
+Ces valeurs valident le plafond 8 mais ne sont pas assimilées à des FPS matériels. Un relèvement futur exige des mesures sur téléphone/tablette réels, notamment chauffe et qualité tactile.
+
 ## 14. UX téléphone / tablette / desktop
 
 Tester les objets petits, fins, concaves, proches les uns des autres et le sélecteur fallback. Une preview jolie ne compense pas un objet impossible à attraper ou à poser.
+
+Le Lot F couvre automatiquement le palier 8 sur téléphone et tablette, mais un runner headless ne certifie pas la sensation tactile ni le throttling thermique. Ces deux critères restent une condition préalable à tout relèvement futur du plafond.
 
 ## 15. Tests unitaires utiles
 
@@ -294,9 +310,10 @@ Tester les objets petits, fins, concaves, proches les uns des autres et le séle
 - parsing collision descriptor ;
 - règles disponibilité possédé/placé ;
 - budgets ;
-- politiques de cache render/collider/preview bornées et non chevauchantes.
+- politiques de cache render/collider/preview bornées et non chevauchantes ;
+- plafond V2.0 verrouillé à huit accessoires.
 
-Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Le Lot C couvre la résolution runtime auto/manual, l'extraction de parties convexes, les garde-fous de complexité et le chargement des proxies préparés. Le Lot D étend les invariants de release aux 15 manifestes techniques, chemins publics et budgets render/proxy/preview. Le Lot E étend les tests de cache au `collider.glb` et valide le bornage 24/12/10/48.
+Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Le Lot C couvre la résolution runtime auto/manual, l'extraction de parties convexes, les garde-fous de complexité et le chargement des proxies préparés. Le Lot D étend les invariants de release aux 15 manifestes techniques, chemins publics et budgets render/proxy/preview. Le Lot E étend les tests de cache au `collider.glb` et valide le bornage 24/12/10/48. Le Lot F ajoute un test explicite de `MAX_EQUIPPED_ACCESSORIES = 8`.
 
 ## 16. Browser regression
 
@@ -306,13 +323,15 @@ Le scénario historique `accessory-placement` vérifie déjà que reload et retr
 
 Browser #101 a révélé un faux positif utile : le premier banc comptait les entrées brutes de l'attribut `position` du crâne au lieu des sommets dédupliqués par le runtime. Le rapport montrait néanmoins une mémoire stable à 0 géométrie / 1 texture après 22 cycles, avec tous les renders et proxies disposés. Le banc a été corrigé pour mesurer exactement la couche runtime, sans relever aucun seuil ni exempter d'asset.
 
+Le Lot F ajoute `v2-03-capacity` : paliers tablette 1/4/8 puis téléphone 8 avec les V2 les plus lourds, chargement froid, WebGL, vrais proxies, stabilisation Rapier et soak GPU. Browser regression #106 valide ce scénario ainsi que toute la suite historique.
+
 Les nouveaux objets restent inactifs commercialement ; les scénarios d'achat/placement V2 seront activés au Lot G.
 
 ## 17. Discipline plateformes
 
 Une branche/PR principale. Supabase uniquement si metadata réellement nécessaire. Une Preview Vercel finale peut être utile pour inspecter visuellement les nouveaux contacts 3D, jamais une Preview par asset.
 
-Le Lot E n'impose pas de Preview Vercel : cache et disposal sont vérifiés dans GitHub Actions et aucune branche feature n'a besoin d'un déploiement distant pour ce contrôle. Le quota Vercel est préservé.
+Les Lots E et F n'imposent aucune Preview Vercel : cache, disposal et capacité sont mesurés sur GitHub Actions avec les assets runtime exacts. Le quota Vercel est préservé.
 
 ## 18. Critères d'acceptation
 
@@ -321,10 +340,10 @@ Le Lot E n'impose pas de Preview Vercel : cache et disposal sont vérifiés dans
 - [ ] pas d'effet flottant perceptible ;
 - [ ] objets uniques respectés ;
 - [ ] anciens accessoires non cassés ;
-- [ ] budgets mesurés ;
-- [ ] plafond d'objets mesuré et fixé ou explicitement maintenu à 8 ;
+- [x] budgets mesurés ;
+- [x] plafond d'objets mesuré et fixé ou explicitement maintenu à 8 ;
 - [x] cache/disposal bornés ;
-- [ ] CI + Browser regression verts ;
+- [x] CI + Browser regression verts ;
 - [ ] production vérifiée après merge.
 
 ## 19. Interdictions anti-scope-creep
@@ -333,7 +352,7 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 
 ## 20. État / compte rendu d'exécution
 
-**Statut global : en cours. Lots A à E terminés. Lots F et G non démarrés.**
+**Statut global : en cours. Lots A à F terminés. Lot G non démarré.**
 
 ### Lot A — checkpoint du 4 septembre 2026
 
@@ -406,10 +425,29 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 - tests unitaires de politique cache étendus aux proxies et au non-chevauchement render/collider ;
 - nouveau scénario Browser `accessory-resources` : 11 V2 × 2 tours, render WebGL, disposal réel, extraction runtime des colliders et mesure `renderer.info.memory` ;
 - premier passage #101 : mémoire stable et disposal complet, faux positif sur comptage brut des sommets du crâne ; test corrigé pour utiliser `createConvexColliderParts` sans modifier les limites runtime ;
+- CI #432 et Browser regression #104 verts ;
 - aucune migration Supabase : état maintenu à 4 actifs V1 / 11 V2 staged / 0 V2 actif ;
 - aucun déploiement Vercel consommé ;
 - rapport complet : `docs/roadmap/V2-03-LOT-E-CHARGEMENT-DISPOSAL.md`.
 
-À compléter dans les lots suivants : plafond retenu et mesures du Lot F, tests Browser des nouveaux objets après activation, activation Boutique/Placement du Lot G, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
+### Lot F — checkpoint du 5 septembre 2026
+
+- nouveau banc `v2-03-capacity` branché à Browser regression avec les vrais `model.glb`, `collider.glb`, `AccessoryModel` et `PlacementPhysicsWorld` ;
+- paliers V2 réels : tablette 1/4/8 et téléphone 8 ;
+- sélection conservatrice par poids GLB : le palier 8 concentre les huit V2 les plus lourds, soit 72 652 triangles render et 26 169 312 octets ;
+- tablette 8 : chargement froid 3 919 ms, idle moyen 211,2 ms / p95 260,4 ms sous SwiftShader, settlement 4 529 ms ;
+- téléphone 8 : chargement froid 2 445 ms, idle moyen 99,6 ms / p95 104,9 ms, settlement 3 975 ms ;
+- croissance tablette 1→8 : idle 2,63×, settlement 2,48×, chargement 2,25× ;
+- soak GPU tablette et téléphone à 8 : 9 géométries / 27 textures avant et après, stable ;
+- benchmark Placement historique toujours vert à 1/4/8 avec téléphone/tablette/desktop ;
+- `MAX_EQUIPPED_ACCESSORIES = 8` verrouillé par test unitaire ;
+- plafond serveur déjà aligné : le neuvième placement est refusé par `private.create_equipped_accessory_impl` ;
+- décision finale : **plafond V2.0 = 8**, sans relèvement faute de preuve matérielle thermique/tactile pour 10+ ;
+- CI #434 et Browser regression #106 verts ;
+- aucune migration Supabase et aucune activation V2 ;
+- aucun déploiement Vercel consommé ;
+- rapport complet : `docs/roadmap/V2-03-LOT-F-PLAFOND-OBJETS.md`.
+
+À compléter au Lot G : activation Boutique/Placement, achat unique, état Possédé, retrait/réutilisation, sélection/tap des V2, validation finale distante si réellement nécessaire, puis production après merge et dettes vers V2-10/V2.3.
 
 **Ne pas démarrer V2-04 dans cette PR.**
