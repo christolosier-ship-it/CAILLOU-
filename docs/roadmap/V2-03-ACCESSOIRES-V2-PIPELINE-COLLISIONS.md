@@ -1,6 +1,6 @@
 # V2-03 — Accessoires V2 & pipeline collisions
 
-> **Statut : en cours — Lots A à D terminés le 5 septembre 2026.**
+> **Statut : en cours — Lots A à E terminés le 5 septembre 2026.**
 >
 > **Date : 5 septembre 2026.**
 >
@@ -127,13 +127,17 @@ Le Lot D applique au render la normalisation source définie au Lot C, simplifie
 
 Compte rendu détaillé : `docs/roadmap/V2-03-LOT-D-PREVIEW-CATALOGUE.md`.
 
-### Lot E — Chargement et disposal
+### Lot E — Chargement et disposal ✅ TERMINÉ
 
 - lazy-load ;
 - ne pas précharger le catalogue complet ;
 - cache runtime borné ;
 - libération géométrie/matériaux/textures après retrait/changement ;
 - pas de duplication GPU inutile entre preview et scène.
+
+Le Lot E conserve le chargement à la demande de `AccessoryModel` et l'absence volontaire de cache global de scènes GLTF décodées. Les renders sont disposés lors d'un retrait/reload, les proxies sont disposés immédiatement après extraction des parties convexes, les previews restent des images DOM et les caches Workbox sont bornés séparément pour code, renders, colliders et previews.
+
+Compte rendu détaillé : `docs/roadmap/V2-03-LOT-E-CHARGEMENT-DISPOSAL.md`.
 
 ### Lot F — Mesure du plafond d'objets
 
@@ -189,6 +193,8 @@ source
 
 Le runtime ne doit pas recalculer à chaque session une décomposition coûteuse pouvant être préparée hors ligne.
 
+Le Lot E complète cette séparation au runtime : seules les instances réellement montées sont décodées en Three.js. Le cache persistant lourd reste dans le Service Worker et non dans un cache de scènes GPU.
+
 ## 8. Contrats frontend / 3D / physique
 
 - `AccessoryModel` consomme le GLB sans mutation destructive partagée ;
@@ -196,6 +202,8 @@ Le runtime ne doit pas recalculer à chaque session une décomposition coûteuse
 - `AccessoryModel` sait désactiver les colliders automatiques Rapier et charger un `collider.glb` préparé ;
 - chaque mesh du proxy devient une partie `ConvexHullCollider`, sans décomposition coûteuse au runtime ;
 - garde-fou runtime : maximum 12 parties convexes et 4096 sommets par partie ;
+- les ressources render sont libérées à l'unmount/reload ;
+- la scène Three.js d'un proxy est libérée immédiatement après extraction des tableaux de sommets ;
 - scale limits serveur/catalogue conservées ;
 - contact physique crédible ;
 - CCD/sleep/friction/restitution ajustés seulement si mesurés ;
@@ -216,6 +224,8 @@ Le Lot C durcit le contrat : toute `geometrySource = proxy` impose désormais un
 
 Le Lot D stage les 11 entrées V2 en `active=false` avec leurs chemins, triangles, dimensions, scales, physique, collision et budgets finaux. Les possessions restent celles de V2-02 et aucune référence V2 n'est activée avant le Lot G.
 
+Le Lot E ne nécessite aucune migration : il ne change ni catalogue commercial, ni prix, ni possession, ni placement, ni RLS/RPC.
+
 ## 10. Migration / backfill / compatibilité V1
 
 - les quatre accessoires V1 restent valides ;
@@ -230,6 +240,8 @@ Migration Lot C : `20260904220112_v2_03_proxy_collision_contract.sql`.
 
 Migration Lot D : `20260904225708_v2_03_stage_accessory_catalogue.sql`.
 
+Lot E : aucune migration nécessaire.
+
 ## 11. RLS / RPC / idempotence / sécurité
 
 - catalogue lecture contrôlée ;
@@ -242,10 +254,17 @@ Migration Lot D : `20260904225708_v2_03_stage_accessory_catalogue.sql`.
 
 ## 12. Offline / PWA / réconciliation
 
-- cache GLB/previews borné ;
-- priorité aux objets placés/possédés nécessaires au Socle ;
+- aucun GLB lourd n'est ajouté au précache du shell ;
+- cache render `model.glb` : CacheFirst, 12 entrées max, 30 jours ;
+- cache proxy `collider.glb` : CacheFirst, 10 entrées max, 30 jours ;
+- cache previews : StaleWhileRevalidate, 48 entrées max, 14 jours ;
+- cache code lazy : StaleWhileRevalidate, 24 entrées max, 30 jours ;
+- tous les caches runtime utilisent `purgeOnQuotaError` ;
+- priorité aux objets réellement demandés par le Socle ;
 - catalogue stale acceptable en lecture dégradée avec indication appropriée ;
 - achat jamais simulé offline.
+
+Le catalogue complet n'est pas préchargé en 3D : les caches runtime apprennent les ressources à leur première requête.
 
 ## 13. Performance et budgets
 
@@ -262,6 +281,8 @@ Budgets du pipeline Lot D :
 
 Le validateur release compare `runtimeModelBytes` à la taille exacte du fichier, vérifie les chemins render/preview/proxy et impose les metadata minimales du manifeste schemaVersion 2.
 
+Le Lot E ne conserve pas de scènes GLTF décodées après leur retrait. Le cache persistant des binaires est borné côté Service Worker ; les géométries, matériaux et textures Three.js restent liés au cycle de vie des objets réellement montés.
+
 ## 14. UX téléphone / tablette / desktop
 
 Tester les objets petits, fins, concaves, proches les uns des autres et le sélecteur fallback. Une preview jolie ne compense pas un objet impossible à attraper ou à poser.
@@ -272,21 +293,26 @@ Tester les objets petits, fins, concaves, proches les uns des autres et le séle
 - scale limits ;
 - parsing collision descriptor ;
 - règles disponibilité possédé/placé ;
-- budgets.
+- budgets ;
+- politiques de cache render/collider/preview bornées et non chevauchantes.
 
-Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Le Lot C couvre la résolution runtime auto/manual, l'extraction de parties convexes, les garde-fous de complexité et le chargement des proxies préparés. Le Lot D étend les invariants de release aux 15 manifestes techniques, chemins publics et budgets render/proxy/preview.
+Le Lot B couvre le parsing collision/budget côté TypeScript et les contraintes catalogue côté SQL. Le Lot C couvre la résolution runtime auto/manual, l'extraction de parties convexes, les garde-fous de complexité et le chargement des proxies préparés. Le Lot D étend les invariants de release aux 15 manifestes techniques, chemins publics et budgets render/proxy/preview. Le Lot E étend les tests de cache au `collider.glb` et valide le bornage 24/12/10/48.
 
 ## 16. Browser regression
 
 Ajouter aux scénarios existants : chargement nouveaux objets, achat unique, placement, contact réel, retrait/replacement, reload, plusieurs objets jusqu'au plafond retenu, cycles ajout/retrait sans fuite visible.
 
-Les nouveaux objets restent inactifs au Lot D ; la Browser regression vérifie donc en priorité que les V1 et le runtime existant ne régressent pas. Les scénarios d'achat/placement V2 seront activés au Lot G.
+Le scénario historique `accessory-placement` vérifie déjà que reload et retrait provoquent un disposal GPU. Le Lot E ajoute `accessory-resources`, qui parcourt deux fois les 11 renders et 11 proxies V2 réels, mesure `renderer.info.memory`, appelle le vrai `disposeRockObject` et vérifie les proxies via le vrai `createConvexColliderParts` et les constantes 12/4096 du runtime.
+
+Browser #101 a révélé un faux positif utile : le premier banc comptait les entrées brutes de l'attribut `position` du crâne au lieu des sommets dédupliqués par le runtime. Le rapport montrait néanmoins une mémoire stable à 0 géométrie / 1 texture après 22 cycles, avec tous les renders et proxies disposés. Le banc a été corrigé pour mesurer exactement la couche runtime, sans relever aucun seuil ni exempter d'asset.
+
+Les nouveaux objets restent inactifs commercialement ; les scénarios d'achat/placement V2 seront activés au Lot G.
 
 ## 17. Discipline plateformes
 
 Une branche/PR principale. Supabase uniquement si metadata réellement nécessaire. Une Preview Vercel finale peut être utile pour inspecter visuellement les nouveaux contacts 3D, jamais une Preview par asset.
 
-Le Lot D n'impose pas de Preview Vercel : les previews sont inspectées dans l'artefact GitHub et `vercel.json` n'autorise pas le déploiement de la branche `feat/v2-03-accessories-v2`.
+Le Lot E n'impose pas de Preview Vercel : cache et disposal sont vérifiés dans GitHub Actions et aucune branche feature n'a besoin d'un déploiement distant pour ce contrôle. Le quota Vercel est préservé.
 
 ## 18. Critères d'acceptation
 
@@ -297,7 +323,7 @@ Le Lot D n'impose pas de Preview Vercel : les previews sont inspectées dans l'a
 - [ ] anciens accessoires non cassés ;
 - [ ] budgets mesurés ;
 - [ ] plafond d'objets mesuré et fixé ou explicitement maintenu à 8 ;
-- [ ] cache/disposal bornés ;
+- [x] cache/disposal bornés ;
 - [ ] CI + Browser regression verts ;
 - [ ] production vérifiée après merge.
 
@@ -307,7 +333,7 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 
 ## 20. État / compte rendu d'exécution
 
-**Statut global : en cours. Lots A à D terminés. Lots E à G non démarrés.**
+**Statut global : en cours. Lots A à E terminés. Lots F et G non démarrés.**
 
 ### Lot A — checkpoint du 4 septembre 2026
 
@@ -367,8 +393,23 @@ Ne pas ajouter d'animation, interaction, sols, peinture, collection thématique,
 - vérification serveur : 4 actifs V1, 11 V2 inactifs, 0 possession V2, 0 placement V2, RLS catalogue inchangée ;
 - aucune nouvelle exigence licences/notices/provenance pour les V2 ;
 - aucune Preview Vercel manuelle consommée ;
+- CI #428 et Browser regression #100 verts ;
 - rapport complet : `docs/roadmap/V2-03-LOT-D-PREVIEW-CATALOGUE.md`.
 
-À compléter dans les lots suivants : chargement/cache/disposal, plafond retenu et mesures, tests Browser des nouveaux objets après activation, activation Boutique/Placement, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
+### Lot E — checkpoint du 5 septembre 2026
+
+- audit confirmé : `AccessoryModel` charge uniquement les instances montées, sans cache global de scènes GLTF décodées ;
+- renders disposés à l'unmount/reload via `disposeRockObject` ; proxies disposés immédiatement après extraction des sommets ;
+- previews Boutique conservées comme images DOM, donc sans duplication WebGL avec la scène ;
+- nouveau cache Workbox `collider.glb` CacheFirst borné à 10 entrées / 30 jours / purge sur erreur de quota ;
+- caches runtime désormais bornés à 24 code lazy / 12 renders / 10 colliders / 48 previews ;
+- tests unitaires de politique cache étendus aux proxies et au non-chevauchement render/collider ;
+- nouveau scénario Browser `accessory-resources` : 11 V2 × 2 tours, render WebGL, disposal réel, extraction runtime des colliders et mesure `renderer.info.memory` ;
+- premier passage #101 : mémoire stable et disposal complet, faux positif sur comptage brut des sommets du crâne ; test corrigé pour utiliser `createConvexColliderParts` sans modifier les limites runtime ;
+- aucune migration Supabase : état maintenu à 4 actifs V1 / 11 V2 staged / 0 V2 actif ;
+- aucun déploiement Vercel consommé ;
+- rapport complet : `docs/roadmap/V2-03-LOT-E-CHARGEMENT-DISPOSAL.md`.
+
+À compléter dans les lots suivants : plafond retenu et mesures du Lot F, tests Browser des nouveaux objets après activation, activation Boutique/Placement du Lot G, Preview finale si nécessaire, production, dettes vers V2-10/V2.3.
 
 **Ne pas démarrer V2-04 dans cette PR.**
