@@ -1,5 +1,5 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import type { Json } from '../../src/lib/supabase/database.types'
@@ -176,7 +176,10 @@ function Fixture() {
     setLoadAllMs(performance.now() - benchmarkStartedRef.current)
   }, [loadAllMs, objectCount, readyIds.length])
 
-  const handleGeometryReady = useCallback((_instanceId: string, _geometry: PlacementGeometry | null) => undefined, [])
+  const handleGeometryReady = useCallback((instanceId: string, geometry: PlacementGeometry | null) => {
+    void instanceId
+    void geometry
+  }, [])
 
   const handleLoadState = useCallback((instanceId: string, state: 'loading' | 'ready' | 'error', message?: string) => {
     if (state === 'loading') {
