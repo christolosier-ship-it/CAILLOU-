@@ -111,10 +111,22 @@ try {
   }
 
   await page.waitForFunction(() => document.querySelector('#v2-03-commerce-state')?.getAttribute('data-tap-ready') === 'true', { timeout: 30_000 })
-  const canvas = await page.$('#v2-tap-probe canvas')
-  const box = await canvas?.boundingBox()
-  if (!box) throw new Error('V2 tap probe canvas is missing')
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await page.$eval('#v2-tap-probe canvas', (canvas) => {
+    const rect = canvas.getBoundingClientRect()
+    const clientX = rect.left + rect.width / 2
+    const clientY = rect.top + rect.height / 2
+    const common = {
+      pointerId: 903,
+      pointerType: 'touch',
+      bubbles: true,
+      cancelable: true,
+      clientX,
+      clientY,
+    }
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { ...common, buttons: 1 }))
+    canvas.dispatchEvent(new PointerEvent('pointerup', { ...common, buttons: 0 }))
+    canvas.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX, clientY }))
+  })
   await page.waitForFunction(() => document.querySelector('#v2-03-commerce-state')?.getAttribute('data-tap-count') === '1', { timeout: 5_000 })
 
   await page.screenshot({ path: `${outputDir}/commerce-phone.png`, fullPage: true })
