@@ -7,7 +7,15 @@ if [ -z "${VERCEL_GIT_PREVIOUS_SHA:-}" ]; then
   exit 1
 fi
 
-changed_files="$(git diff --name-only "$VERCEL_GIT_PREVIOUS_SHA" HEAD)"
+# Vercel may checkout a shallow Git history. If the previous production SHA is
+# not available locally, prefer building instead of making the ignore step fail.
+if ! git cat-file -e "${VERCEL_GIT_PREVIOUS_SHA}^{commit}" 2>/dev/null; then
+  exit 1
+fi
+
+if ! changed_files="$(git diff --name-only "$VERCEL_GIT_PREVIOUS_SHA" HEAD 2>/dev/null)"; then
+  exit 1
+fi
 
 # Generated Supabase types are contracts only and do not change the runtime by themselves.
 runtime_files="$(printf '%s\n' "$changed_files" | grep -v '^src/lib/supabase/database.types.ts$' || true)"
