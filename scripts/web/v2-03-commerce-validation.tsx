@@ -123,7 +123,20 @@ function TapProbe({ item, onReady, onTap }: {
   }), [item])
 
   return (
-    <div id="v2-tap-probe" style={{ position: 'fixed', right: 8, bottom: 8, width: 220, height: 220, zIndex: 2 }}>
+    <div
+      id="v2-tap-probe"
+      style={{
+        position: 'fixed',
+        right: 8,
+        top: 8,
+        width: 220,
+        height: 220,
+        zIndex: 80,
+        border: '1px solid rgba(0, 0, 0, 0.16)',
+        borderRadius: 12,
+        overflow: 'hidden',
+      }}
+    >
       <Canvas camera={{ position: [0, 0, 4], fov: 38, near: 0.05, far: 50 }} dpr={1} frameloop="demand">
         <color attach="background" args={['#e5e1d8']} />
         <ambientLight intensity={0.8} />
