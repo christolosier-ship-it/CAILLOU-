@@ -17,6 +17,11 @@
   <script type="module">
     import * as THREE from 'three'
     import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+    import {
+      MAX_ACCESSORY_COLLIDER_PARTS,
+      MAX_ACCESSORY_COLLIDER_VERTICES_PER_PART,
+      createConvexColliderParts,
+    } from '/src/features/placement/placementColliderGeometry.ts'
     import { disposeRockObject } from '/src/scene/rockResources.ts'
 
     const ids = [
@@ -81,15 +86,11 @@
       camera.updateProjectionMatrix()
     }
 
-    function proxyComplexity(root) {
-      let parts = 0
-      let maxVertices = 0
-      root.traverse((child) => {
-        if (!child.isMesh) return
-        parts += 1
-        maxVertices = Math.max(maxVertices, child.geometry.getAttribute('position')?.count ?? 0)
-      })
-      return { parts, maxVertices }
+    function runtimeProxyComplexity(parts) {
+      return {
+        parts: parts.length,
+        maxVertices: Math.max(...parts.map((vertices) => vertices.length / 3)),
+      }
     }
 
     renderer.render(scene, camera)
@@ -116,8 +117,14 @@
       const afterModel = { ...renderer.info.memory }
 
       const collider = await loadObject(colliderPath)
-      const complexity = proxyComplexity(collider)
-      const colliderDisposal = disposeRockObject(collider)
+      let colliderParts
+      let colliderDisposal
+      try {
+        colliderParts = createConvexColliderParts(collider)
+      } finally {
+        colliderDisposal = disposeRockObject(collider)
+      }
+      const complexity = runtimeProxyComplexity(colliderParts)
 
       samples.push({
         id,
@@ -142,7 +149,9 @@
       const maxResidualTextures = Math.max(...samples.map((sample) => sample.afterModel.textures))
       const allModelsDisposed = samples.every((sample) => sample.modelDisposal.geometries >= 1 && sample.modelDisposal.materials >= 1)
       const allCollidersDisposed = samples.every((sample) => sample.colliderDisposal.geometries >= 1 && sample.colliderDisposal.materials >= 1)
-      const colliderBoundsValid = samples.every((sample) => sample.complexity.parts >= 1 && sample.complexity.parts <= 12 && sample.complexity.maxVertices <= 4096)
+      const colliderBoundsValid = samples.every((sample) => sample.complexity.parts >= 1
+        && sample.complexity.parts <= MAX_ACCESSORY_COLLIDER_PARTS
+        && sample.complexity.maxVertices <= MAX_ACCESSORY_COLLIDER_VERTICES_PER_PART)
       const stable = maxResidualGeometries <= baseline.geometries + 1
         && maxResidualTextures <= baseline.textures + 1
         && finalMemory.geometries <= baseline.geometries + 1
