@@ -44,7 +44,7 @@ function accessoryLicense(provenance: AccessoryCatalogItem['provenance']) {
     const license = provenance.license
     if (typeof license === 'string' && license.trim()) return license
   }
-  return 'Licence vérifiée'
+  return null
 }
 
 export function AccessoryShop({
@@ -234,6 +234,7 @@ export function AccessoryShop({
             <div className="accessory-shop-grid">
               {items.map((item) => {
                 const pending = pendingId === item.id
+                const license = accessoryLicense(item.provenance)
                 const availability = getPurchaseAvailability({
                   balance,
                   priceLithons: item.priceLithons,
@@ -257,7 +258,7 @@ export function AccessoryShop({
                       <p>{item.description}</p>
                       <dl>
                         <div><dt>Prix fixe</dt><dd>{formatLithons(item.priceLithons)}</dd></div>
-                        <div><dt>Licence</dt><dd>{accessoryLicense(item.provenance)}</dd></div>
+                        {license ? <div><dt>Licence</dt><dd>{license}</dd></div> : null}
                       </dl>
 
                       {item.purchasedAt ? (

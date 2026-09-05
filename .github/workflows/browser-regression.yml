@@ -109,6 +109,7 @@ jobs:
           run_vite placement-cancel 4184 scripts/web/validate-placement-cancel-e2e.mjs
           run_vite placement-performance 4185 scripts/web/validate-placement-performance-e2e.mjs
           run_vite v2-03-capacity 4188 scripts/web/validate-v2-03-capacity.mjs
+          run_vite v2-03-commerce 4189 scripts/web/validate-v2-03-commerce-e2e.mjs
           run_vite v2-02-economy 4186 scripts/web/validate-v2-02-economy-e2e.mjs
           run_http showroom-memory 4173 scripts/web/validate-showroom-memory.mjs
           run_vite showroom-ui 4174 scripts/web/validate-showroom-ui.mjs
