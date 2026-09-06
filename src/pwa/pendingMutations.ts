@@ -10,6 +10,8 @@ export type PendingMutationOperation =
   | 'stabilize_rock_composition'
   | 'commit_placement_session'
   | 'purchase_rock_feature_unlock'
+  | 'purchase_floor'
+  | 'select_floor'
 
 export interface PendingServerMutation {
   operation: PendingMutationOperation

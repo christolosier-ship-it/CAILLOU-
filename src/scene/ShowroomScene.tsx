@@ -1,3 +1,4 @@
+import type { FloorMaterial } from '../features/floors/floorTypes'
 import { ContactShadows } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
@@ -33,6 +34,7 @@ export type ShowroomInteractionMode =
   | 'settling'
 
 interface ShowroomSceneProps {
+  floorMaterial?: FloorMaterial | undefined
   rock: RockCatalogEntry
   retryKey: number
   reducedMotion: boolean
@@ -73,6 +75,7 @@ function samePosition(left: readonly number[], right: readonly number[], epsilon
 }
 
 export function ShowroomScene({
+  floorMaterial,
   rock,
   retryKey,
   reducedMotion,
@@ -201,7 +204,7 @@ export function ShowroomScene({
         <directionalLight position={[1.2, 3.4, -4.4]} intensity={0.62} />
 
         <Suspense fallback={null}>
-          <PlacementPhysicsWorld paused={!object}>
+          <PlacementPhysicsWorld paused={!object} floorMaterial={floorMaterial}>
             <RockSceneObject
               rock={rock}
               retryKey={retryKey}

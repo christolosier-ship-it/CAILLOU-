@@ -1,3 +1,5 @@
+import { FloorShopSection } from '../floors/FloorShopSection'
+import type { FloorController } from '../floors/useFloors'
 import { Check, Gem, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -13,6 +15,7 @@ import type {
 } from './accessoryTypes'
 
 interface AccessoryShopProps {
+  floors?: FloorController | undefined
   balance: number
   onBalanceChanged: (balance: number) => void
   onPurchased: (result: PurchaseAccessoryResult) => void
@@ -49,6 +52,7 @@ function accessoryLicense(provenance: AccessoryCatalogItem['provenance']) {
 
 export function AccessoryShop({
   balance,
+  floors,
   onBalanceChanged,
   onPurchased,
   onClose,
@@ -70,7 +74,7 @@ export function AccessoryShop({
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
   const [purchaseFeedback, setPurchaseFeedback] = useState<string | null>(null)
   const [retryInput, setRetryInput] = useState<PurchaseAccessoryInput | null>(null)
-  const busy = pendingId !== null || permitPending
+  const busy = pendingId !== null || permitPending || !!floors?.pending
   const mutationBlocked = busy || interactionDisabled
 
   const refresh = useCallback(async () => {
@@ -153,7 +157,7 @@ export function AccessoryShop({
           <div>
             <p className="eyebrow">Registre des acquisitions</p>
             <h2 id="accessory-shop-title">Boutique</h2>
-            <p>Accessoires permanents au compte et autorisations propres au caillou actif. Ici on acquiert. Le déplacement des objets reste exclusivement dans Placement.</p>
+            <p>Accessoires et sols permanents au compte, fonctionnalités propres au caillou actif. Ici on acquiert. Le déplacement des objets reste exclusivement dans Placement.</p>
           </div>
           <button
             type="button"
@@ -172,6 +176,8 @@ export function AccessoryShop({
           <span>Solde disponible</span>
           <strong>{formatLithons(balance)}</strong>
         </div>
+
+        {floors ? <FloorShopSection floors={floors} balance={balance} disabled={mutationBlocked} /> : null}
 
         <section className="shop-section" aria-labelledby="shop-services-title">
           <header className="shop-section-heading">

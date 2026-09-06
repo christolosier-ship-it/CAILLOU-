@@ -1,0 +1,12 @@
+.floor-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.floor-card { overflow: hidden; border: 1px solid #cec8bc; border-radius: 14px; background: #f8f6f0; }
+.floor-card.is-selected { border-color: #646d57; box-shadow: 0 0 0 1px #646d57; }
+.floor-swatch { display: block; width: 100%; height: 140px; object-fit: cover; }
+.floor-card-copy { display: flex; flex-direction: column; align-items: stretch; padding: 14px; gap: 10px; }
+.floor-card-copy h4 { margin: 0; font-size: 1rem; }
+.floor-card-copy p { margin: 0; font-size: .85rem; line-height: 1.45; color: #635e54; min-height: 2.5em; }
+.floor-ownership { display: flex; align-items: center; gap: 5px; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: #565e4b; }
+.floor-card .accessory-buy { min-height: 44px; width: 100%; white-space: normal; }
+.floor-notice { margin: 12px 0; font-size: .88rem; line-height: 1.5; }
+@media (max-width: 720px) { .floor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .floor-swatch { height: 112px; } .floor-card-copy { padding: 12px; } }
+@media (max-width: 360px) { .floor-grid { grid-template-columns: 1fr; } }
