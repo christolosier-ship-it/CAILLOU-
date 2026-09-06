@@ -17,8 +17,9 @@ async function select(id){
 }
 try{
   await page.setViewport({width:390,height:844,isMobile:true,hasTouch:true,deviceScaleFactor:1})
-  await page.goto(`${base}/scripts/web/v2-04-floors-validation.html`,{waitUntil:'networkidle0'})
+  await page.goto(`${base}/scripts/web/v2-04-floors-validation.html`,{waitUntil:'domcontentloaded'})
   await ready()
+  await page.waitForFunction(()=>window.__floorProbe?.().status==='ready',{timeout:20000})
   await page.screenshot({path:`${output}/boutique-mobile.png`,fullPage:true})
   // Lost purchase confirmation: retry the identical operation and debit once.
   await page.evaluate(()=>sessionStorage.setItem('floor-fail-once','1'))
@@ -28,7 +29,7 @@ try{
   await page.waitForFunction(()=>document.querySelector('.floor-card[data-floor-id="moquette"] button')?.textContent==='Sélectionner')
   if(await page.$eval('#floor-state',e=>e.getAttribute('data-purchases'))!=='1')throw new Error('Duplicate debit after retry')
   await select('moquette')
-  await page.reload({waitUntil:'networkidle0'});await ready()
+  await page.reload({waitUntil:'domcontentloaded'});await ready()
   if(await page.$eval('#floor-state',e=>e.getAttribute('data-selected'))!=='moquette')throw new Error('Selection lost on reload')
   await page.setOfflineMode(true)
   await page.waitForFunction(()=>document.querySelector('#floor-state')?.getAttribute('data-online')==='false')
