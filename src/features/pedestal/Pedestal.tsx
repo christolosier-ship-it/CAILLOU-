@@ -1,3 +1,4 @@
+import { useFloors } from '../floors/useFloors'
 import { BrushCleaning, ClipboardList, Gem, HandHeart, Move, Shirt, Trash2 } from 'lucide-react'
 import type { Dispatch } from 'react'
 import { useCallback, useReducer, useState } from 'react'
@@ -76,6 +77,8 @@ export function Pedestal({
     registerCaressMutation,
     registerCleaningMutation,
   })
+
+  const floors = useFloors(activeRock.id, care.setBalance)
 
   const placement = usePedestalPlacement({
     activeRock,
@@ -205,6 +208,7 @@ export function Pedestal({
         <section
           className="pedestal-stage"
           aria-label={`Socle de ${activeRock.name}`}
+          data-floor-id={floors.snapshot?.selectedId ?? 'base'}
           data-dust-amount={care.dustAmount.toFixed(3)}
           data-accessory-count={placement.accessoryInstances.length}
           data-rock-mode={mode}
@@ -222,6 +226,7 @@ export function Pedestal({
           </div>
 
           <ShowroomScene
+            floorMaterial={floors.material}
             rock={rock}
             retryKey={retryKey}
             reducedMotion={reducedMotion}
@@ -390,6 +395,7 @@ export function Pedestal({
 
       {accessoryShopOpen ? (
         <AccessoryShop
+          floors={floors}
           balance={care.economyState.balance}
           permit={placement.rockPermit.snapshot}
           permitLoading={placement.rockPermit.loading}

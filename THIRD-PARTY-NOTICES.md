@@ -28,3 +28,7 @@ Licence CC0 1.0 : https://creativecommons.org/publicdomain/zero/1.0/
 Les métadonnées détaillées de provenance utilisées par le pipeline sont conservées dans `public/assets/accessories/catalog.json`. Le présent document est la notice lisible destinée à accompagner la distribution.
 
 Les licences des dépendances logicielles installées via npm restent celles déclarées par leurs paquets respectifs ; cette notice est dédiée aux assets 3D tiers distribués avec l'application.
+
+## V2-04 — textures de sols
+
+Les matériaux Carpet004, WoodFloor051, Concrete033, Ground048, Tiles074, Grass001, Marble006 et Snow001 proviennent d’[ambientCG](https://ambientcg.com), sous [CC0 1.0](https://docs.ambientcg.com/license/). Sources individuelles, empreintes des archives et budgets : `scripts/floors/catalog.json`. Les textures sont redimensionnées et converties en WebP ; les normales OpenGL et la rugosité restent des données linéaires. Aucun déplacement géométrique n’est appliqué.

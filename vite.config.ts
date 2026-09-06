@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 import {
+  FLOOR_RUNTIME_CACHE, FLOOR_CACHE_MAX_ENTRIES, FLOOR_CACHE_MAX_AGE_SECONDS, FLOOR_RUNTIME_PATTERN,
   CODE_CACHE_MAX_AGE_SECONDS,
   CODE_CACHE_MAX_ENTRIES,
   CODE_RUNTIME_CACHE,
@@ -39,6 +40,15 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
+          {
+            urlPattern: FLOOR_RUNTIME_PATTERN,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: FLOOR_RUNTIME_CACHE,
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: FLOOR_CACHE_MAX_ENTRIES, maxAgeSeconds: FLOOR_CACHE_MAX_AGE_SECONDS, purgeOnQuotaError: true },
+            },
+          },
           {
             urlPattern: LAZY_CODE_RUNTIME_PATTERN,
             handler: 'StaleWhileRevalidate',

@@ -185,6 +185,45 @@ export type Database = {
         }
         Relationships: []
       }
+      floors: {
+        Row: {
+          active: boolean
+          budget: Json
+          description: string
+          id: string
+          material: Json
+          name: string
+          preview_path: string | null
+          price_lithons: number
+          provenance: Json
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          budget?: Json
+          description: string
+          id: string
+          material: Json
+          name: string
+          preview_path?: string | null
+          price_lithons: number
+          provenance?: Json
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          budget?: Json
+          description?: string
+          id?: string
+          material?: Json
+          name?: string
+          preview_path?: string | null
+          price_lithons?: number
+          provenance?: Json
+          sort_order?: number
+        }
+        Relationships: []
+      }
       lithon_ledger: {
         Row: {
           accessory_id: string | null
@@ -435,11 +474,51 @@ export type Database = {
           },
         ]
       }
+      user_floors: {
+        Row: {
+          acquired_at: string
+          acquisition_source: string
+          floor_id: string
+          price_paid: number | null
+          user_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          acquisition_source: string
+          floor_id: string
+          price_paid?: number | null
+          user_id: string
+        }
+        Update: {
+          acquired_at?: string
+          acquisition_source?: string
+          floor_id?: string
+          price_paid?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_floors_floor_id_fkey"
+            columns: ["floor_id"]
+            isOneToOne: false
+            referencedRelation: "floors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_floors_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_rocks: {
         Row: {
           adopted_at: string
           created_at: string
           discarded_at: string | null
+          floor_id: string
           id: string
           last_cleaned_at: string | null
           name: string
@@ -454,6 +533,7 @@ export type Database = {
           adopted_at?: string
           created_at?: string
           discarded_at?: string | null
+          floor_id?: string
           id?: string
           last_cleaned_at?: string | null
           name: string
@@ -468,6 +548,7 @@ export type Database = {
           adopted_at?: string
           created_at?: string
           discarded_at?: string | null
+          floor_id?: string
           id?: string
           last_cleaned_at?: string | null
           name?: string
@@ -479,6 +560,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "user_rocks_owned_floor_fkey"
+            columns: ["user_id", "floor_id"]
+            isOneToOne: false
+            referencedRelation: "user_floors"
+            referencedColumns: ["user_id", "floor_id"]
+          },
           {
             foreignKeyName: "user_rocks_specimen_id_fkey"
             columns: ["specimen_id"]
@@ -630,6 +718,15 @@ export type Database = {
           unlocked_at: string
         }[]
       }
+      purchase_floor: {
+        Args: { p_event_key: string; p_floor_id: string }
+        Returns: {
+          acquired_at: string
+          balance: number
+          floor_id: string
+          price_paid: number
+        }[]
+      }
       purchase_rock_feature_unlock: {
         Args: {
           p_event_key: string
@@ -663,6 +760,17 @@ export type Database = {
         Args: { p_event_key: string; p_instance_id: string }
         Returns: {
           instance_id: string
+        }[]
+      }
+      select_floor: {
+        Args: {
+          p_event_key: string
+          p_floor_id: string
+          p_user_rock_id: string
+        }
+        Returns: {
+          floor_id: string
+          user_rock_id: string
         }[]
       }
       stabilize_equipped_accessory: {

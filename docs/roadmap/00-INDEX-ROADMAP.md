@@ -206,7 +206,7 @@ Aucun moteur de succès n'est implémenté en V2.0.
 | **V2-01** | [`V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md`](V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md) | Placement 2.0 & scène interactive | V2-00 | **✅ Terminée** |
 | **V2-02** | [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md) | Socle canonique & économie V2 | V2-01 | **✅ Terminée** |
 | **V2-03** | [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md) | Accessoires V2 & pipeline collisions | V2-01, V2-02 | **✅ Terminée** |
-| **V2-04** | [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md) | Sols & Boutique décorative | V2-02 | **▶ Prochaine à exécuter** |
+| **V2-04** | [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md) | Sols & Boutique décorative | V2-02 | **▶ En cours de validation** |
 | **V2-05** | [`V2-05-PEINTURE-CAILLOU.md`](V2-05-PEINTURE-CAILLOU.md) | Peinture du caillou | V2-02 | Prompt prêt |
 | **V2-06** | [`V2-06-PERSONNALITE-2-0.md`](V2-06-PERSONNALITE-2-0.md) | Personnalité 2.0 | V2-02 | Prompt prêt |
 | **V2-07** | [`V2-07-JOURNAL-DE-VIE.md`](V2-07-JOURNAL-DE-VIE.md) | Journal de vie | V2-02, V2-06 | Prompt prêt |

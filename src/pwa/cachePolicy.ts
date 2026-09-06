@@ -20,8 +20,14 @@ export const PREVIEW_CACHE_MAX_AGE_SECONDS = 60 * 60 * 24 * 14
 export const LAZY_CODE_RUNTIME_PATTERN = /\/assets\/(?!index-)[^/]+\.js$/
 export const MODEL_RUNTIME_PATTERN = /\/assets\/(?:rocks|accessories)\/.+\/model\.glb$/
 export const COLLIDER_RUNTIME_PATTERN = /\/assets\/accessories\/[^/]+\/collider\.glb$/
-export const PREVIEW_RUNTIME_PATTERN = /\/assets\/(?:rock-previews|accessory-previews)\/.+\.(?:png|webp|jpg|jpeg)$/
+export const PREVIEW_RUNTIME_PATTERN = /\/assets\/(?:(?:rock-previews|accessory-previews)\/.+\.(?:png|webp|jpg|jpeg)|floors\/[a-z0-9-]+\/v[0-9]+\/preview\.webp)$/
 
 export function boundedCompanionAssetList(urls: readonly string[]) {
   return [...new Set(urls.filter(Boolean))].slice(0, 9)
 }
+
+// Versioned floor textures: three maps for the current floor and a small recent margin.
+export const FLOOR_RUNTIME_CACHE = `caillou-floors-${PWA_CACHE_VERSION}`
+export const FLOOR_CACHE_MAX_ENTRIES = 12
+export const FLOOR_CACHE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+export const FLOOR_RUNTIME_PATTERN = /\/assets\/floors\/[a-z0-9-]+\/v[0-9]+\/(?:color|normal|roughness)\.webp$/

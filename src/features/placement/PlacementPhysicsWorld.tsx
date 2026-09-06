@@ -1,10 +1,11 @@
+import { FloorSurfaceMaterial } from '../floors/FloorSurfaceMaterial'
+import type { FloorMaterial } from '../floors/floorTypes'
 import { CuboidCollider, Physics, RigidBody } from '@react-three/rapier'
 import type { ReactNode } from 'react'
 
 import { ACCESSORY_WORLD_GRAVITY } from '../accessories/accessoryPhysics'
 import {
   PEDESTAL_FLOOR_CENTER_Y,
-  PEDESTAL_FLOOR_COLOR,
   PEDESTAL_FLOOR_FRICTION,
   PEDESTAL_FLOOR_HALF_EXTENTS,
   PEDESTAL_FLOOR_RESTITUTION,
@@ -12,7 +13,7 @@ import {
   PEDESTAL_FLOOR_THICKNESS,
 } from './pedestalFloor'
 
-function PedestalFloor() {
+function PedestalFloor({ material }: { material?: FloorMaterial | undefined }) {
   return (
     <RigidBody
       type="fixed"
@@ -25,18 +26,19 @@ function PedestalFloor() {
       <CuboidCollider args={PEDESTAL_FLOOR_HALF_EXTENTS} />
       <mesh name="CAILLOU_PEDESTAL_FLOOR" receiveShadow>
         <boxGeometry args={[PEDESTAL_FLOOR_SIZE, PEDESTAL_FLOOR_THICKNESS, PEDESTAL_FLOOR_SIZE]} />
-        <meshStandardMaterial color={PEDESTAL_FLOOR_COLOR} roughness={0.96} metalness={0.02} />
+        <FloorSurfaceMaterial descriptor={material} />
       </mesh>
     </RigidBody>
   )
 }
 
 interface PlacementPhysicsWorldProps {
+  floorMaterial?: FloorMaterial | undefined
   paused: boolean
   children: ReactNode
 }
 
-export function PlacementPhysicsWorld({ paused, children }: PlacementPhysicsWorldProps) {
+export function PlacementPhysicsWorld({ paused, children, floorMaterial }: PlacementPhysicsWorldProps) {
   const debugColliders = import.meta.env.DEV
     && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('placementCollisionDebug') === '1'
@@ -49,7 +51,7 @@ export function PlacementPhysicsWorld({ paused, children }: PlacementPhysicsWorl
       paused={paused}
       debug={debugColliders}
     >
-      <PedestalFloor />
+      <PedestalFloor material={floorMaterial} />
       {children}
     </Physics>
   )

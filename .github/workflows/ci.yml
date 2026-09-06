@@ -35,6 +35,9 @@ jobs:
       - name: Release invariants
         run: npm run release:validate
 
+      - name: Floor asset budgets
+        run: node scripts/floors/validate-floor-assets.mjs
+
       - name: Lint
         run: npm run lint
 

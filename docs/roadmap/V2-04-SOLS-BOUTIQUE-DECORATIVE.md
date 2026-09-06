@@ -1,6 +1,6 @@
 # V2-04 — Sols & Boutique décorative
 
-> **Statut : spécifiée — prête à exécuter après V2-02.**
+> **Statut : en validation — implémentation et migration réalisées le 6 septembre 2026.**
 >
 > **Date : 4 septembre 2026.**
 >
@@ -210,8 +210,52 @@ Ne pas ajouter murs, décors, éclairage, physique spécifique parquet/moquette,
 
 ## 20. État / compte rendu d'exécution
 
-**Statut : À exécuter.**
+**Statut : en validation GitHub / navigateur.**
 
-À compléter : catalogue/seed, migrations, possessions, RPC achat, règle sol de base, assets/licences, budgets textures, tests, advisors, Preview éventuelle, production et dettes.
+### Catalogue livré
+
+Le sol originel V1 reste gratuit et automatiquement possédé. Les huit références demandées sont des biens permanents au compte :
+
+| Sol | Lithons | Source ambientCG |
+|---|---:|---|
+| Moquette | 60 | Carpet004 |
+| Parquet chêne | 140 | WoodFloor051 |
+| Béton ciré | 90 | Concrete033 |
+| Terre | 40 | Ground048 |
+| Carrelage | 100 | Tiles074 |
+| Herbe | 75 | Grass001 |
+| Marbre | 200 | Marble006 |
+| Neige | 110 | Snow001 |
+
+### Serveur et compatibilité
+
+Migration appliquée : `20260906090034_v2_04_decorative_floors`.
+
+- `floors` : catalogue et descripteurs serveur ; `user_floors` : possessions compte avec source `purchase`, `free` ou `grant`.
+- `user_rocks.floor_id` : sélection persistante, valeur initiale `base`, FK composée imposant la possession par le propriétaire du caillou.
+- Backfill gratuit pour les profils existants et trigger pour les nouveaux comptes ; aucun ledger historique réécrit.
+- RPC `purchase_floor` : prix serveur, verrou wallet, acquisition unique, débit/ledger atomiques et receipt idempotent ; le prix n'est pas un argument client.
+- RPC `select_floor` : caillou actif possédé et sol possédé ; replay ancien sans écraser une sélection plus récente.
+- Wrappers publics invoker, implémentations privées avec `search_path=''`, RLS et grants explicites. Les items retirés restent lisibles/sélectionnables par leur propriétaire.
+- Tests SQL `supabase/tests/v2_04_floors.sql` exécutés avec rollback : PASS, zéro fixture restante.
+- Advisors : aucune nouvelle alerte sécurité ; avertissement Auth préexistant `auth_leaked_password_protection` ; uniquement INFO d'index encore inutilisés côté performance.
+
+### Frontend, rendu et PWA
+
+- Famille `Sols` dans la Boutique existante ; états distincts Disponible, Gratuit, Possédé, Sélectionné, Solde insuffisant, Confirmation et Réessayer.
+- `useFloors` isole chargement, sélection confirmée, reprise et cache par compte/caillou. Reconnexion : relecture serveur.
+- `FloorSurfaceMaterial` remplace uniquement le matériau du mesh existant. Dimensions, hauteur, friction, restitution, collider et règles de Placement conservés.
+- Chargement à la demande ; colorimétrie sRGB pour la couleur, normales OpenGL, mipmaps, répétition et anisotropie bornée ; disposal au changement, y compris pour les chargements tardifs.
+- 32 WebP : couleurs 1024², normales/rugosité 512², aperçus 256² ; chaque fichier ≤ 1 MiB. Manifest, budgets et SHA256 dans `scripts/floors/catalog.json`.
+- Cache textures borné à 12 entrées/30 jours ; aperçus dans le cache séparé existant ; aucune texture de sol dans le précache initial.
+- Achats/sélections bloqués offline. Une confirmation perdue conserve la même clé dans la file de réconciliation existante.
+
+### Validation à terminer
+
+138 tests unitaires locaux PASS, lint/typecheck/build et invariants de release vérifiés. Le navigateur local ne peut pas démarrer dans l'environnement d'exécution ; les parcours tactiles, reprises, mémoire GPU et physique sont raccordés au workflow Browser regression existant, ainsi qu'un test du vrai service worker compilé.
+
+Restent à consigner avant clôture : PR, CI/Browser verts, captures contrôlées, vérification Vercel et production.
+
+
 
 **Ne pas démarrer V2-05 dans cette PR.**
