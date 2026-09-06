@@ -37,7 +37,14 @@ try{
   if(await page.$eval('#floor-state',e=>e.getAttribute('data-selected'))!=='moquette')throw new Error('Offline selection lost')
   await page.setOfflineMode(false)
   await page.waitForFunction((s)=>!document.querySelector(s)?.disabled,{},button('parquet-chene'))
-  for(const id of ids.slice(1)){
+  // A background reconciliation must release the retry lock without another click.
+  await page.evaluate(()=>sessionStorage.setItem('floor-fail-once','1'))
+  await page.click(button('parquet-chene'))
+  await page.waitForFunction(()=>document.body.textContent.includes('Réessayer la même opération'))
+  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('caillou:server-reconciled')))
+  await page.waitForFunction((s)=>document.querySelector(s)?.textContent==='Sélectionner' && !document.querySelector(s)?.disabled,{},button('parquet-chene'))
+  if(await page.$eval('#floor-state',e=>e.getAttribute('data-purchases'))!=='2')throw new Error('Background reconciliation duplicated purchase')
+  for(const id of ids.slice(2)){
     await page.click(button(id))
     await page.waitForFunction((s)=>document.querySelector(s)?.textContent==='Sélectionner' && !document.querySelector(s)?.disabled,{},button(id))
   }
@@ -66,7 +73,7 @@ try{
   await page.screenshot({path:`${output}/boutique-tablet.png`,fullPage:true})
   if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1))throw new Error('Horizontal overflow')
   if(errors.length)throw new Error(errors.join('\n'))
-  await writeFile(`${output}/report.json`,JSON.stringify({status:'PASS',scenarios:['nine-floor-catalog','purchase-confirmation-retry','selection-reload','offline','account-reuse','24-material-switches','stable-mesh','bounded-gpu','physical-floor'],samples},null,2))
+  await writeFile(`${output}/report.json`,JSON.stringify({status:'PASS',scenarios:['nine-floor-catalog','purchase-confirmation-retry','background-reconciliation','selection-reload','offline','account-reuse','24-material-switches','stable-mesh','bounded-gpu','physical-floor'],samples},null,2))
   console.log('PASS V2-04 floors: commerce, retry, persistence, offline, ownership, physics and GPU memory')
 }catch(error){await page.screenshot({path:`${output}/failure.png`,fullPage:true}).catch(()=>{});await writeFile(`${output}/failure.json`,JSON.stringify({error:String(error),errors,samples},null,2));throw error}
 finally{await browser.close()}

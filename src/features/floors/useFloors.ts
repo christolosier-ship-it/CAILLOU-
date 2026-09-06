@@ -16,6 +16,8 @@ export function useFloors(userRockId: string, onBalanceChanged: (balance: number
   const [confirmed, setConfirmed] = useState(false)
   const rockRef = useRef(userRockId)
   rockRef.current = userRockId
+  const retryRef = useRef(retry)
+  retryRef.current = retry
   const inFlight = useRef(false)
   const requestVersion = useRef(0)
 
@@ -30,7 +32,16 @@ export function useFloors(userRockId: string, onBalanceChanged: (balance: number
       if (!current()) return
       setSnapshot(next)
       setConfirmed(true)
-      setError(null)
+      const interrupted = retryRef.current
+      const reconciled = interrupted && (interrupted.kind === 'purchase'
+        ? next.items.some((item) => item.id === interrupted.floorId && item.acquiredAt)
+        : next.selectedId === interrupted.floorId)
+      if (reconciled) {
+        retryRef.current = null
+        setRetry(null)
+      }
+      // Keep an unresolved retry visible; clearing its error would hide the only action.
+      if (!interrupted || reconciled) setError(null)
       await putResilienceValue(floorCacheKey(next.userId, userRockId), next)
     } catch (failure) {
       const cached = owner ? await getResilienceValue<FloorSnapshot>(floorCacheKey(owner, userRockId)) : null
