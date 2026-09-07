@@ -103,7 +103,7 @@ try {
   if (!pedestal.allTargetsLargeEnough) throw new Error('pedestal action targets are below 44px')
   if (!pedestal.hasCanvas) throw new Error('pedestal 3D canvas is missing')
 
-  await page.click('.pedestal-utility')
+  await page.click('.pedestal-utility[aria-label="Bio et statistiques"]')
   await page.waitForSelector('.pedestal-dialog[role="dialog"]')
   const bio = await page.$eval('.pedestal-dialog', (element) => element.textContent ?? '')
   if (!bio.includes('Bernard') || !bio.includes('Spécimen')) throw new Error('Bio / Stats does not identify the active rock')

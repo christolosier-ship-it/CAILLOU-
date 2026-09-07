@@ -92,7 +92,7 @@ function App() {
       {rockId} · {balance} Lithons
     </output>
     <section className="pedestal-stage" style={{ height: 760, minHeight: 760 }}>
-      <div className="showroom-canvas"><Canvas shadows camera={{ position: [3.1,2.15,4.4], fov: 32 }} gl={{ preserveDrawingBuffer: true }}>
+      <div className="showroom-canvas"><Canvas shadows frameloop={settling ? 'always' : 'demand'} camera={{ position: [3.1,2.15,4.4], fov: 32 }} gl={{ preserveDrawingBuffer: true }}>
         <color attach="background" args={['#e5e1d8']} /><ambientLight intensity={.58} />
         <directionalLight position={[4.5,5.5,4.2]} intensity={2.45} castShadow /><directionalLight position={[-4.2,2.4,-2.5]} intensity={.72} />
         <Suspense fallback={null}><PlacementPhysicsWorld paused={!object}>
