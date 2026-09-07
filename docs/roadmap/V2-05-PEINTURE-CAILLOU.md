@@ -1,6 +1,6 @@
 # V2-05 — Peinture du caillou
 
-> **Statut : implémentée — validation CI et navigateur en cours.**
+> **Statut : terminée, fusionnée et vérifiée en production le 7 septembre 2026.**
 >
 > **Date : 4 septembre 2026.**
 >
@@ -194,17 +194,17 @@ Une branche/PR. DDL via Supabase migration. Preview Vercel finale recommandée p
 
 ## 18. Critères d'acceptation
 
-- [ ] Peinture achetable par caillou ;
-- [ ] absence de transfert au caillou suivant ;
-- [ ] preview locale ;
-- [ ] persistance confirmée ;
-- [ ] natural restaurable ;
-- [ ] matériaux sources intacts ;
-- [ ] plusieurs roches/materials testés ;
-- [ ] pas d'impact collider/Placement ;
-- [ ] RLS/RPC/idempotence validés ;
-- [ ] CI + Browser regression verts ;
-- [ ] production vérifiée.
+- [x] Peinture achetable par caillou ;
+- [x] absence de transfert au caillou suivant ;
+- [x] preview locale ;
+- [x] persistance confirmée ;
+- [x] natural restaurable ;
+- [x] matériaux sources intacts ;
+- [x] plusieurs roches/materials testés ;
+- [x] pas d'impact collider/Placement ;
+- [x] RLS/RPC/idempotence validés ;
+- [x] CI + Browser regression verts ;
+- [x] production vérifiée.
 
 ## 19. Interdictions anti-scope-creep
 
@@ -212,7 +212,7 @@ Ne pas implémenter V2.4 : UV, motifs, zones, couches, patine, stickers, galerie
 
 ## 20. État / compte rendu d'exécution
 
-**Statut : implémentée, validation finale en cours (7 septembre 2026).**
+**Statut : clôturée le 7 septembre 2026.**
 
 ### Implémentation
 
@@ -232,8 +232,18 @@ Ne pas implémenter V2.4 : UV, motifs, zones, couches, patine, stickers, galerie
 - Advisors : aucun nouveau warning ; protection contre mots de passe compromis désactivée, avertissement Auth préexistant ([remédiation](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)).
 - Banc navigateur intégré au workflow existant : composants réels, service économique simulé déterministe, 20 GLB, 60 cycles, captures mobile/tablette, réseau interrompu, réconciliation, poussière et chute physique. Les contrats serveur sont testés séparément par SQL, pas simulés comme preuve serveur.
 
-### À terminer avant clôture
+### Validation finale et publication
 
-CI et Browser regression verts, inspection des captures, fusion, production Vercel READY et vérification des ressources publiées. Aucune Preview intermédiaire. Aucun motif, UV, couche, texture peinte ou périmètre V2.4 ajouté.
+- [PR #49](https://github.com/christolosier-ship-it/CAILLOU-/pull/49) fusionnée sur `main` : `9f75f1e1976a027b719e7cfd31718d91675560e2`. Tête validée : `de9d0efbe26ba46d44913bc657851def60f9697d`.
+- [CI #453](https://github.com/christolosier-ship-it/CAILLOU-/actions/runs/34093083466) et [Browser regression #119](https://github.com/christolosier-ship-it/CAILLOU-/actions/runs/34093083533) verts. Les parcours existants adoption, Bio/Jeter, soins, sols, accessoires et Placement passent également.
+- [Diagnostics #119](https://github.com/christolosier-ship-it/CAILLOU-/actions/runs/34093083533/artifacts/10007886607) : 20 GLB / 60 cycles, ressources stables à 6 textures, 2 géométries et 5 programmes. Captures mobile/tablette inspectées ; en-tête sans chevauchement ni débordement à 320/390/768/1024 px, cibles tactiles ≥44 px.
+- Deux corrections issues de la validation : ancien test Bio rendu explicite après ajout du bouton Peinture ; en-tête responsive ajusté après inspection visuelle. Le banc Peinture utilise le rendu à la demande hors chute, ramenant sa durée de 13 min 45 à environ 1 min 21 sous SwiftShader, sans réduire la couverture. Ce temps de runner ne mesure pas les performances d'un téléphone réel.
+- Build local : chunk Socle 27,39 kB gzip, chunk 3D 1 021,94 kB gzip ; précache inchangé à 6 entrées / 445,80 KiB. Aucun asset ni nouvelle texture bitmap.
+- Supabase : prix actif 250 Lithons, aucun caillou sans apparence ; tests transactionnels annulés proprement, zéro utilisateur de test restant. Migration déjà appliquée, aucune action manuelle requise.
+- Production Vercel **READY** : `dpl_4meaPx4MGaQgQiJmXxxjdMH2DpRF`, commit `9f75f1e`, domaine [caillou-sigma.vercel.app](https://caillou-sigma.vercel.app/). HTML, JS Socle et 3D, CSS responsive, service worker et manifeste contrôlés sur le domaine public ; RPC `set_rock_appearance`, feature `rock_paint` et adaptateur `paint-v1` présents dans les fichiers servis.
+- Validation fonctionnelle : composants réels en navigateur avec services simulés, contrats réels Supabase testés séparément par SQL. Le contrôle production porte sur le déploiement et les ressources publiées ; aucun achat utilisateur réel n'a été effectué pour cette vérification.
+- Un seul déploiement applicatif de production, aucune Preview supplémentaire. Clôture documentaire séparée, couverte par le garde-fou Vercel docs-only.
+
+Aucun motif, UV, couche, texture peinte ou périmètre V2.4 ajouté. V2-06 n'a pas démarré.
 
 **Ne pas démarrer V2-06 dans cette PR.**
