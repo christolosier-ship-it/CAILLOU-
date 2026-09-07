@@ -111,6 +111,7 @@ jobs:
           CAILLOU_E2E_BASE_URL="http://127.0.0.1:4191" node scripts/web/validate-v2-04-floor-cache.mjs
           kill "$cache_server_pid" 2>/dev/null || true
 
+          run_vite v2-05-paint 4192 scripts/web/validate-v2-05-paint.mjs
           run_vite v2-04-floors 4190 scripts/web/validate-v2-04-floors.mjs
           run_vite placement-unified 4181 scripts/web/validate-placement-unified-e2e.mjs
           run_vite placement-collision 4182 scripts/web/validate-placement-collision-e2e.mjs

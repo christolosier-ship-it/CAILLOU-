@@ -1,6 +1,6 @@
 # CAILLOU™ — Roadmap long terme V2.0 → V2.4
 
-> **Statut : feuille de route active — V2-03 terminée et vérifiée en production le 5 septembre 2026.**
+> **Statut : feuille de route active — V2-04 validée par le propriétaire ; V2-05 en validation.**
 >
 > La V1 est publiée sous le tag `v1.0.0` sur `e9d926be0f2f09f9f1464cf5b4360f82dbeae2ad` et sa roadmap est gelée dans `docs/roadmap/archive/v1/`.
 >
@@ -206,8 +206,8 @@ Aucun moteur de succès n'est implémenté en V2.0.
 | **V2-01** | [`V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md`](V2-01-PLACEMENT-2-0-SCENE-INTERACTIVE.md) | Placement 2.0 & scène interactive | V2-00 | **✅ Terminée** |
 | **V2-02** | [`V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md`](V2-02-SOCLE-CANONIQUE-ECONOMIE-V2.md) | Socle canonique & économie V2 | V2-01 | **✅ Terminée** |
 | **V2-03** | [`V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md`](V2-03-ACCESSOIRES-V2-PIPELINE-COLLISIONS.md) | Accessoires V2 & pipeline collisions | V2-01, V2-02 | **✅ Terminée** |
-| **V2-04** | [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md) | Sols & Boutique décorative | V2-02 | **▶ En cours de validation** |
-| **V2-05** | [`V2-05-PEINTURE-CAILLOU.md`](V2-05-PEINTURE-CAILLOU.md) | Peinture du caillou | V2-02 | Prompt prêt |
+| **V2-04** | [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md) | Sols & Boutique décorative | V2-02 | Validée par le propriétaire, PR #48 fusionnée |
+| **V2-05** | [`V2-05-PEINTURE-CAILLOU.md`](V2-05-PEINTURE-CAILLOU.md) | Peinture du caillou | V2-02 | **▶ En validation** |
 | **V2-06** | [`V2-06-PERSONNALITE-2-0.md`](V2-06-PERSONNALITE-2-0.md) | Personnalité 2.0 | V2-02 | Prompt prêt |
 | **V2-07** | [`V2-07-JOURNAL-DE-VIE.md`](V2-07-JOURNAL-DE-VIE.md) | Journal de vie | V2-02, V2-06 | Prompt prêt |
 | **V2-08** | [`V2-08-STUDIO-PHOTO.md`](V2-08-STUDIO-PHOTO.md) | Studio Photo | V2-01, V2-02, V2-04, V2-05 | Prompt prêt |
@@ -554,4 +554,4 @@ Le prompt protège le **comportement produit**, pas un workaround d'implémentat
 
 Prochaine étape autorisée :
 
-> **Exécuter [`V2-04-SOLS-BOUTIQUE-DECORATIVE.md`](V2-04-SOLS-BOUTIQUE-DECORATIVE.md).**
+> **Terminer la validation de [`V2-05-PEINTURE-CAILLOU.md`](V2-05-PEINTURE-CAILLOU.md).** V2-04 est validée par le propriétaire, PR #48 fusionnée (`630c590`) et déploiement Vercel READY. Ne pas démarrer V2-06 dans cette livraison.

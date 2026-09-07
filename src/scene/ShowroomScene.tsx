@@ -22,6 +22,7 @@ import { normalizeRockPose } from '../features/rockMovement/rockMovementRules'
 import type { RockPose } from '../features/rockMovement/rockMovementTypes'
 import { AccessorySceneObjects } from './AccessorySceneObjects'
 import { RockSceneObject } from './RockSceneObject'
+import type { RockAppearance } from '../features/paint/paintRules'
 import type { RockLoadState, RockSurfacePointerSample } from './RockModel'
 import { SceneCameraController } from './SceneCameraController'
 import type { DisposalReport } from './rockResources'
@@ -35,6 +36,7 @@ export type ShowroomInteractionMode =
 
 interface ShowroomSceneProps {
   floorMaterial?: FloorMaterial | undefined
+  appearance?: RockAppearance | undefined
   rock: RockCatalogEntry
   retryKey: number
   reducedMotion: boolean
@@ -76,6 +78,7 @@ function samePosition(left: readonly number[], right: readonly number[], epsilon
 
 export function ShowroomScene({
   floorMaterial,
+  appearance,
   rock,
   retryKey,
   reducedMotion,
@@ -206,6 +209,7 @@ export function ShowroomScene({
         <Suspense fallback={null}>
           <PlacementPhysicsWorld paused={!object} floorMaterial={floorMaterial}>
             <RockSceneObject
+              appearance={appearance}
               rock={rock}
               retryKey={retryKey}
               bodyState={globalSettling ? 'settling' : placementRockTarget ? 'editing' : 'fixed'}

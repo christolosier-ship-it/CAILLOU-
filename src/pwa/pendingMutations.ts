@@ -12,6 +12,7 @@ export type PendingMutationOperation =
   | 'purchase_rock_feature_unlock'
   | 'purchase_floor'
   | 'select_floor'
+  | 'set_rock_appearance'
 
 export interface PendingServerMutation {
   operation: PendingMutationOperation

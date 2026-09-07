@@ -1,5 +1,7 @@
 import { useFloors } from '../floors/useFloors'
-import { BrushCleaning, ClipboardList, Gem, HandHeart, Move, Shirt, Trash2 } from 'lucide-react'
+import { BrushCleaning, ClipboardList, Gem, HandHeart, Move, Paintbrush, Shirt, Trash2 } from 'lucide-react'
+import { usePaint } from '../paint/usePaint'
+import { PaintPanel } from '../paint/PaintPanel'
 import type { Dispatch } from 'react'
 import { useCallback, useReducer, useState } from 'react'
 
@@ -79,12 +81,14 @@ export function Pedestal({
   })
 
   const floors = useFloors(activeRock.id, care.setBalance)
+  const paint = usePaint(activeRock.id, care.setBalance)
+  const paintOpen = pedestalState.overlay === 'paint'
 
   const placement = usePedestalPlacement({
     activeRock,
     mode,
     dispatchPedestal,
-    externalMutationPending: care.mutationPending,
+    externalMutationPending: care.mutationPending || !!paint.pending,
     onServerStateChanged,
     onBalanceChanged: care.setBalance,
   })
@@ -163,9 +167,15 @@ export function Pedestal({
         : placement.accessorySettling || placement.globalSettling ? ' is-composition-settling' : ''
 
   return (
-    <div className={`pedestal-shell${shellModeClass}`}>
+    <div className={`pedestal-shell${shellModeClass}${paintOpen ? ' is-paint-mode' : ''}`}>
       <header className="pedestal-topbar">
         <div className="pedestal-utilities">
+          <button type="button" className="pedestal-utility pedestal-utility-icon" aria-label="Ouvrir Peinture" title="Peinture"
+            disabled={!capabilities.canOpenBio} onClick={() => {
+              care.prepareExternalTransition()
+              paint.cancel()
+              dispatchPedestal({ type: 'open-overlay', overlay: 'paint' })
+            }}><Paintbrush size={22} strokeWidth={1.75} aria-hidden="true" /></button>
           <button
             type="button"
             className="pedestal-utility"
@@ -209,6 +219,8 @@ export function Pedestal({
           className="pedestal-stage"
           aria-label={`Socle de ${activeRock.name}`}
           data-floor-id={floors.snapshot?.selectedId ?? 'base'}
+          data-paint-mode={paint.appearance.mode}
+          data-paint-color={paint.appearance.color ?? ''}
           data-dust-amount={care.dustAmount.toFixed(3)}
           data-accessory-count={placement.accessoryInstances.length}
           data-rock-mode={mode}
@@ -226,6 +238,7 @@ export function Pedestal({
           </div>
 
           <ShowroomScene
+            appearance={paint.appearance}
             floorMaterial={floors.material}
             rock={rock}
             retryKey={retryKey}
@@ -334,6 +347,11 @@ export function Pedestal({
           ) : null}
 
           <p className="pedestal-status">{status}</p>
+          {paintOpen ? <PaintPanel paint={paint} onClose={() => {
+            paint.cancel(); dispatchPedestal({ type: 'close-overlay' })
+          }} onShop={() => {
+            paint.cancel(); dispatchPedestal({ type: 'open-overlay', overlay: 'shop', shopFocus: 'paint' })
+          }} /> : null}
         </section>
 
         <nav className="pedestal-actions" aria-label="Actions du caillou">
@@ -395,6 +413,8 @@ export function Pedestal({
 
       {accessoryShopOpen ? (
         <AccessoryShop
+          paint={paint}
+          highlightPaint={shopFocus === 'paint'}
           floors={floors}
           balance={care.economyState.balance}
           permit={placement.rockPermit.snapshot}

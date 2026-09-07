@@ -13,6 +13,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { createPlacementGeometry } from '../features/placement/placementGeometry'
 import type { PlacementGeometry } from '../features/placement/placementGeometry'
 import { disposeRockObject } from './rockResources'
+import { createPaintMaterialAdapter } from '../features/paint/paintMaterial'
+import { NATURAL_APPEARANCE } from '../features/paint/paintRules'
+import type { RockAppearance } from '../features/paint/paintRules'
 
 export type RockLoadState = 'loading' | 'ready' | 'error'
 
@@ -27,6 +30,7 @@ export interface RockSurfacePointerSample {
 }
 
 interface RockModelProps {
+  appearance?: RockAppearance | undefined
   path: string
   dustAmount?: number
   dustRevision?: number
@@ -128,6 +132,7 @@ function toSurfaceSample(event: ThreeEvent<PointerEvent>): RockSurfacePointerSam
 
 export function RockModel({
   path,
+  appearance = NATURAL_APPEARANCE,
   dustAmount = 0,
   dustRevision = 0,
   cleaningActive = false,
@@ -142,6 +147,9 @@ export function RockModel({
 }: RockModelProps) {
   const [object, setObject] = useState<Object3D | null>(null)
   const dustResourcesRef = useRef<DustResources | null>(null)
+  const paintRef = useRef<ReturnType<typeof createPaintMaterialAdapter> | null>(null)
+  const appearanceRef = useRef(appearance)
+  appearanceRef.current = appearance
   const invalidate = useThree((state) => state.invalidate)
 
   useEffect(() => {
@@ -149,6 +157,7 @@ export function RockModel({
     const loader = new GLTFLoader()
     let active = true
     let loadedObject: Object3D | null = null
+    let paint: ReturnType<typeof createPaintMaterialAdapter> | null = null
 
     onLoadStateChange?.('loading')
     onObjectReady?.(null)
@@ -180,6 +189,9 @@ export function RockModel({
           return
         }
 
+        paint = createPaintMaterialAdapter(loadedObject)
+        paint.apply(appearanceRef.current)
+        paintRef.current = paint
         setObject(loadedObject)
         onObjectReady?.(loadedObject)
         onPlacementGeometryReady?.(placementGeometry)
@@ -198,9 +210,17 @@ export function RockModel({
       controller.abort()
       onObjectReady?.(null)
       onPlacementGeometryReady?.(null)
+      // Restore source materials before the loader disposes its original textures.
+      paint?.dispose()
+      if (paintRef.current === paint) paintRef.current = null
       if (loadedObject) disposeRockObject(loadedObject)
     }
   }, [onLoadStateChange, onObjectReady, onPlacementGeometryReady, path])
+
+  useEffect(() => {
+    paintRef.current?.apply(appearance)
+    invalidate()
+  }, [appearance, invalidate, object])
 
   useEffect(() => {
     if (!object || dustAmount <= 0) {
