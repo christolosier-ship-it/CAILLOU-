@@ -20,6 +20,13 @@
 .paint-hint { color: #55534e; }
 .paint-error { padding: .5rem; border: 1px solid #9a784d; border-radius: 12px; }
 @media (max-width: 600px) {
+  .pedestal-topbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; }
   .pedestal-shell.is-paint-mode .pedestal-stage { min-height: 640px; }
   .paint-panel { bottom: 1rem; right: .6rem; width: min(330px, calc(100% - 1.2rem)); max-height: 50%; padding: .75rem; }
+}
+@media (max-width: 360px) {
+  .pedestal-topbar { grid-template-columns: 1fr auto; }
+  .pedestal-brand { grid-column: 1 / -1; grid-row: 1; }
+  .pedestal-utilities { grid-column: 1; grid-row: 2; }
+  .pedestal-balance { grid-column: 2; grid-row: 2; }
 }

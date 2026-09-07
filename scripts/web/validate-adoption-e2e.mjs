@@ -109,6 +109,22 @@ try {
   if (!bio.includes('Bernard') || !bio.includes('Spécimen')) throw new Error('Bio / Stats does not identify the active rock')
   await page.click('.pedestal-dialog-heading button')
 
+  const headerLayouts = []
+  for (const width of [320, 390, 768, 1024]) {
+    await page.setViewport({ width, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
+    const layout = await page.evaluate(() => {
+      const nodes = [...document.querySelectorAll('.pedestal-utilities button, .pedestal-brand, .pedestal-balance')]
+      const rects = nodes.map((node) => node.getBoundingClientRect())
+      const overlaps = rects.some((a, i) => rects.slice(i + 1).some((b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top))
+      const targets = [...document.querySelectorAll('.pedestal-utilities button')].every((node) => {
+        const r = node.getBoundingClientRect(); return r.width >= 44 && r.height >= 44
+      })
+      return { overlaps, targets, overflow: document.documentElement.scrollWidth > innerWidth + 1 }
+    })
+    if (layout.overlaps || layout.overflow || !layout.targets) throw new Error(`Invalid pedestal header at ${width}px: ${JSON.stringify(layout)}`)
+    headerLayouts.push({ width, ...layout })
+  }
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true })
   await page.screenshot({ path: `${outputDir}/adoption-phone.png`, fullPage: true })
   const report = {
     status: 'pass',
@@ -117,6 +133,7 @@ try {
     activeRockName: 'Bernard',
     pedestal,
     bioStatsOpened: true,
+    headerLayouts,
   }
   await writeFile(`${outputDir}/report.json`, `${JSON.stringify(report, null, 2)}\n`, 'utf8')
   await writeFile(`${outputDir}/browser.log`, `${consoleLines.join('\n')}\n`, 'utf8')
