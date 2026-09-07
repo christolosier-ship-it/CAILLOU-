@@ -9,6 +9,7 @@ import type { PlacementGeometry } from '../features/placement/placementGeometry'
 import type { PlacementTransform } from '../features/placement/placementTypes'
 import { ROCK_SETTLE_TIMEOUT_MS } from '../features/rockMovement/rockMovementRules'
 import { RockModel } from './RockModel'
+import type { RockAppearance } from '../features/paint/paintRules'
 import type { RockLoadState, RockSurfacePointerSample } from './RockModel'
 
 const ROCK_PLACEMENT_BODY_PHYSICS: PlacementBodyPhysicsConfig = {
@@ -28,6 +29,7 @@ const ROCK_PLACEMENT_BODY_PHYSICS: PlacementBodyPhysicsConfig = {
 }
 
 interface RockSceneObjectProps {
+  appearance?: RockAppearance | undefined
   rock: RockCatalogEntry
   retryKey: number
   bodyState: PlacementBodyState
@@ -49,6 +51,7 @@ interface RockSceneObjectProps {
 }
 
 export function RockSceneObject({
+  appearance,
   rock,
   retryKey,
   bodyState,
@@ -102,6 +105,7 @@ export function RockSceneObject({
     <>
       <group ref={visualGroupRef} position={transform.position} quaternion={transform.rotation}>
         <RockModel
+          appearance={appearance}
           key={`${rock.id}-${retryKey}`}
           path={rock.modelPath}
           dustAmount={dustAmount}

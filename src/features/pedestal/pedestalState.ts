@@ -1,7 +1,7 @@
 export type PedestalInteractionMode = 'orbit' | 'caress' | 'cleaning' | 'placement' | 'settling'
-export type PedestalOverlay = 'none' | 'shop' | 'bio' | 'discard'
+export type PedestalOverlay = 'none' | 'shop' | 'bio' | 'discard' | 'paint'
 export type PedestalNetworkState = 'online' | 'reconnecting' | 'offline'
-export type PedestalShopFocus = 'default' | 'permit'
+export type PedestalShopFocus = 'default' | 'permit' | 'paint'
 
 export interface PedestalState {
   interactionMode: PedestalInteractionMode

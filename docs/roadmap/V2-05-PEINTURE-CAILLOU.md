@@ -1,6 +1,6 @@
 # V2-05 — Peinture du caillou
 
-> **Statut : spécifiée — prête à exécuter après V2-02.**
+> **Statut : implémentée — validation CI et navigateur en cours.**
 >
 > **Date : 4 septembre 2026.**
 >
@@ -212,8 +212,28 @@ Ne pas implémenter V2.4 : UV, motifs, zones, couches, patine, stickers, galerie
 
 ## 20. État / compte rendu d'exécution
 
-**Statut : À exécuter.**
+**Statut : implémentée, validation finale en cours (7 septembre 2026).**
 
-À compléter : prix feature, migration, contrat apparence, méthode material override, palette/finitions finales, tests multi-roches, performance, CI, Preview, production et dettes V2.4.
+### Implémentation
+
+- Branche `feat/v2-05-paint`, issue de `630c590` (V2-04, PR #48).
+- Peinture minérale : **250 Lithons par caillou**, prix serveur dans `feature_catalog`. Achat par le contrat V2-02 existant, sans nouvelle mécanique économique.
+- Migration Supabase appliquée : `20260906193308_v2_05_rock_paint.sql`. Apparence version 1, `natural` explicite ou `solid` avec couleur hexadécimale normalisée et finition. Backfill naturel sans droits offerts ; nouveau caillou naturel et verrouillé.
+- Lecture propriétaire sous RLS, écritures clientes directes interdites. RPC publique invoker, implémentation privée avec contrôle du propriétaire, caillou actif, entitlement et idempotence liée au contenu. Un ancien retry ne réapplique pas un état dépassé.
+- Action Peinture au Socle, renvoi vers la Boutique existante, aperçu local, Annuler, Appliquer après confirmation serveur, cache isolé par propriétaire/caillou, sauvegarde offline bloquée et réconciliation après reconnexion.
+- Palette : Ivoire, Graphite, Ocre, Terre cuite, Mousse, Bleu ardoise, Prune et Rose quartz ; sélecteur de couleur personnalisé. Finitions mate/satinée/brillante : roughness 0,90 / 0,48 / 0,18 et metalness 0, sans promesse physique supplémentaire.
+
+### Rendu et preuves disponibles
+
+- Audit binaire des 20 GLB : chacun possède actuellement un mesh, un matériau PBR, une texture couleur et une normale. Aucune modification des assets, aucune texture ajoutée.
+- Override sur clones propres à l'instance, sans texture couleur en mode peint ; normales/AO conservées. Retour naturel par réaffectation des références originales exactes, sans rechargement. Clones réutilisés puis libérés avant les ressources sources. Géométrie et collider inchangés.
+- Tests unitaires : validation, draft/annulation/confirmation, cache isolé, multi-mesh/multi-matériaux synthétiques, ressources partagées, 60 cycles et disposal. Suite de 143 tests passée, TypeScript et lint passés.
+- `supabase/tests/v2_05_rock_paint.sql` exécuté avec rollback : ownership/RLS/ACL, prix et débit unique, retries, paramètres invalides, entitlement, caillou jeté, nouveau caillou, attribution administrative et accès anonyme : PASS.
+- Advisors : aucun nouveau warning ; protection contre mots de passe compromis désactivée, avertissement Auth préexistant ([remédiation](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)).
+- Banc navigateur intégré au workflow existant : composants réels, service économique simulé déterministe, 20 GLB, 60 cycles, captures mobile/tablette, réseau interrompu, réconciliation, poussière et chute physique. Les contrats serveur sont testés séparément par SQL, pas simulés comme preuve serveur.
+
+### À terminer avant clôture
+
+CI et Browser regression verts, inspection des captures, fusion, production Vercel READY et vérification des ressources publiées. Aucune Preview intermédiaire. Aucun motif, UV, couche, texture peinte ou périmètre V2.4 ajouté.
 
 **Ne pas démarrer V2-06 dans cette PR.**

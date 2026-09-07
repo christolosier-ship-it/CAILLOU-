@@ -319,6 +319,41 @@ export type Database = {
         }
         Relationships: []
       }
+      rock_appearance: {
+        Row: {
+          paint_color: string | null
+          paint_finish: string
+          paint_mode: string
+          updated_at: string
+          user_rock_id: string
+          version: number
+        }
+        Insert: {
+          paint_color?: string | null
+          paint_finish?: string
+          paint_mode?: string
+          updated_at?: string
+          user_rock_id: string
+          version?: number
+        }
+        Update: {
+          paint_color?: string | null
+          paint_finish?: string
+          paint_mode?: string
+          updated_at?: string
+          user_rock_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rock_appearance_user_rock_id_fkey"
+            columns: ["user_rock_id"]
+            isOneToOne: true
+            referencedRelation: "user_rocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rock_catalog: {
         Row: {
           active: boolean
@@ -771,6 +806,23 @@ export type Database = {
         Returns: {
           floor_id: string
           user_rock_id: string
+        }[]
+      }
+      set_rock_appearance: {
+        Args: {
+          p_event_key: string
+          p_paint_color: string
+          p_paint_finish: string
+          p_paint_mode: string
+          p_user_rock_id: string
+        }
+        Returns: {
+          paint_color: string
+          paint_finish: string
+          paint_mode: string
+          updated_at: string
+          user_rock_id: string
+          version: number
         }[]
       }
       stabilize_equipped_accessory: {

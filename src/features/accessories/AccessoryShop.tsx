@@ -1,5 +1,7 @@
 import { FloorShopSection } from '../floors/FloorShopSection'
 import type { FloorController } from '../floors/useFloors'
+import type { PaintController } from '../paint/usePaint'
+import { PaintShopCard } from '../paint/PaintShopCard'
 import { Check, Gem, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -15,6 +17,8 @@ import type {
 } from './accessoryTypes'
 
 interface AccessoryShopProps {
+  paint?: PaintController | undefined
+  highlightPaint?: boolean
   floors?: FloorController | undefined
   balance: number
   onBalanceChanged: (balance: number) => void
@@ -53,6 +57,8 @@ function accessoryLicense(provenance: AccessoryCatalogItem['provenance']) {
 export function AccessoryShop({
   balance,
   floors,
+  paint,
+  highlightPaint = false,
   onBalanceChanged,
   onPurchased,
   onClose,
@@ -74,7 +80,7 @@ export function AccessoryShop({
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
   const [purchaseFeedback, setPurchaseFeedback] = useState<string | null>(null)
   const [retryInput, setRetryInput] = useState<PurchaseAccessoryInput | null>(null)
-  const busy = pendingId !== null || permitPending || !!floors?.pending
+  const busy = pendingId !== null || permitPending || !!floors?.pending || !!paint?.pending
   const mutationBlocked = busy || interactionDisabled
 
   const refresh = useCallback(async () => {
@@ -162,7 +168,7 @@ export function AccessoryShop({
           <button
             type="button"
             className="accessory-shop-close"
-            autoFocus={!highlightPermit}
+            autoFocus={!highlightPermit && !highlightPaint}
             onClick={onClose}
             disabled={busy}
             aria-label="Fermer la Boutique"
@@ -184,6 +190,8 @@ export function AccessoryShop({
             <p className="eyebrow">Autorisations / services</p>
             <h3 id="shop-services-title">Fonctionnalités de ce caillou</h3>
           </header>
+
+          {paint ? <PaintShopCard paint={paint} balance={balance} disabled={mutationBlocked} highlight={highlightPaint} /> : null}
 
           <article className={`feature-card${highlightPermit ? ' is-highlighted' : ''}`} data-feature-id={permit?.featureId ?? 'rock_movement'}>
             <div className="feature-card-icon" aria-hidden="true"><ShieldCheck size={34} strokeWidth={1.55} /></div>
